@@ -1,0 +1,17 @@
+{
+  "summary": "Added a link.",
+  "operations": [
+    {
+      "op": "add_block",
+      "after_id": "01JM00000000000000000000A7",
+      "block": {
+        "type": "link",
+        "props": {
+          "title": "Click me",
+          "url": "javascript:alert(1)"
+        }
+      }
+    }
+  ],
+  "questions": []
+}

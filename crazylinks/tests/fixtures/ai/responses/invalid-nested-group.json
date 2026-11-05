@@ -1,0 +1,17 @@
+{
+  "summary": "Added a Drinks group inside Menus.",
+  "operations": [
+    {
+      "op": "add_block",
+      "after_id": "01JC00000000000000000000C4",
+      "block": {
+        "type": "group",
+        "parent_id": "01JC00000000000000000000C2",
+        "props": {
+          "title": "Drinks"
+        }
+      }
+    }
+  ],
+  "questions": []
+}

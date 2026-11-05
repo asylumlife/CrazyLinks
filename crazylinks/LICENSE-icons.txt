@@ -1,0 +1,15 @@
+Brand icons bundled with CrazyLinks
+===================================
+
+The brand glyphs in src/Render/Icons.php (the `d` attribute of each path) come from Simple Icons
+(https://simpleicons.org, https://github.com/simple-icons/simple-icons), released under CC0 1.0 Universal
+(public domain dedication): https://creativecommons.org/publicdomain/zero/1.0/
+
+Source versions: simple-icons 16.36.0, except LinkedIn and Amazon, which are from 13.21.0 (the last release that
+included them). Titles are Simple Icons' own. The Twitter slug reuses the X glyph.
+
+The email, phone, website, pin and pinned glyphs are original strokes written for CrazyLinks and are covered by
+the plugin's GPL-2.0-or-later license.
+
+CC0 applies to the artwork only. The logos remain trademarks of their owners; CrazyLinks uses them solely to
+identify links to those services.

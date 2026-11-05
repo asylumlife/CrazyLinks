@@ -1,0 +1,2879 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://crazylinks.dev/schemas/ai-ops.v1.json",
+    "title": "CrazyLinks AI operations, schema v1",
+    "description": "What the AI returns: a summary, a list of operations on the page document, and questions when the request is ambiguous. Flat and non-recursive, additionalProperties false throughout. Custom HTML blocks and custom CSS are not expressible. Block props mirror schemas/page.v1.json (a test keeps them in sync).",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "summary",
+        "operations",
+        "questions"
+    ],
+    "properties": {
+        "summary": {
+            "type": "string",
+            "maxLength": 600,
+            "description": "One or two plain sentences describing the change (or answering an analytics question)."
+        },
+        "operations": {
+            "type": "array",
+            "maxItems": 60,
+            "items": {
+                "anyOf": [
+                    {
+                        "$ref": "#/$defs/op_add_block"
+                    },
+                    {
+                        "$ref": "#/$defs/op_update_block"
+                    },
+                    {
+                        "$ref": "#/$defs/op_move_block"
+                    },
+                    {
+                        "$ref": "#/$defs/op_remove_block"
+                    },
+                    {
+                        "$ref": "#/$defs/op_set_design"
+                    },
+                    {
+                        "$ref": "#/$defs/op_set_profile"
+                    }
+                ]
+            }
+        },
+        "questions": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+                "type": "string",
+                "maxLength": 300
+            },
+            "description": "Ask instead of guessing. When non-empty, operations should be empty."
+        }
+    },
+    "$defs": {
+        "ulid": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+        },
+        "color": {
+            "type": "string",
+            "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+        },
+        "color_or_empty": {
+            "type": "string",
+            "pattern": "^(?:|#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8}))$"
+        },
+        "datetime_or_null": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "format": "date-time"
+        },
+        "background": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "solid",
+                        "gradient",
+                        "image",
+                        "pattern"
+                    ]
+                },
+                "color": {
+                    "$ref": "#/$defs/color"
+                },
+                "from": {
+                    "$ref": "#/$defs/color"
+                },
+                "to": {
+                    "$ref": "#/$defs/color"
+                },
+                "angle": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 360
+                },
+                "radial": {
+                    "type": "boolean"
+                },
+                "image": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "overlay": {
+                    "$ref": "#/$defs/color_or_empty"
+                },
+                "blur": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 40
+                },
+                "pattern": {
+                    "type": "string",
+                    "enum": [
+                        "dots",
+                        "grid",
+                        "stripes",
+                        "lines",
+                        "checks",
+                        "noise"
+                    ]
+                },
+                "pattern_color": {
+                    "$ref": "#/$defs/color"
+                },
+                "pattern_size": {
+                    "type": "integer",
+                    "minimum": 8,
+                    "maximum": 80
+                }
+            }
+        },
+        "schedule": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "start": {
+                    "$ref": "#/$defs/datetime_or_null"
+                },
+                "end": {
+                    "$ref": "#/$defs/datetime_or_null"
+                },
+                "weekly": {
+                    "type": [
+                        "object",
+                        "null"
+                    ],
+                    "additionalProperties": false,
+                    "required": [
+                        "days",
+                        "start",
+                        "end"
+                    ],
+                    "description": "Recurring weekly window in the site timezone. days are ISO weekdays (1 = Monday ... 7 = Sunday); start and end are HH:MM (24-hour). A window belongs to the day it starts on; an end at or before the start runs past midnight into the next day. Both this window and the one-off start/end must be satisfied when both are set.",
+                    "properties": {
+                        "days": {
+                            "type": "array",
+                            "minItems": 1,
+                            "maxItems": 7,
+                            "uniqueItems": true,
+                            "items": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 7
+                            }
+                        },
+                        "start": {
+                            "type": "string",
+                            "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$"
+                        },
+                        "end": {
+                            "type": "string",
+                            "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$"
+                        }
+                    }
+                }
+            }
+        },
+        "block_ref": {
+            "type": "string",
+            "pattern": "^(?:[0-9A-HJKMNP-TV-Z]{26}|new-[0-9]{1,3})$",
+            "description": "An existing block id, or the ref of a block added earlier in this list (new-1, new-2, ...)."
+        },
+        "block_ref_or_null": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "pattern": "^(?:[0-9A-HJKMNP-TV-Z]{26}|new-[0-9]{1,3})$"
+        },
+        "profile": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 80
+                },
+                "bio": {
+                    "type": "string",
+                    "maxLength": 280
+                },
+                "avatar": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "avatar_style": {
+                    "type": "string",
+                    "enum": [
+                        "circle",
+                        "square",
+                        "hero",
+                        "banner",
+                        "shape"
+                    ]
+                },
+                "shape_mask": {
+                    "type": "string",
+                    "enum": [
+                        "circle",
+                        "squircle",
+                        "blob"
+                    ]
+                },
+                "banner": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "location": {
+                    "type": "string",
+                    "maxLength": 80
+                },
+                "pronouns": {
+                    "type": "string",
+                    "maxLength": 40
+                },
+                "verified_badge": {
+                    "type": "boolean"
+                },
+                "header_layout": {
+                    "type": "string",
+                    "enum": [
+                        "centered",
+                        "left",
+                        "hero",
+                        "banner"
+                    ]
+                },
+                "banner_focal_point": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "x": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1
+                        },
+                        "y": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1
+                        }
+                    }
+                }
+            },
+            "description": "Page header. Rendered first; there is no separate profile block."
+        },
+        "design": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "theme": {
+                    "type": "string",
+                    "maxLength": 40,
+                    "pattern": "^[a-z0-9-]*$"
+                },
+                "background": {
+                    "$ref": "#/$defs/background"
+                },
+                "text": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "color": {
+                            "$ref": "#/$defs/color"
+                        },
+                        "muted": {
+                            "$ref": "#/$defs/color"
+                        },
+                        "font": {
+                            "type": "string",
+                            "enum": [
+                                "system-sans",
+                                "system-serif",
+                                "system-rounded",
+                                "system-mono"
+                            ]
+                        },
+                        "size": {
+                            "type": "string",
+                            "enum": [
+                                "sm",
+                                "md",
+                                "lg"
+                            ]
+                        }
+                    }
+                },
+                "button": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "shape": {
+                            "type": "string",
+                            "enum": [
+                                "pill",
+                                "rounded",
+                                "square"
+                            ]
+                        },
+                        "fill": {
+                            "type": "string",
+                            "enum": [
+                                "solid",
+                                "outline",
+                                "soft",
+                                "glass"
+                            ]
+                        },
+                        "color": {
+                            "$ref": "#/$defs/color"
+                        },
+                        "text_color": {
+                            "$ref": "#/$defs/color"
+                        },
+                        "shadow": {
+                            "type": "string",
+                            "enum": [
+                                "none",
+                                "soft",
+                                "hard"
+                            ]
+                        },
+                        "border_width": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 8
+                        },
+                        "hover": {
+                            "type": "string",
+                            "enum": [
+                                "lift",
+                                "darken",
+                                "none"
+                            ]
+                        }
+                    }
+                },
+                "accent": {
+                    "$ref": "#/$defs/color"
+                },
+                "radius": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 48
+                },
+                "layout": {
+                    "type": "string",
+                    "enum": [
+                        "list",
+                        "grid",
+                        "featured"
+                    ]
+                },
+                "dark_mode": {
+                    "type": "string",
+                    "enum": [
+                        "auto",
+                        "light",
+                        "dark"
+                    ]
+                }
+            },
+            "description": "Design patch. Objects (background, text, button) merge into the current values; setting theme resets background, text, button, accent and radius to the theme first."
+        },
+        "props_link": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "title": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "minLength": 1
+                },
+                "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "description": "Scheme must be http, https, mailto, tel or sms (enforced by the PHP URL policy).",
+                    "minLength": 1
+                },
+                "subtitle": {
+                    "type": "string",
+                    "maxLength": 160
+                },
+                "display": {
+                    "type": "string",
+                    "enum": [
+                        "classic",
+                        "featured",
+                        "thumbnail"
+                    ]
+                },
+                "thumbnail": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "icon": {
+                    "type": "string",
+                    "maxLength": 48,
+                    "pattern": "^[a-z0-9-]*$"
+                },
+                "emoji": {
+                    "type": "string",
+                    "maxLength": 16
+                },
+                "focal_point": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "x": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1
+                        },
+                        "y": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1
+                        }
+                    }
+                },
+                "badge": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "text": {
+                            "type": "string",
+                            "maxLength": 24
+                        },
+                        "color": {
+                            "$ref": "#/$defs/color_or_empty"
+                        }
+                    }
+                },
+                "tile_size": {
+                    "type": "string",
+                    "enum": [
+                        "1x1",
+                        "2x1",
+                        "2x2"
+                    ]
+                },
+                "style": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "fill": {
+                            "type": "string",
+                            "enum": [
+                                "solid",
+                                "outline",
+                                "soft",
+                                "glass"
+                            ]
+                        },
+                        "color": {
+                            "$ref": "#/$defs/color_or_empty"
+                        },
+                        "text_color": {
+                            "$ref": "#/$defs/color_or_empty"
+                        }
+                    }
+                },
+                "open_new_tab": {
+                    "type": "boolean"
+                },
+                "rel": {
+                    "type": "array",
+                    "maxItems": 2,
+                    "uniqueItems": true,
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "nofollow",
+                            "sponsored"
+                        ]
+                    }
+                },
+                "deep_link": {
+                    "type": "string",
+                    "maxLength": 512,
+                    "description": "Optional app URL scheme. Stored only in Phase 1."
+                },
+                "thumb_side": {
+                    "type": "string",
+                    "enum": [
+                        "left",
+                        "right"
+                    ]
+                },
+                "new_until": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Shows a NEW flag until this time."
+                },
+                "thumbnail_alt": {
+                    "type": "string",
+                    "maxLength": 250,
+                    "description": "Alternative text for the thumbnail or featured image. Falls back to the Media Library alt text."
+                },
+                "decorative": {
+                    "type": "boolean",
+                    "description": "The thumbnail is decorative: renders with empty alt text and silences the missing-alt warning."
+                }
+            },
+            "required": [
+                "title",
+                "url"
+            ]
+        },
+        "patch_link": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "title": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "minLength": 1
+                },
+                "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "description": "Scheme must be http, https, mailto, tel or sms (enforced by the PHP URL policy).",
+                    "minLength": 1
+                },
+                "subtitle": {
+                    "type": "string",
+                    "maxLength": 160
+                },
+                "display": {
+                    "type": "string",
+                    "enum": [
+                        "classic",
+                        "featured",
+                        "thumbnail"
+                    ]
+                },
+                "thumbnail": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "icon": {
+                    "type": "string",
+                    "maxLength": 48,
+                    "pattern": "^[a-z0-9-]*$"
+                },
+                "emoji": {
+                    "type": "string",
+                    "maxLength": 16
+                },
+                "focal_point": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "x": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1
+                        },
+                        "y": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1
+                        }
+                    }
+                },
+                "badge": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "text": {
+                            "type": "string",
+                            "maxLength": 24
+                        },
+                        "color": {
+                            "$ref": "#/$defs/color_or_empty"
+                        }
+                    }
+                },
+                "tile_size": {
+                    "type": "string",
+                    "enum": [
+                        "1x1",
+                        "2x1",
+                        "2x2"
+                    ]
+                },
+                "style": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "fill": {
+                            "type": "string",
+                            "enum": [
+                                "solid",
+                                "outline",
+                                "soft",
+                                "glass"
+                            ]
+                        },
+                        "color": {
+                            "$ref": "#/$defs/color_or_empty"
+                        },
+                        "text_color": {
+                            "$ref": "#/$defs/color_or_empty"
+                        }
+                    }
+                },
+                "open_new_tab": {
+                    "type": "boolean"
+                },
+                "rel": {
+                    "type": "array",
+                    "maxItems": 2,
+                    "uniqueItems": true,
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "nofollow",
+                            "sponsored"
+                        ]
+                    }
+                },
+                "deep_link": {
+                    "type": "string",
+                    "maxLength": 512,
+                    "description": "Optional app URL scheme. Stored only in Phase 1."
+                },
+                "thumb_side": {
+                    "type": "string",
+                    "enum": [
+                        "left",
+                        "right"
+                    ]
+                },
+                "new_until": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Shows a NEW flag until this time."
+                },
+                "thumbnail_alt": {
+                    "type": "string",
+                    "maxLength": 250,
+                    "description": "Alternative text for the thumbnail or featured image. Falls back to the Media Library alt text."
+                },
+                "decorative": {
+                    "type": "boolean",
+                    "description": "The thumbnail is decorative: renders with empty alt text and silences the missing-alt warning."
+                }
+            }
+        },
+        "new_link": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "props"
+            ],
+            "properties": {
+                "type": {
+                    "const": "link"
+                },
+                "parent_id": {
+                    "$ref": "#/$defs/block_ref_or_null"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "schedule": {
+                    "$ref": "#/$defs/schedule"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "animation": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "pulse",
+                        "shake",
+                        "wobble",
+                        "shimmer"
+                    ]
+                },
+                "tracking": {
+                    "type": "boolean"
+                },
+                "props": {
+                    "$ref": "#/$defs/props_link"
+                }
+            }
+        },
+        "props_socials": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "maxItems": 40,
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                            "network": {
+                                "type": "string",
+                                "enum": [
+                                    "instagram",
+                                    "tiktok",
+                                    "youtube",
+                                    "x",
+                                    "twitter",
+                                    "facebook",
+                                    "threads",
+                                    "bluesky",
+                                    "mastodon",
+                                    "linkedin",
+                                    "pinterest",
+                                    "snapchat",
+                                    "twitch",
+                                    "discord",
+                                    "whatsapp",
+                                    "telegram",
+                                    "signal",
+                                    "spotify",
+                                    "apple_music",
+                                    "soundcloud",
+                                    "bandcamp",
+                                    "github",
+                                    "dribbble",
+                                    "behance",
+                                    "medium",
+                                    "substack",
+                                    "patreon",
+                                    "kofi",
+                                    "reddit",
+                                    "tumblr",
+                                    "vimeo",
+                                    "etsy",
+                                    "amazon",
+                                    "email",
+                                    "phone",
+                                    "website",
+                                    "rss"
+                                ]
+                            },
+                            "url": {
+                                "type": "string",
+                                "maxLength": 2048,
+                                "description": "Scheme must be http, https, mailto, tel or sms (enforced by the PHP URL policy).",
+                                "minLength": 1
+                            },
+                            "id": {
+                                "$ref": "#/$defs/ulid",
+                                "description": "Stable item id; generated by the validator when missing. Used in /go/{block_id}/{item_id}/ click URLs."
+                            }
+                        },
+                        "required": [
+                            "network",
+                            "url"
+                        ]
+                    }
+                },
+                "style": {
+                    "type": "string",
+                    "enum": [
+                        "icons",
+                        "buttons"
+                    ]
+                }
+            },
+            "required": [
+                "items"
+            ]
+        },
+        "patch_socials": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "maxItems": 40,
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                            "network": {
+                                "type": "string",
+                                "enum": [
+                                    "instagram",
+                                    "tiktok",
+                                    "youtube",
+                                    "x",
+                                    "twitter",
+                                    "facebook",
+                                    "threads",
+                                    "bluesky",
+                                    "mastodon",
+                                    "linkedin",
+                                    "pinterest",
+                                    "snapchat",
+                                    "twitch",
+                                    "discord",
+                                    "whatsapp",
+                                    "telegram",
+                                    "signal",
+                                    "spotify",
+                                    "apple_music",
+                                    "soundcloud",
+                                    "bandcamp",
+                                    "github",
+                                    "dribbble",
+                                    "behance",
+                                    "medium",
+                                    "substack",
+                                    "patreon",
+                                    "kofi",
+                                    "reddit",
+                                    "tumblr",
+                                    "vimeo",
+                                    "etsy",
+                                    "amazon",
+                                    "email",
+                                    "phone",
+                                    "website",
+                                    "rss"
+                                ]
+                            },
+                            "url": {
+                                "type": "string",
+                                "maxLength": 2048,
+                                "description": "Scheme must be http, https, mailto, tel or sms (enforced by the PHP URL policy).",
+                                "minLength": 1
+                            },
+                            "id": {
+                                "$ref": "#/$defs/ulid",
+                                "description": "Stable item id; generated by the validator when missing. Used in /go/{block_id}/{item_id}/ click URLs."
+                            }
+                        },
+                        "required": [
+                            "network",
+                            "url"
+                        ]
+                    }
+                },
+                "style": {
+                    "type": "string",
+                    "enum": [
+                        "icons",
+                        "buttons"
+                    ]
+                }
+            }
+        },
+        "new_socials": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "props"
+            ],
+            "properties": {
+                "type": {
+                    "const": "socials"
+                },
+                "parent_id": {
+                    "$ref": "#/$defs/block_ref_or_null"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "schedule": {
+                    "$ref": "#/$defs/schedule"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "animation": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "pulse",
+                        "shake",
+                        "wobble",
+                        "shimmer"
+                    ]
+                },
+                "tracking": {
+                    "type": "boolean"
+                },
+                "props": {
+                    "$ref": "#/$defs/props_socials"
+                }
+            }
+        },
+        "props_heading": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "text": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "minLength": 1
+                },
+                "level": {
+                    "type": "string",
+                    "enum": [
+                        "h2",
+                        "h3"
+                    ]
+                },
+                "align": {
+                    "type": "string",
+                    "enum": [
+                        "left",
+                        "center",
+                        "right"
+                    ]
+                },
+                "size": {
+                    "type": "string",
+                    "enum": [
+                        "sm",
+                        "md",
+                        "lg",
+                        "xl"
+                    ]
+                },
+                "weight": {
+                    "type": "string",
+                    "enum": [
+                        "normal",
+                        "bold",
+                        "black"
+                    ]
+                },
+                "color": {
+                    "$ref": "#/$defs/color_or_empty"
+                },
+                "uppercase": {
+                    "type": "boolean"
+                },
+                "subtext": {
+                    "type": "string",
+                    "maxLength": 160
+                },
+                "divider": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "line",
+                        "dots"
+                    ]
+                },
+                "spacing": {
+                    "type": "string",
+                    "enum": [
+                        "tight",
+                        "normal",
+                        "loose"
+                    ]
+                },
+                "emoji": {
+                    "type": "string",
+                    "maxLength": 16
+                },
+                "icon": {
+                    "type": "string",
+                    "maxLength": 48,
+                    "pattern": "^[a-z0-9-]*$"
+                }
+            },
+            "required": [
+                "text"
+            ]
+        },
+        "patch_heading": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "text": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "minLength": 1
+                },
+                "level": {
+                    "type": "string",
+                    "enum": [
+                        "h2",
+                        "h3"
+                    ]
+                },
+                "align": {
+                    "type": "string",
+                    "enum": [
+                        "left",
+                        "center",
+                        "right"
+                    ]
+                },
+                "size": {
+                    "type": "string",
+                    "enum": [
+                        "sm",
+                        "md",
+                        "lg",
+                        "xl"
+                    ]
+                },
+                "weight": {
+                    "type": "string",
+                    "enum": [
+                        "normal",
+                        "bold",
+                        "black"
+                    ]
+                },
+                "color": {
+                    "$ref": "#/$defs/color_or_empty"
+                },
+                "uppercase": {
+                    "type": "boolean"
+                },
+                "subtext": {
+                    "type": "string",
+                    "maxLength": 160
+                },
+                "divider": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "line",
+                        "dots"
+                    ]
+                },
+                "spacing": {
+                    "type": "string",
+                    "enum": [
+                        "tight",
+                        "normal",
+                        "loose"
+                    ]
+                },
+                "emoji": {
+                    "type": "string",
+                    "maxLength": 16
+                },
+                "icon": {
+                    "type": "string",
+                    "maxLength": 48,
+                    "pattern": "^[a-z0-9-]*$"
+                }
+            }
+        },
+        "new_heading": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "props"
+            ],
+            "properties": {
+                "type": {
+                    "const": "heading"
+                },
+                "parent_id": {
+                    "$ref": "#/$defs/block_ref_or_null"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "schedule": {
+                    "$ref": "#/$defs/schedule"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "animation": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "pulse",
+                        "shake",
+                        "wobble",
+                        "shimmer"
+                    ]
+                },
+                "tracking": {
+                    "type": "boolean"
+                },
+                "props": {
+                    "$ref": "#/$defs/props_heading"
+                }
+            }
+        },
+        "props_text": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "maxLength": 4000,
+                    "description": "Limited HTML: p, strong, em, a, br."
+                },
+                "align": {
+                    "type": "string",
+                    "enum": [
+                        "left",
+                        "center",
+                        "right"
+                    ]
+                }
+            },
+            "required": [
+                "content"
+            ]
+        },
+        "patch_text": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "maxLength": 4000,
+                    "description": "Limited HTML: p, strong, em, a, br."
+                },
+                "align": {
+                    "type": "string",
+                    "enum": [
+                        "left",
+                        "center",
+                        "right"
+                    ]
+                }
+            }
+        },
+        "new_text": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "props"
+            ],
+            "properties": {
+                "type": {
+                    "const": "text"
+                },
+                "parent_id": {
+                    "$ref": "#/$defs/block_ref_or_null"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "schedule": {
+                    "$ref": "#/$defs/schedule"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "animation": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "pulse",
+                        "shake",
+                        "wobble",
+                        "shimmer"
+                    ]
+                },
+                "tracking": {
+                    "type": "boolean"
+                },
+                "props": {
+                    "$ref": "#/$defs/props_text"
+                }
+            }
+        },
+        "props_divider": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "style": {
+                    "type": "string",
+                    "enum": [
+                        "line",
+                        "space",
+                        "dots"
+                    ]
+                }
+            }
+        },
+        "patch_divider": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "style": {
+                    "type": "string",
+                    "enum": [
+                        "line",
+                        "space",
+                        "dots"
+                    ]
+                }
+            }
+        },
+        "new_divider": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "props"
+            ],
+            "properties": {
+                "type": {
+                    "const": "divider"
+                },
+                "parent_id": {
+                    "$ref": "#/$defs/block_ref_or_null"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "schedule": {
+                    "$ref": "#/$defs/schedule"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "animation": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "pulse",
+                        "shake",
+                        "wobble",
+                        "shimmer"
+                    ]
+                },
+                "tracking": {
+                    "type": "boolean"
+                },
+                "props": {
+                    "$ref": "#/$defs/props_divider"
+                }
+            }
+        },
+        "props_image": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "image": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "alt": {
+                    "type": "string",
+                    "maxLength": 250
+                },
+                "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "description": "Scheme must be http, https, mailto, tel or sms (enforced by the PHP URL policy)."
+                },
+                "caption": {
+                    "type": "string",
+                    "maxLength": 300
+                },
+                "decorative": {
+                    "type": "boolean",
+                    "description": "Decorative image: renders with empty alt text and silences the missing-alt warning."
+                }
+            },
+            "required": [
+                "image"
+            ]
+        },
+        "patch_image": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "image": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "alt": {
+                    "type": "string",
+                    "maxLength": 250
+                },
+                "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "description": "Scheme must be http, https, mailto, tel or sms (enforced by the PHP URL policy)."
+                },
+                "caption": {
+                    "type": "string",
+                    "maxLength": 300
+                },
+                "decorative": {
+                    "type": "boolean",
+                    "description": "Decorative image: renders with empty alt text and silences the missing-alt warning."
+                }
+            }
+        },
+        "new_image": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "props"
+            ],
+            "properties": {
+                "type": {
+                    "const": "image"
+                },
+                "parent_id": {
+                    "$ref": "#/$defs/block_ref_or_null"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "schedule": {
+                    "$ref": "#/$defs/schedule"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "animation": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "pulse",
+                        "shake",
+                        "wobble",
+                        "shimmer"
+                    ]
+                },
+                "tracking": {
+                    "type": "boolean"
+                },
+                "props": {
+                    "$ref": "#/$defs/props_image"
+                }
+            }
+        },
+        "props_gallery": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "maxItems": 24,
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                            "image": {
+                                "type": "integer",
+                                "minimum": 1
+                            },
+                            "url": {
+                                "type": "string",
+                                "maxLength": 2048,
+                                "description": "Scheme must be http, https, mailto, tel or sms (enforced by the PHP URL policy)."
+                            },
+                            "caption": {
+                                "type": "string",
+                                "maxLength": 300
+                            },
+                            "alt": {
+                                "type": "string",
+                                "maxLength": 250
+                            },
+                            "decorative": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": [
+                            "image"
+                        ]
+                    }
+                },
+                "columns": {
+                    "type": "integer",
+                    "minimum": 2,
+                    "maximum": 3
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": [
+                        "grid",
+                        "carousel"
+                    ]
+                }
+            },
+            "required": [
+                "items"
+            ]
+        },
+        "patch_gallery": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "maxItems": 24,
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                            "image": {
+                                "type": "integer",
+                                "minimum": 1
+                            },
+                            "url": {
+                                "type": "string",
+                                "maxLength": 2048,
+                                "description": "Scheme must be http, https, mailto, tel or sms (enforced by the PHP URL policy)."
+                            },
+                            "caption": {
+                                "type": "string",
+                                "maxLength": 300
+                            },
+                            "alt": {
+                                "type": "string",
+                                "maxLength": 250
+                            },
+                            "decorative": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": [
+                            "image"
+                        ]
+                    }
+                },
+                "columns": {
+                    "type": "integer",
+                    "minimum": 2,
+                    "maximum": 3
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": [
+                        "grid",
+                        "carousel"
+                    ]
+                }
+            }
+        },
+        "new_gallery": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "props"
+            ],
+            "properties": {
+                "type": {
+                    "const": "gallery"
+                },
+                "parent_id": {
+                    "$ref": "#/$defs/block_ref_or_null"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "schedule": {
+                    "$ref": "#/$defs/schedule"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "animation": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "pulse",
+                        "shake",
+                        "wobble",
+                        "shimmer"
+                    ]
+                },
+                "tracking": {
+                    "type": "boolean"
+                },
+                "props": {
+                    "$ref": "#/$defs/props_gallery"
+                }
+            }
+        },
+        "props_latest_posts": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 12
+                },
+                "category": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "display": {
+                    "type": "string",
+                    "enum": [
+                        "featured",
+                        "classic"
+                    ]
+                },
+                "post_type": {
+                    "type": "string",
+                    "maxLength": 40,
+                    "pattern": "^[a-z0-9_-]*$"
+                }
+            }
+        },
+        "patch_latest_posts": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 12
+                },
+                "category": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "display": {
+                    "type": "string",
+                    "enum": [
+                        "featured",
+                        "classic"
+                    ]
+                },
+                "post_type": {
+                    "type": "string",
+                    "maxLength": 40,
+                    "pattern": "^[a-z0-9_-]*$"
+                }
+            }
+        },
+        "new_latest_posts": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "props"
+            ],
+            "properties": {
+                "type": {
+                    "const": "latest_posts"
+                },
+                "parent_id": {
+                    "$ref": "#/$defs/block_ref_or_null"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "schedule": {
+                    "$ref": "#/$defs/schedule"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "animation": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "pulse",
+                        "shake",
+                        "wobble",
+                        "shimmer"
+                    ]
+                },
+                "tracking": {
+                    "type": "boolean"
+                },
+                "props": {
+                    "$ref": "#/$defs/props_latest_posts"
+                }
+            }
+        },
+        "props_embed": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "description": "http or https only.",
+                    "minLength": 1
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 200
+                }
+            },
+            "required": [
+                "url"
+            ]
+        },
+        "patch_embed": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "description": "http or https only.",
+                    "minLength": 1
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 200
+                }
+            }
+        },
+        "new_embed": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "props"
+            ],
+            "properties": {
+                "type": {
+                    "const": "embed"
+                },
+                "parent_id": {
+                    "$ref": "#/$defs/block_ref_or_null"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "schedule": {
+                    "$ref": "#/$defs/schedule"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "animation": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "pulse",
+                        "shake",
+                        "wobble",
+                        "shimmer"
+                    ]
+                },
+                "tracking": {
+                    "type": "boolean"
+                },
+                "props": {
+                    "$ref": "#/$defs/props_embed"
+                }
+            }
+        },
+        "props_video": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "video": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "description": "http or https only."
+                },
+                "poster": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "autoplay": {
+                    "type": "boolean"
+                },
+                "loop": {
+                    "type": "boolean"
+                },
+                "muted": {
+                    "type": "boolean"
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 200
+                }
+            }
+        },
+        "patch_video": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "video": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "description": "http or https only."
+                },
+                "poster": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "autoplay": {
+                    "type": "boolean"
+                },
+                "loop": {
+                    "type": "boolean"
+                },
+                "muted": {
+                    "type": "boolean"
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 200
+                }
+            }
+        },
+        "new_video": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "props"
+            ],
+            "properties": {
+                "type": {
+                    "const": "video"
+                },
+                "parent_id": {
+                    "$ref": "#/$defs/block_ref_or_null"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "schedule": {
+                    "$ref": "#/$defs/schedule"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "animation": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "pulse",
+                        "shake",
+                        "wobble",
+                        "shimmer"
+                    ]
+                },
+                "tracking": {
+                    "type": "boolean"
+                },
+                "props": {
+                    "$ref": "#/$defs/props_video"
+                }
+            }
+        },
+        "props_email_capture": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "heading": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "button_text": {
+                    "type": "string",
+                    "maxLength": 40
+                },
+                "consent_text": {
+                    "type": "string",
+                    "maxLength": 500
+                },
+                "placeholder": {
+                    "type": "string",
+                    "maxLength": 80
+                },
+                "destination": {
+                    "type": "string",
+                    "enum": [
+                        "local"
+                    ]
+                },
+                "tags": {
+                    "type": "array",
+                    "maxItems": 10,
+                    "items": {
+                        "type": "string",
+                        "maxLength": 40
+                    }
+                },
+                "success_text": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "description": "Message after a confirmed sign-up. Falls back to the site default."
+                },
+                "pending_text": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "description": "Message after sign-up while the double opt-in email is pending. Falls back to the site default."
+                }
+            }
+        },
+        "patch_email_capture": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "heading": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "button_text": {
+                    "type": "string",
+                    "maxLength": 40
+                },
+                "consent_text": {
+                    "type": "string",
+                    "maxLength": 500
+                },
+                "placeholder": {
+                    "type": "string",
+                    "maxLength": 80
+                },
+                "destination": {
+                    "type": "string",
+                    "enum": [
+                        "local"
+                    ]
+                },
+                "tags": {
+                    "type": "array",
+                    "maxItems": 10,
+                    "items": {
+                        "type": "string",
+                        "maxLength": 40
+                    }
+                },
+                "success_text": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "description": "Message after a confirmed sign-up. Falls back to the site default."
+                },
+                "pending_text": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "description": "Message after sign-up while the double opt-in email is pending. Falls back to the site default."
+                }
+            }
+        },
+        "new_email_capture": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "props"
+            ],
+            "properties": {
+                "type": {
+                    "const": "email_capture"
+                },
+                "parent_id": {
+                    "$ref": "#/$defs/block_ref_or_null"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "schedule": {
+                    "$ref": "#/$defs/schedule"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "animation": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "pulse",
+                        "shake",
+                        "wobble",
+                        "shimmer"
+                    ]
+                },
+                "tracking": {
+                    "type": "boolean"
+                },
+                "props": {
+                    "$ref": "#/$defs/props_email_capture"
+                }
+            }
+        },
+        "props_contact": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "phone": {
+                    "type": "string",
+                    "maxLength": 40,
+                    "pattern": "^[0-9+().\\- ]*$"
+                },
+                "email": {
+                    "type": "string",
+                    "maxLength": 254
+                },
+                "address": {
+                    "type": "string",
+                    "maxLength": 300
+                },
+                "vcard": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "patch_contact": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "phone": {
+                    "type": "string",
+                    "maxLength": 40,
+                    "pattern": "^[0-9+().\\- ]*$"
+                },
+                "email": {
+                    "type": "string",
+                    "maxLength": 254
+                },
+                "address": {
+                    "type": "string",
+                    "maxLength": 300
+                },
+                "vcard": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "new_contact": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "props"
+            ],
+            "properties": {
+                "type": {
+                    "const": "contact"
+                },
+                "parent_id": {
+                    "$ref": "#/$defs/block_ref_or_null"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "schedule": {
+                    "$ref": "#/$defs/schedule"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "animation": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "pulse",
+                        "shake",
+                        "wobble",
+                        "shimmer"
+                    ]
+                },
+                "tracking": {
+                    "type": "boolean"
+                },
+                "props": {
+                    "$ref": "#/$defs/props_contact"
+                }
+            }
+        },
+        "props_group": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "title": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "description": "Legacy collapsible title: when set and collapsible is not, the section renders as a collapsible <details> with this summary."
+                },
+                "collapsed": {
+                    "type": "boolean",
+                    "description": "With collapsible: start closed."
+                },
+                "heading": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 280
+                },
+                "collapsible": {
+                    "type": "boolean"
+                },
+                "background": {
+                    "$ref": "#/$defs/background"
+                },
+                "padding": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "sm",
+                        "md",
+                        "lg"
+                    ]
+                },
+                "radius": {
+                    "type": "string",
+                    "enum": [
+                        "inherit",
+                        "none",
+                        "sm",
+                        "md",
+                        "lg"
+                    ]
+                },
+                "text_color": {
+                    "$ref": "#/$defs/color_or_empty"
+                },
+                "layout": {
+                    "type": "string",
+                    "enum": [
+                        "list",
+                        "grid"
+                    ]
+                }
+            }
+        },
+        "patch_group": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "title": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "description": "Legacy collapsible title: when set and collapsible is not, the section renders as a collapsible <details> with this summary."
+                },
+                "collapsed": {
+                    "type": "boolean",
+                    "description": "With collapsible: start closed."
+                },
+                "heading": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 280
+                },
+                "collapsible": {
+                    "type": "boolean"
+                },
+                "background": {
+                    "$ref": "#/$defs/background"
+                },
+                "padding": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "sm",
+                        "md",
+                        "lg"
+                    ]
+                },
+                "radius": {
+                    "type": "string",
+                    "enum": [
+                        "inherit",
+                        "none",
+                        "sm",
+                        "md",
+                        "lg"
+                    ]
+                },
+                "text_color": {
+                    "$ref": "#/$defs/color_or_empty"
+                },
+                "layout": {
+                    "type": "string",
+                    "enum": [
+                        "list",
+                        "grid"
+                    ]
+                }
+            }
+        },
+        "new_group": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "props"
+            ],
+            "properties": {
+                "type": {
+                    "const": "group"
+                },
+                "parent_id": {
+                    "$ref": "#/$defs/block_ref_or_null"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "schedule": {
+                    "$ref": "#/$defs/schedule"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "animation": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "pulse",
+                        "shake",
+                        "wobble",
+                        "shimmer"
+                    ]
+                },
+                "tracking": {
+                    "type": "boolean"
+                },
+                "props": {
+                    "$ref": "#/$defs/props_group"
+                }
+            }
+        },
+        "props_woo_products": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "product_ids": {
+                    "type": "array",
+                    "maxItems": 24,
+                    "items": {
+                        "type": "integer",
+                        "minimum": 1
+                    }
+                },
+                "category": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "layout": {
+                    "type": "string",
+                    "enum": [
+                        "grid",
+                        "list"
+                    ]
+                }
+            }
+        },
+        "patch_woo_products": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "product_ids": {
+                    "type": "array",
+                    "maxItems": 24,
+                    "items": {
+                        "type": "integer",
+                        "minimum": 1
+                    }
+                },
+                "category": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "layout": {
+                    "type": "string",
+                    "enum": [
+                        "grid",
+                        "list"
+                    ]
+                }
+            }
+        },
+        "new_woo_products": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "props"
+            ],
+            "properties": {
+                "type": {
+                    "const": "woo_products"
+                },
+                "parent_id": {
+                    "$ref": "#/$defs/block_ref_or_null"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "schedule": {
+                    "$ref": "#/$defs/schedule"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "animation": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "pulse",
+                        "shake",
+                        "wobble",
+                        "shimmer"
+                    ]
+                },
+                "tracking": {
+                    "type": "boolean"
+                },
+                "props": {
+                    "$ref": "#/$defs/props_woo_products"
+                }
+            }
+        },
+        "props_payment": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "service": {
+                    "type": "string",
+                    "enum": [
+                        "buymeacoffee",
+                        "kofi",
+                        "paypal",
+                        "venmo",
+                        "cashapp",
+                        "stripe_link",
+                        "patreon",
+                        "gofundme",
+                        "custom"
+                    ]
+                },
+                "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "description": "http or https only."
+                },
+                "handle": {
+                    "type": "string",
+                    "maxLength": 80
+                },
+                "label": {
+                    "type": "string",
+                    "maxLength": 80
+                },
+                "amount_hint": {
+                    "type": "string",
+                    "maxLength": 40
+                }
+            },
+            "required": [
+                "service"
+            ]
+        },
+        "patch_payment": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "service": {
+                    "type": "string",
+                    "enum": [
+                        "buymeacoffee",
+                        "kofi",
+                        "paypal",
+                        "venmo",
+                        "cashapp",
+                        "stripe_link",
+                        "patreon",
+                        "gofundme",
+                        "custom"
+                    ]
+                },
+                "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "description": "http or https only."
+                },
+                "handle": {
+                    "type": "string",
+                    "maxLength": 80
+                },
+                "label": {
+                    "type": "string",
+                    "maxLength": 80
+                },
+                "amount_hint": {
+                    "type": "string",
+                    "maxLength": 40
+                }
+            }
+        },
+        "new_payment": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "props"
+            ],
+            "properties": {
+                "type": {
+                    "const": "payment"
+                },
+                "parent_id": {
+                    "$ref": "#/$defs/block_ref_or_null"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "schedule": {
+                    "$ref": "#/$defs/schedule"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "animation": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "pulse",
+                        "shake",
+                        "wobble",
+                        "shimmer"
+                    ]
+                },
+                "tracking": {
+                    "type": "boolean"
+                },
+                "props": {
+                    "$ref": "#/$defs/props_payment"
+                }
+            }
+        },
+        "props_spacer": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "height": {
+                    "type": "integer",
+                    "minimum": 4,
+                    "maximum": 200
+                }
+            }
+        },
+        "patch_spacer": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "height": {
+                    "type": "integer",
+                    "minimum": 4,
+                    "maximum": 200
+                }
+            }
+        },
+        "new_spacer": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "props"
+            ],
+            "properties": {
+                "type": {
+                    "const": "spacer"
+                },
+                "parent_id": {
+                    "$ref": "#/$defs/block_ref_or_null"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "schedule": {
+                    "$ref": "#/$defs/schedule"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "animation": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "pulse",
+                        "shake",
+                        "wobble",
+                        "shimmer"
+                    ]
+                },
+                "tracking": {
+                    "type": "boolean"
+                },
+                "props": {
+                    "$ref": "#/$defs/props_spacer"
+                }
+            }
+        },
+        "props_countdown": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "target": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "label": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "expired_text": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "description": "Link shown after the countdown ends. Scheme must be http, https, mailto, tel or sms."
+                },
+                "link_label": {
+                    "type": "string",
+                    "maxLength": 80
+                }
+            },
+            "required": [
+                "target"
+            ]
+        },
+        "patch_countdown": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "target": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "label": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "expired_text": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "description": "Link shown after the countdown ends. Scheme must be http, https, mailto, tel or sms."
+                },
+                "link_label": {
+                    "type": "string",
+                    "maxLength": 80
+                }
+            }
+        },
+        "new_countdown": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "props"
+            ],
+            "properties": {
+                "type": {
+                    "const": "countdown"
+                },
+                "parent_id": {
+                    "$ref": "#/$defs/block_ref_or_null"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "schedule": {
+                    "$ref": "#/$defs/schedule"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "animation": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "pulse",
+                        "shake",
+                        "wobble",
+                        "shimmer"
+                    ]
+                },
+                "tracking": {
+                    "type": "boolean"
+                },
+                "props": {
+                    "$ref": "#/$defs/props_countdown"
+                }
+            }
+        },
+        "props_map": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                },
+                "label": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "provider": {
+                    "type": "string",
+                    "enum": [
+                        "both",
+                        "google",
+                        "apple"
+                    ]
+                }
+            },
+            "required": [
+                "address"
+            ]
+        },
+        "patch_map": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                },
+                "label": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "provider": {
+                    "type": "string",
+                    "enum": [
+                        "both",
+                        "google",
+                        "apple"
+                    ]
+                }
+            }
+        },
+        "new_map": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "props"
+            ],
+            "properties": {
+                "type": {
+                    "const": "map"
+                },
+                "parent_id": {
+                    "$ref": "#/$defs/block_ref_or_null"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "schedule": {
+                    "$ref": "#/$defs/schedule"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "animation": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "pulse",
+                        "shake",
+                        "wobble",
+                        "shimmer"
+                    ]
+                },
+                "tracking": {
+                    "type": "boolean"
+                },
+                "props": {
+                    "$ref": "#/$defs/props_map"
+                }
+            }
+        },
+        "op_add_block": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "op",
+                "after_id",
+                "block"
+            ],
+            "description": "Adds a block. after_id null puts it first (at the top of the page, or first inside its group); otherwise right after that block, in the same group as that block.",
+            "properties": {
+                "op": {
+                    "const": "add_block"
+                },
+                "after_id": {
+                    "$ref": "#/$defs/block_ref_or_null"
+                },
+                "ref": {
+                    "type": "string",
+                    "pattern": "^new-[0-9]{1,3}$",
+                    "description": "Optional name (new-1, new-2, ...) so later operations can refer to this block."
+                },
+                "block": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/new_link"
+                        },
+                        {
+                            "$ref": "#/$defs/new_socials"
+                        },
+                        {
+                            "$ref": "#/$defs/new_heading"
+                        },
+                        {
+                            "$ref": "#/$defs/new_text"
+                        },
+                        {
+                            "$ref": "#/$defs/new_divider"
+                        },
+                        {
+                            "$ref": "#/$defs/new_image"
+                        },
+                        {
+                            "$ref": "#/$defs/new_gallery"
+                        },
+                        {
+                            "$ref": "#/$defs/new_latest_posts"
+                        },
+                        {
+                            "$ref": "#/$defs/new_embed"
+                        },
+                        {
+                            "$ref": "#/$defs/new_video"
+                        },
+                        {
+                            "$ref": "#/$defs/new_email_capture"
+                        },
+                        {
+                            "$ref": "#/$defs/new_contact"
+                        },
+                        {
+                            "$ref": "#/$defs/new_group"
+                        },
+                        {
+                            "$ref": "#/$defs/new_woo_products"
+                        },
+                        {
+                            "$ref": "#/$defs/new_payment"
+                        },
+                        {
+                            "$ref": "#/$defs/new_spacer"
+                        },
+                        {
+                            "$ref": "#/$defs/new_countdown"
+                        },
+                        {
+                            "$ref": "#/$defs/new_map"
+                        }
+                    ]
+                }
+            }
+        },
+        "op_update_block": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "op",
+                "id"
+            ],
+            "description": "Changes a block. props are merged into the current props (only list what changes); the props must belong to the block's type.",
+            "properties": {
+                "op": {
+                    "const": "update_block"
+                },
+                "id": {
+                    "$ref": "#/$defs/block_ref"
+                },
+                "props": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/patch_link"
+                        },
+                        {
+                            "$ref": "#/$defs/patch_socials"
+                        },
+                        {
+                            "$ref": "#/$defs/patch_heading"
+                        },
+                        {
+                            "$ref": "#/$defs/patch_text"
+                        },
+                        {
+                            "$ref": "#/$defs/patch_divider"
+                        },
+                        {
+                            "$ref": "#/$defs/patch_image"
+                        },
+                        {
+                            "$ref": "#/$defs/patch_gallery"
+                        },
+                        {
+                            "$ref": "#/$defs/patch_latest_posts"
+                        },
+                        {
+                            "$ref": "#/$defs/patch_embed"
+                        },
+                        {
+                            "$ref": "#/$defs/patch_video"
+                        },
+                        {
+                            "$ref": "#/$defs/patch_email_capture"
+                        },
+                        {
+                            "$ref": "#/$defs/patch_contact"
+                        },
+                        {
+                            "$ref": "#/$defs/patch_group"
+                        },
+                        {
+                            "$ref": "#/$defs/patch_woo_products"
+                        },
+                        {
+                            "$ref": "#/$defs/patch_payment"
+                        },
+                        {
+                            "$ref": "#/$defs/patch_spacer"
+                        },
+                        {
+                            "$ref": "#/$defs/patch_countdown"
+                        },
+                        {
+                            "$ref": "#/$defs/patch_map"
+                        }
+                    ]
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "schedule": {
+                    "$ref": "#/$defs/schedule"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "animation": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "pulse",
+                        "shake",
+                        "wobble",
+                        "shimmer"
+                    ]
+                },
+                "tracking": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "op_move_block": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "op",
+                "id",
+                "after_id"
+            ],
+            "description": "Moves a block. after_id null moves it first in its parent; parent_id (optional) moves it into a group, or to the top level with null.",
+            "properties": {
+                "op": {
+                    "const": "move_block"
+                },
+                "id": {
+                    "$ref": "#/$defs/block_ref"
+                },
+                "after_id": {
+                    "$ref": "#/$defs/block_ref_or_null"
+                },
+                "parent_id": {
+                    "$ref": "#/$defs/block_ref_or_null"
+                }
+            }
+        },
+        "op_remove_block": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "op",
+                "id"
+            ],
+            "description": "Removes a block (a group is removed with its children).",
+            "properties": {
+                "op": {
+                    "const": "remove_block"
+                },
+                "id": {
+                    "$ref": "#/$defs/block_ref"
+                }
+            }
+        },
+        "op_set_design": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "op",
+                "design"
+            ],
+            "properties": {
+                "op": {
+                    "const": "set_design"
+                },
+                "design": {
+                    "$ref": "#/$defs/design"
+                }
+            }
+        },
+        "op_set_profile": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "op",
+                "profile"
+            ],
+            "description": "Profile patch, merged into the current profile.",
+            "properties": {
+                "op": {
+                    "const": "set_profile"
+                },
+                "profile": {
+                    "$ref": "#/$defs/profile"
+                }
+            }
+        }
+    }
+}

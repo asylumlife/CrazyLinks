@@ -1,0 +1,19 @@
+{
+  "summary": "Darker theme and renamed the album link.",
+  "operations": [
+    {
+      "op": "set_design",
+      "design": {
+        "theme": "midnight"
+      }
+    },
+    {
+      "op": "update_block",
+      "id": "01JM00000000000000000000A2",
+      "props": {
+        "title": "Low Tide"
+      }
+    }
+  ],
+  "questions": []
+}

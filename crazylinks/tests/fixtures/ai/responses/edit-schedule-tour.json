@@ -1,0 +1,13 @@
+{
+  "summary": "The tour dates link will stop showing after December 31, 2030.",
+  "operations": [
+    {
+      "op": "update_block",
+      "id": "01JM00000000000000000000A6",
+      "schedule": {
+        "end": "2030-12-31T23:59:00-08:00"
+      }
+    }
+  ],
+  "questions": []
+}

@@ -1,0 +1,21 @@
+# Excluded from the release zip (wp dist-archive). SPEC §12.
+vendor
+tests
+bin
+node_modules
+composer.*
+phpunit*
+phpcs*
+phpstan*
+.phpunit.result.cache
+.editorconfig
+.gitignore
+.distignore
+package.json
+package-lock.json
+tsconfig.json
+eslint.config.cjs
+.prettierrc.js
+vitest.config.mts
+test-results
+playwright-report

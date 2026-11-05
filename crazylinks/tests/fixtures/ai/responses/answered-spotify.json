@@ -1,0 +1,13 @@
+{
+  "summary": "Updated the single link to the new Spotify URL.",
+  "operations": [
+    {
+      "op": "update_block",
+      "id": "01JM00000000000000000000A3",
+      "props": {
+        "url": "https://open.spotify.com/track/harbor-v2"
+      }
+    }
+  ],
+  "questions": []
+}

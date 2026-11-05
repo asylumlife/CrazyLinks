@@ -1,0 +1,22 @@
+{
+  "summary": "The Rivers Podcast link will show only Monday to Thursday from 12:30 to 14:00, site time.",
+  "operations": [
+    {
+      "op": "update_block",
+      "id": "01JM00000000000000000000A5",
+      "schedule": {
+        "weekly": {
+          "days": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "start": "12:30",
+          "end": "14:00"
+        }
+      }
+    }
+  ],
+  "questions": []
+}

@@ -117,7 +117,7 @@ Every block shares: `id` (ULID), `type`, `parent_id` (null or a `group` block; m
 | `profile` | avatar (attachment id), avatar_style (circle/square/hero/banner/shape), shape_mask, banner (attachment id), name, bio (280 chars), location, pronouns, verified_badge (bool), header_layout (centered/left/hero/banner) | One per page, always first. See §5A.3 **Build note (Phase 1):** implemented as the top-level `profile` object of §7.2, not as a block type; `profile` is not an allowed value of `blocks[].type`. |
 | `link` | title, url, subtitle, display (classic/featured), thumbnail (attachment id, icon slug, emoji, or auto), focal_point, badge (text, color), tile_size (1x1/2x1/2x2 in bento layout), style override, open_new_tab, rel (`nofollow`, `sponsored`), deep_link (optional app URL scheme, see §6.4) | The core block. Featured display renders a 16:9 card. See §5A.2 |
 | `socials` | items: [{network, url}] | 30+ networks with brand icons bundled as inline SVG |
-| `heading` | text, level (h2/h3), align | |
+| `heading` | text, level (h2/h3), align | **Built 2026-11-05:** `size` sm/md/lg/xl, `align`, `weight`, `color`, `uppercase`, `subtext`, `divider` none/line/dots, `spacing`, `emoji`/`icon`. |
 | `text` | content (limited HTML: p, strong, em, a, br), align | Sanitized with `wp_kses` |
 | `divider` | style (line/space/dots) | |
 | `image` | attachment id, alt, link url, caption | LCP-aware: first image gets `fetchpriority="high"` |
@@ -130,7 +130,7 @@ Every block shares: `id` (ULID), `type`, `parent_id` (null or a `group` block; m
 | `contact` | phone, email, address, vcard (bool) | Renders `tel:`, `mailto:`, `sms:`; vCard served as `text/vcard` |
 | `map` | address or lat/lng, provider (OpenStreetMap static / Google static with key) | v1.1 |
 | `countdown` | target datetime, label, link after expiry | v1.1 |
-| `group` | title, collapsed (bool) | Children are blocks with `parent_id` = this id |
+| `group` | title, collapsed (bool) | Children are blocks with `parent_id` = this id **Built 2026-11-05 as "Section":** keeps type `group`; adds `heading`, `description`, `collapsible`, `background` (shared `$defs/background`: solid/gradient/image/pattern), `padding`, `radius`, `text_color`, `layout`; its schedule hides all children; section text/background pair is contrast-checked. |
 | `woo_products` | product ids or category, layout | Shown only when WooCommerce is active |
 | `payment` | service (buymeacoffee, kofi, paypal, venmo, cashapp, stripe_link, patreon, custom), handle or url, label, amount hint | Branded button presets that open the service's own checkout; no money passes through the plugin (D6) |
 | `html` | raw html | Admin + `unfiltered_html` only; never AI-editable |
@@ -382,6 +382,7 @@ Accepted deviations from the text above, recorded so the spec and the code agree
 - Rate limiting (60 clicks per visitor per minute, configurable) and the 10-second dedupe only suppress *logging*; a valid `/go/` link always redirects.
 - Page views are counted server-side on standalone render, de-duplicated per visitor for 30 minutes, prefetch requests skipped. Under a full-page cache this undercounts; the §6.1 JS view beacon is a v1.1 item.
 - Blocks whose schedule has not started are omitted from the HTML entirely so they cannot leak early; the render cache expires at the next schedule boundary; JS only hides blocks that expired while a static cache held the page.
+- **Weekly windows (built 2026-11-05, owner request):** `schedule.weekly = {days: [1..7], start: "HH:MM", end: "HH:MM"}` alongside the one-off range; both must hold. Evaluated server-side in the site timezone (`wp_timezone()`, DST follows wall-clock time; an end at or before start wraps past midnight). `/go/`, vCard and subscribe return 404 outside the window, including when the block's Section is out of window. **Full-page caches:** a page with any live schedule defines `DONOTCACHEPAGE` and sends `Cache-Control: public, max-age=N` where N is the seconds to the next boundary (60 s to 24 h); `/go/`, vCard and REST send `no-store`. Pin-to-top toggle sits in the collapsed block row next to visibility and click count (top-level blocks only, as before). Details: `crazylinks/docs/schema-changes.md`.
 - Only `http(s)` links are routed through `/go/`: `link`, `image` and `payment` blocks via `/go/{block_id}/`, and `socials` items via `/go/{block_id}/{item_id}/` (items get ULIDs from the validator; built 2026-11-05). `mailto:`, `tel:` and `sms:` links stay direct and untracked. Icon clicks are logged against the socials block; per-network counts need a nullable `item_id` column on the events and daily tables (`block_id` is `CHAR(26)`), a v1.2 follow-up.
 - oEmbed is fetched server-side **only on save**, only for allow-listed hosts, with discovery off, through `WP_oEmbed::get_data`, and cached in post meta; visitors never trigger a request. Documented in readme "External services"; disable with the `crazylinks_fetch_oembed` filter. Script-based providers (TikTok, X, Instagram) show their blockquote fallback for now.
 - The front-end JS includes a small click-to-play embed facade so provider iframes never load on page load.
@@ -643,6 +644,7 @@ Suggested cadence: Phase 1 produces an installable plugin that renders a page an
 | 2026-11-05 | 1 polish (Sonnet) | 14 contrast-tested themes, 40 Simple Icons brand SVGs, pattern backgrounds, 7 more block partials, link presentation variants; 158 tests. |
 | 2026-11-05 | 1 review (Opus, independent) | 0 critical, 1 high, 2 medium, 7 low findings; all fixed in a follow-up Opus pass with regression tests; 206 tests. Details in §12 review log and §7.5. |
 | 2026-11-05 | 2 done | Opus: React editor (§9) with live phone preview, generated block panels, autosave + revisions, wizard, 142 KB bundle (42 KB gzipped), 160 Vitest + 3 Playwright tests. Sonnet: Analytics and Subscribers screens, list columns, double opt-in sign-ups, exporter/eraser, CSV, retention. 260 PHP tests. Screenshots in `docs/screenshots/editor-*.png`. |
+| 2026-11-05 | owner feedback | Opus: pin toggle in the block row, weekly visibility windows in site time with cache bypass for full-page caches, Sections (styled, schedulable containers), configurable headings; 442 PHP, 213 JS, 5 e2e tests. URL base on the dev site set to `linktree`. First site decided: AsylumLife.com. |
 | 2026-11-05 | 3 done | Opus: AI editing per §10 (see §10 build notes); 39-case eval set passes offline; live model run still pending a configured provider. Sonnet: v1.1 editor polish done (see §9). Totals: 419 PHP tests, 203 Vitest tests, 5 Playwright tests. Dev-site core repaired from the official 7.1.4 zip after WP-CLI's tar extraction truncated 22 AI-client file names. |
 
 

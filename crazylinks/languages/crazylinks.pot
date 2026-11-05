@@ -1,0 +1,4402 @@
+# Copyright (C) 2026 Asylum Life
+# This file is distributed under the GPL-2.0-or-later.
+msgid ""
+msgstr ""
+"Project-Id-Version: CrazyLinks 0.1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-11-05T23:40:04+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: crazylinks\n"
+
+#. Plugin Name of the plugin
+#: crazylinks.php
+#: src/Ai/Abilities.php:60
+#: src/PostType.php:55
+msgid "CrazyLinks"
+msgstr ""
+
+#. Plugin URI of the plugin
+#: crazylinks.php
+msgid "https://github.com/asylumlife/crazylinks"
+msgstr ""
+
+#. Description of the plugin
+#: crazylinks.php
+msgid "A self-hosted link-in-bio page builder. Your link page, your domain, your data."
+msgstr ""
+
+#. Author of the plugin
+#: crazylinks.php
+msgid "Asylum Life"
+msgstr ""
+
+#. translators: 1: required PHP version, 2: current PHP version.
+#: crazylinks.php:36
+#, php-format
+msgid "PHP %1$s or newer is required (this site runs %2$s)."
+msgstr ""
+
+#. translators: 1: required WordPress version, 2: current WordPress version.
+#: crazylinks.php:40
+#, php-format
+msgid "WordPress %1$s or newer is required (this site runs %2$s)."
+msgstr ""
+
+#: crazylinks.php:52
+msgid "CrazyLinks is inactive."
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:49
+#: src/Admin/AnalyticsPage.php:144
+msgid "CrazyLinks Analytics"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:50
+#: src/Admin/SettingsPage.php:68
+#: src/Analytics/ListColumns.php:101
+#: assets/build/editor/index.js:20
+msgid "Analytics"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:140
+msgid "Sorry, you are not allowed to view analytics."
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:146
+msgid "Create a link page first; its analytics will show up here."
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:150
+msgid "Analytics are switched off in CrazyLinks settings, so new views and clicks are not being counted."
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:163
+msgid "Download daily CSV"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:164
+msgid "Download links CSV"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:170
+msgid "Views and clicks per day (UTC)"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:172
+#: src/Admin/AnalyticsPage.php:173
+#: src/Admin/AnalyticsPage.php:224
+#: src/Admin/AnalyticsPage.php:321
+#: assets/build/editor/index.js:10
+#: assets/build/editor/index.js:11
+msgid "Views"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:172
+#: src/Admin/AnalyticsPage.php:173
+#: src/Admin/AnalyticsPage.php:230
+#: src/Admin/AnalyticsPage.php:275
+#: assets/build/editor/index.js:10
+#: assets/build/editor/index.js:11
+msgid "Clicks"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:173
+msgid "Show data table"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:173
+#: src/Ai/Bootstrap.php:143
+msgid "Date"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:193
+#: src/Ai/Bootstrap.php:147
+#: assets/src/block-editor.js:37
+msgid "Link page"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:199
+msgid "Range"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:201
+#: assets/build/editor/index.js:10
+msgid "Last 7 days"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:202
+#: assets/build/editor/index.js:10
+msgid "Last 30 days"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:203
+#: assets/build/editor/index.js:10
+msgid "Last 90 days"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:204
+msgid "Custom"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:210
+#: assets/build/editor/index.js:7
+#: assets/build/editor/index.js:9
+msgid "From"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:211
+#: assets/build/editor/index.js:9
+msgid "To"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:212
+#: assets/build/editor/index.js:3
+msgid "Update"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:226
+#: assets/build/editor/index.js:10
+msgid "Unique visitors"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:228
+msgid "Counted per day, then added up. Visitor IDs change every day, so someone who visits on two days counts twice."
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:231
+msgid "Click rate"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:231
+msgid "Clicks divided by views."
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:274
+#: assets/build/editor/index.js:7
+#: assets/build/editor/index.js:20
+msgid "Links"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:275
+#: assets/build/editor/index.js:1
+msgid "Link"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:275
+#: assets/build/editor/index.js:9
+msgid "Type"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:275
+#: assets/build/editor/index.js:11
+msgid "Share"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:278
+msgid "This page has no trackable links yet."
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:300
+msgid "Where visitors come from"
+msgstr ""
+
+#. translators: %s: date.
+#: src/Admin/AnalyticsPage.php:305
+#, php-format
+msgid "Breakdowns come from raw visit records, which are only kept for a limited time. These start on %s."
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:316
+msgid "Device"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:317
+msgid "Operating system"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:318
+msgid "In-app browser"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:319
+msgid "Referrer"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:323
+msgid "No data yet"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:335
+msgid "Country: not collected."
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:369
+msgid "Sorry, you are not allowed to export analytics for this page."
+msgstr ""
+
+#: src/Admin/EditorPage.php:243
+msgid "Needs permission to post unfiltered HTML."
+msgstr ""
+
+#: src/Admin/EditorPage.php:246
+msgid "Needs WooCommerce."
+msgstr ""
+
+#: src/Admin/EditorPage.php:340
+#: src/PostType.php:48
+msgid "Edit Link Page"
+msgstr ""
+
+#: src/Admin/EditorPage.php:341
+msgid "Loading the editor…"
+msgstr ""
+
+#. translators: %s: URL of the JSON editing screen.
+#: src/Admin/EditorPage.php:345
+#, php-format
+msgid "The visual editor needs JavaScript. <a href=\"%s\">Edit the page JSON instead</a>."
+msgstr ""
+
+#: src/Admin/JsonMetaBox.php:38
+#: src/Admin/JsonMetaBox.php:108
+#: assets/build/editor/index.js:19
+msgid "Page JSON"
+msgstr ""
+
+#: src/Admin/JsonMetaBox.php:39
+msgid "Blocks and click URLs"
+msgstr ""
+
+#: src/Admin/JsonMetaBox.php:88
+msgid "The page JSON was not saved. Fix these problems and update again:"
+msgstr ""
+
+#: src/Admin/JsonMetaBox.php:96
+msgid "Edit the page document directly. It is validated against schemas/page.v1.json when you save. Block ids are generated automatically when omitted."
+msgstr ""
+
+#: src/Admin/JsonMetaBox.php:102
+msgid "Open the visual editor"
+msgstr ""
+
+#: src/Admin/JsonMetaBox.php:121
+msgid "No blocks yet."
+msgstr ""
+
+#: src/Admin/JsonMetaBox.php:129
+msgid "click URL"
+msgstr ""
+
+#: src/Admin/JsonMetaBox.php:146
+msgid "CrazyLinks: the page JSON had errors and was not saved. Details are in the Page JSON box below."
+msgstr ""
+
+#. translators: 1: post type label, 2: post title, 3: URL base.
+#: src/Admin/Notices.php:43
+#, php-format
+msgid "The %1$s \"%2$s\" uses the slug \"%3$s\". Link pages live under /%3$s/, so child URLs of that content are taken by CrazyLinks when a link page has the same slug. Rename it or change the CrazyLinks URL base."
+msgstr ""
+
+#. translators: 1: term name, 2: URL base.
+#: src/Admin/Notices.php:55
+#, php-format
+msgid "The term \"%1$s\" uses the slug \"%2$s\", which matches the CrazyLinks URL base. Check that its archive URLs still work."
+msgstr ""
+
+#: src/Admin/Notices.php:62
+msgid "Pretty permalinks are off, so link pages use query-string URLs (?crazylinks_slug=...). Enable permalinks for /l/your-page addresses."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:41
+#: src/Admin/SettingsPage.php:259
+msgid "CrazyLinks Settings"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:42
+#: assets/build/editor/index.js:20
+msgid "Settings"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:66
+msgid "URL base"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:67
+msgid "Default display"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:69
+msgid "Keep raw events for"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:70
+msgid "Email sign-ups"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:71
+msgid "Keep unconfirmed and unsubscribed records for"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:72
+msgid "Embed previews"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:73
+msgid "On uninstall"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:89
+#: src/Admin/SettingsPage.php:91
+msgid "AI editing"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:92
+msgid "Models"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:93
+msgid "Request limits"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:94
+msgid "Monthly budget"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:95
+msgid "AI history"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:96
+msgid "External AI agents"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:119
+msgid "Edit link pages by describing the change. CrazyLinks uses the AI provider connected in Settings → Connectors; nothing is sent until you turn this on, and every change is previewed and confirmed before it is saved."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:125
+msgid "No AI provider is connected yet."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:127
+#: assets/build/editor/index.js:16
+msgid "Open Settings → Connectors"
+msgstr ""
+
+#. translators: %s: comma-separated provider names.
+#: src/Admin/SettingsPage.php:131
+#, php-format
+msgid "Connected provider: %s."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:148
+msgid "the AI provider you connect in Settings → Connectors"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:149
+msgid "Turn on AI editing for people with the \"Use CrazyLinks AI\" capability (administrators and editors)."
+msgstr ""
+
+#. translators: %s: AI provider name(s).
+#: src/Admin/SettingsPage.php:157
+#, php-format
+msgid "I agree that when someone uses AI editing, CrazyLinks sends to %s: what they typed, the page being edited (profile, design and blocks, without custom HTML or custom CSS) and, only for \"Build from this site\", the site title and tagline, recent post titles and links, menu links and the user's public profile links; for \"Ask about analytics\", click totals per link. Provider keys, emails, subscribers and visitor data are never sent. The provider's terms and privacy policy apply."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:164
+msgid "Model for page edits (comma-separated preference)"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:165
+msgid "Model for title and bio suggestions"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:166
+msgid "Timeout in seconds"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:167
+msgid "Leave empty for the recommended models (Claude Sonnet for edits, Claude Haiku for suggestions). If none of the listed models is available, WordPress picks any capable model from your provider."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:170
+msgid "requests per person per hour"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:171
+msgid "requests per site per day (0 = no limit)"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:175
+msgid "tokens per month (0 = no limit)"
+msgstr ""
+
+#. translators: 1: tokens used, 2: percentage.
+#: src/Admin/SettingsPage.php:177
+#, php-format
+msgid "Used this month: %1$s tokens (%2$s%%). A warning shows at 80%%; AI requests stop at 100%% until next month. An edit typically uses 5,000 to 10,000 tokens."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:180
+msgid "Keep what people asked the AI and the changes it proposed."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:181
+msgid "Delete AI history after"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:181
+msgid "days (0 keeps it)."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:182
+msgid "With history off, CrazyLinks still records who used AI, when, the model and token counts (for limits and the budget), but not the request or the changes."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:185
+msgid "Let AI assistants such as Claude or ChatGPT work on your link pages through the WordPress MCP Adapter plugin. They act as the WordPress user who connects them and can only do what that user can. Each ability is off until you enable it."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:187
+msgid "List pages (read only)"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:188
+msgid "Read a page (read only)"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:189
+msgid "Propose changes (preview only, nothing saved)"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:190
+msgid "Apply proposed changes (saves the page)"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:191
+msgid "Read click totals (read only)"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:192
+#: src/Ai/Abilities.php:253
+msgid "Suggest link titles"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:197
+msgid "Require changes from external agents to be confirmed in the editor (each page can override this in its AI tab)."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:215
+msgid "Lowercase letters, numbers and hyphens. Changing it flushes rewrite rules; old links stop working."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:220
+msgid "Standalone page (fastest, no theme)"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:221
+msgid "Inside my theme (header and footer)"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:225
+msgid "Each page can override this in its settings."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:228
+msgid "Count page views and link clicks (first-party, no cookies, no raw IP addresses stored)."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:231
+msgid "days (0 keeps them forever). Daily totals are always kept."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:232
+msgid "Breakdowns (device, operating system, referrer) come from raw events, so they only cover this window. Unique visitors for older days come from the daily totals."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:235
+msgid "Ask new subscribers to confirm by email (double opt-in, recommended)."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:236
+msgid "Turn it off and addresses are marked confirmed right away; the visitor still gets one welcome email with an unsubscribe link."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:239
+msgid "days (0 keeps them forever)"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:240
+msgid "Sign-ups that were never confirmed, and people who unsubscribed, are deleted this many days after their last change. Confirmed subscribers are never deleted automatically."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:243
+msgid "Fetch embed details from the provider when a page with an Embed or Video block is saved."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:244
+msgid "This is the only outbound request CrazyLinks makes: when you save, WordPress asks the provider (YouTube, Vimeo, Spotify and similar) for the title, thumbnail and player of the URL you entered. Visitors never trigger it. Turn it off to make no requests; embeds then show a plain link."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:247
+msgid "Delete all link pages, analytics and settings when the plugin is deleted."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:270
+msgid "Link health"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:271
+msgid "If link pages return \"not found\", rebuild the rewrite rules."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:275
+msgid "Rebuild rewrite rules"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:284
+#: src/Rest/AiController.php:156
+#: src/Rest/AiController.php:169
+#: src/Rest/PagesController.php:496
+#: src/Rest/PreviewController.php:72
+#: src/Rest/RevisionsController.php:400
+msgid "Sorry, you are not allowed to do that."
+msgstr ""
+
+#: src/Admin/SubscribersPage.php:47
+msgid "CrazyLinks Subscribers"
+msgstr ""
+
+#: src/Admin/SubscribersPage.php:48
+#: src/Admin/SubscribersPage.php:123
+msgid "Subscribers"
+msgstr ""
+
+#: src/Admin/SubscribersPage.php:119
+#: src/Rest/SubscribersController.php:87
+msgid "Sorry, you are not allowed to manage subscribers."
+msgstr ""
+
+#. translators: %d: number of subscribers.
+#: src/Admin/SubscribersPage.php:129
+#, php-format
+msgid "%d subscriber deleted."
+msgid_plural "%d subscribers deleted."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of emails.
+#: src/Admin/SubscribersPage.php:131
+#, php-format
+msgid "%d confirmation email sent."
+msgid_plural "%d confirmation emails sent."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/SubscribersPage.php:142
+msgid "Search emails"
+msgstr ""
+
+#: src/Admin/SubscribersPage.php:174
+msgid "Sorry, you are not allowed to export subscribers."
+msgstr ""
+
+#: src/Ai/Abilities.php:61
+msgid "Read and edit CrazyLinks link-in-bio pages."
+msgstr ""
+
+#: src/Ai/Abilities.php:92
+msgid "Link page id."
+msgstr ""
+
+#: src/Ai/Abilities.php:117
+msgid "List link pages"
+msgstr ""
+
+#: src/Ai/Abilities.php:118
+msgid "Lists the CrazyLinks link-in-bio pages the current user can edit, newest first: id, title, slug, status, public URL and last change."
+msgstr ""
+
+#: src/Ai/Abilities.php:142
+msgid "Get a link page"
+msgstr ""
+
+#: src/Ai/Abilities.php:143
+msgid "Returns one link page as JSON (profile, design, blocks with ids). Custom HTML and custom CSS are summarized, not returned. Use the block ids with propose-changes."
+msgstr ""
+
+#: src/Ai/Abilities.php:157
+msgid "Propose changes to a link page"
+msgstr ""
+
+#: src/Ai/Abilities.php:158
+msgid "Turns an instruction into validated operations and a preview of the resulting page, without saving. Either give \"instruction\" (the site's own AI writes the operations) or \"operations\" in the CrazyLinks ops format (schemas/ai-ops.v1.json: add_block, update_block, move_block, remove_block, set_design, set_profile). Returns a proposal_id for apply-changes; proposals expire after 30 minutes. If \"questions\" is non-empty, answer them and propose again with questions_answers."
+msgstr ""
+
+#: src/Ai/Abilities.php:198
+msgid "Apply proposed changes"
+msgstr ""
+
+#: src/Ai/Abilities.php:199
+msgid "Applies a proposal from propose-changes and saves the page through the normal save path, creating a revision that appears in the page history as \"AI (external)\". Applying the same proposal twice has no further effect. Pages can require changes from external agents to be confirmed in the editor instead."
+msgstr ""
+
+#: src/Ai/Abilities.php:230
+msgid "Get link page analytics"
+msgstr ""
+
+#: src/Ai/Abilities.php:231
+msgid "Returns aggregate views and clicks per block for a link page over the last N days (no visitor data)."
+msgstr ""
+
+#: src/Ai/Abilities.php:254
+msgid "Suggests five alternative titles for a link, using the site's AI provider."
+msgstr ""
+
+#: src/Ai/Abilities.php:314
+msgid "This CrazyLinks ability is turned off. An administrator can enable it under CrazyLinks → Settings → AI."
+msgstr ""
+
+#: src/Ai/Abilities.php:394
+#: src/Ai/Abilities.php:415
+#: src/Ai/Abilities.php:429
+#: src/Ai/Abilities.php:448
+#: src/Rest/AiController.php:175
+#: src/Rest/AnalyticsController.php:80
+#: src/Rest/PagesController.php:103
+#: src/Rest/RevisionsController.php:121
+msgid "Link page not found."
+msgstr ""
+
+#: src/Ai/Bootstrap.php:86
+msgid "AI (external)"
+msgstr ""
+
+#: src/Ai/Bootstrap.php:86
+#: assets/build/editor/index.js:20
+msgid "AI"
+msgstr ""
+
+#: src/Ai/Bootstrap.php:99
+#: src/Ai/Bootstrap.php:113
+#: src/Ai/Bootstrap.php:139
+msgid "CrazyLinks AI requests"
+msgstr ""
+
+#: src/Ai/Bootstrap.php:151
+msgid "Request"
+msgstr ""
+
+#: src/Ai/Bootstrap.php:155
+msgid "Applied"
+msgstr ""
+
+#: src/Ai/Bootstrap.php:156
+msgid "Yes"
+msgstr ""
+
+#: src/Ai/Bootstrap.php:156
+msgid "No"
+msgstr ""
+
+#: src/Ai/ChangeList.php:52
+msgid "at the top"
+msgstr ""
+
+#. translators: %s: block name.
+#: src/Ai/ChangeList.php:54
+#, php-format
+msgid "after %s"
+msgstr ""
+
+#. translators: %s: block name.
+#. translators: 1: block name, 2: other block name.
+#: src/Ai/ChangeList.php:54
+#: src/Ai/ChangeList.php:90
+msgid "another block"
+msgstr ""
+
+#. translators: 1: block name, 2: position such as "at the top".
+#: src/Ai/ChangeList.php:56
+#, php-format
+msgid "Add %1$s %2$s"
+msgstr ""
+
+#. translators: %s: block name.
+#: src/Ai/ChangeList.php:60
+#: src/Ai/ChangeList.php:84
+#: src/Ai/ChangeList.php:102
+msgid "a block"
+msgstr ""
+
+#. translators: %s: block name.
+#: src/Ai/ChangeList.php:72
+#, php-format
+msgid "Pin %s to the top"
+msgstr ""
+
+#. translators: %s: block name.
+#: src/Ai/ChangeList.php:72
+#, php-format
+msgid "Unpin %s"
+msgstr ""
+
+#: src/Ai/ChangeList.php:75
+msgid "pinned"
+msgstr ""
+
+#: src/Ai/ChangeList.php:75
+msgid "unpinned"
+msgstr ""
+
+#. translators: 1: block name, 2: comma-separated list of fields.
+#: src/Ai/ChangeList.php:78
+#, php-format
+msgid "Change %1$s: %2$s"
+msgstr ""
+
+#. translators: %s: block name.
+#: src/Ai/ChangeList.php:88
+#, php-format
+msgid "Move %s to the top"
+msgstr ""
+
+#. translators: 1: block name, 2: other block name.
+#: src/Ai/ChangeList.php:90
+#, php-format
+msgid "Move %1$s after %2$s"
+msgstr ""
+
+#: src/Ai/ChangeList.php:93
+msgid "(out of its section)"
+msgstr ""
+
+#. translators: %s: section name.
+#: src/Ai/ChangeList.php:95
+#, php-format
+msgid "(into %s)"
+msgstr ""
+
+#. translators: %s: section name.
+#: src/Ai/ChangeList.php:95
+msgid "a section"
+msgstr ""
+
+#. translators: %s: block name.
+#. translators: %s: item name.
+#: src/Ai/ChangeList.php:102
+#: assets/build/editor/index.js:3
+#, php-format,js-format
+msgid "Remove %s"
+msgstr ""
+
+#. translators: %s: comma-separated list of profile fields.
+#: src/Ai/ChangeList.php:110
+#, php-format
+msgid "Update the profile: %s"
+msgstr ""
+
+#. translators: 1: block type, 2: block title.
+#: src/Ai/ChangeList.php:131
+#, php-format
+msgid "%1$s “%2$s”"
+msgstr ""
+
+#. translators: %s: payment service slug.
+#: src/Ai/ChangeList.php:136
+#, php-format
+msgid "payment button (%s)"
+msgstr ""
+
+#. translators: %s: block type.
+#: src/Ai/ChangeList.php:139
+#, php-format
+msgid "%s block"
+msgstr ""
+
+#. translators: %s: comma-separated list of design changes.
+#: src/Ai/ChangeList.php:159
+#, php-format
+msgid "Restyle: %s"
+msgstr ""
+
+#: src/Ai/ChangeList.php:169
+msgid "on"
+msgstr ""
+
+#: src/Ai/ChangeList.php:169
+msgid "off"
+msgstr ""
+
+#: src/Ai/ChangeList.php:181
+msgid "title"
+msgstr ""
+
+#: src/Ai/ChangeList.php:182
+#: assets/build/editor/index.js:1
+msgid "URL"
+msgstr ""
+
+#: src/Ai/ChangeList.php:183
+msgid "subtitle"
+msgstr ""
+
+#: src/Ai/ChangeList.php:184
+msgid "display style"
+msgstr ""
+
+#: src/Ai/ChangeList.php:185
+msgid "thumbnail"
+msgstr ""
+
+#: src/Ai/ChangeList.php:186
+msgid "badge"
+msgstr ""
+
+#: src/Ai/ChangeList.php:187
+msgid "visibility"
+msgstr ""
+
+#: src/Ai/ChangeList.php:188
+msgid "schedule"
+msgstr ""
+
+#: src/Ai/ChangeList.php:189
+msgid "animation"
+msgstr ""
+
+#: src/Ai/ChangeList.php:190
+msgid "click tracking"
+msgstr ""
+
+#: src/Ai/ChangeList.php:191
+msgid "items"
+msgstr ""
+
+#: src/Ai/ChangeList.php:192
+#: src/Ai/ChangeList.php:193
+msgid "text"
+msgstr ""
+
+#: src/Ai/ChangeList.php:194
+msgid "name"
+msgstr ""
+
+#: src/Ai/ChangeList.php:195
+msgid "bio"
+msgstr ""
+
+#: src/Ai/ChangeList.php:196
+msgid "avatar"
+msgstr ""
+
+#: src/Ai/ChangeList.php:197
+msgid "theme"
+msgstr ""
+
+#: src/Ai/ChangeList.php:198
+msgid "accent color"
+msgstr ""
+
+#: src/Ai/ChangeList.php:199
+msgid "corner radius"
+msgstr ""
+
+#: src/Ai/ChangeList.php:200
+msgid "layout"
+msgstr ""
+
+#: src/Ai/ChangeList.php:201
+msgid "dark mode"
+msgstr ""
+
+#: src/Ai/ChangeList.php:202
+msgid "button shape"
+msgstr ""
+
+#: src/Ai/ChangeList.php:203
+msgid "button fill"
+msgstr ""
+
+#: src/Ai/ChangeList.php:204
+msgid "button color"
+msgstr ""
+
+#: src/Ai/ChangeList.php:205
+msgid "button text color"
+msgstr ""
+
+#: src/Ai/ChangeList.php:206
+msgid "button shadow"
+msgstr ""
+
+#: src/Ai/ChangeList.php:207
+msgid "button hover effect"
+msgstr ""
+
+#: src/Ai/ChangeList.php:208
+msgid "button border"
+msgstr ""
+
+#: src/Ai/ChangeList.php:209
+msgid "background type"
+msgstr ""
+
+#: src/Ai/ChangeList.php:210
+msgid "background color"
+msgstr ""
+
+#: src/Ai/ChangeList.php:211
+msgid "gradient start"
+msgstr ""
+
+#: src/Ai/ChangeList.php:212
+msgid "gradient end"
+msgstr ""
+
+#: src/Ai/ChangeList.php:213
+msgid "gradient angle"
+msgstr ""
+
+#: src/Ai/ChangeList.php:214
+msgid "background pattern"
+msgstr ""
+
+#: src/Ai/ChangeList.php:215
+msgid "background image"
+msgstr ""
+
+#: src/Ai/ChangeList.php:216
+msgid "text color"
+msgstr ""
+
+#: src/Ai/ChangeList.php:217
+msgid "secondary text color"
+msgstr ""
+
+#: src/Ai/ChangeList.php:218
+msgid "font"
+msgstr ""
+
+#: src/Ai/ChangeList.php:219
+msgid "text size"
+msgstr ""
+
+#: src/Ai/ChangeList.php:220
+msgid "header layout"
+msgstr ""
+
+#: src/Ai/ChangeList.php:221
+msgid "avatar style"
+msgstr ""
+
+#: src/Ai/ChangeList.php:222
+msgid "location"
+msgstr ""
+
+#: src/Ai/ChangeList.php:223
+msgid "pronouns"
+msgstr ""
+
+#: src/Ai/ChangeList.php:224
+msgid "verified badge"
+msgstr ""
+
+#: src/Ai/ChangeList.php:225
+msgid "radial gradient"
+msgstr ""
+
+#: src/Ai/ChangeList.php:226
+msgid "background overlay"
+msgstr ""
+
+#: src/Ai/ChangeList.php:227
+msgid "background blur"
+msgstr ""
+
+#: src/Ai/ChangeList.php:228
+msgid "pattern color"
+msgstr ""
+
+#: src/Ai/ChangeList.php:229
+msgid "pattern size"
+msgstr ""
+
+#. translators: %d: requests per hour.
+#: src/Ai/Limits.php:55
+#, php-format
+msgid "You have reached the limit of %d AI requests per hour. Please try again later."
+msgstr ""
+
+#. translators: %d: requests per day.
+#: src/Ai/Limits.php:63
+#, php-format
+msgid "This site has reached its limit of %d AI requests today. Please try again tomorrow."
+msgstr ""
+
+#: src/Ai/Limits.php:121
+msgid "This site has used its AI budget for this month. An administrator can raise it under CrazyLinks → Settings."
+msgstr ""
+
+#: src/Ai/OpsApplier.php:114
+msgid "Unknown operation."
+msgstr ""
+
+#. translators: %s: block id.
+#: src/Ai/OpsApplier.php:158
+#, php-format
+msgid "There is no block with id \"%s\" on this page."
+msgstr ""
+
+#: src/Ai/OpsApplier.php:172
+msgid "Custom HTML blocks cannot be changed, moved or removed by AI."
+msgstr ""
+
+#: src/Ai/OpsApplier.php:195
+msgid "parent_id must be a group block."
+msgstr ""
+
+#: src/Ai/OpsApplier.php:210
+msgid "after_id must be a block inside the same parent as parent_id."
+msgstr ""
+
+#: src/Ai/OpsApplier.php:308
+#: src/Ai/OpsValidator.php:123
+msgid "This block type cannot be added by AI."
+msgstr ""
+
+#. translators: %d: maximum number of blocks.
+#: src/Ai/OpsApplier.php:312
+#, php-format
+msgid "A page can have at most %d blocks."
+msgstr ""
+
+#: src/Ai/OpsApplier.php:316
+msgid "This ref is already used by an earlier operation."
+msgstr ""
+
+#: src/Ai/OpsApplier.php:320
+#: src/Ai/OpsApplier.php:410
+#: src/Schema/PageValidator.php:347
+msgid "Groups cannot be nested."
+msgstr ""
+
+#: src/Ai/OpsApplier.php:405
+msgid "A block cannot be moved after itself."
+msgstr ""
+
+#: src/Ai/OpsApplier.php:413
+msgid "A group cannot contain itself."
+msgstr ""
+
+#: src/Ai/OpsApplier.php:434
+msgid "This group contains a custom HTML block, which AI cannot remove."
+msgstr ""
+
+#: src/Ai/OpsValidator.php:104
+msgid "The response must be a JSON object with summary, operations and questions."
+msgstr ""
+
+#: src/Ai/OpsValidator.php:115
+msgid "op must be one of add_block, update_block, move_block, remove_block, set_design, set_profile."
+msgstr ""
+
+#: src/Ai/OpsValidator.php:144
+msgid "Restyle requests may only use set_design."
+msgstr ""
+
+#: src/Ai/OpsValidator.php:147
+msgid "Analytics answers may only pin, unpin, show or hide blocks."
+msgstr ""
+
+#: src/Ai/OpsValidator.php:199
+#: src/Ai/OpsValidator.php:208
+#: src/Ai/OpsValidator.php:236
+msgid "Image ids must be images in this site's media library."
+msgstr ""
+
+#: src/Ai/OpsValidator.php:202
+msgid "Unknown theme preset."
+msgstr ""
+
+#. translators: %s: allowed URL schemes.
+#: src/Ai/OpsValidator.php:229
+#, php-format
+msgid "URL is not allowed. Use a full address starting with %s."
+msgstr ""
+
+#: src/Ai/OpsValidator.php:233
+msgid "URL is not allowed. Use http, https, mailto, tel or sms."
+msgstr ""
+
+#: src/Ai/OpsValidator.php:240
+#: src/Schema/PageValidator.php:377
+msgid "This deep link scheme is not allowed."
+msgstr ""
+
+#: src/Ai/OpsValidator.php:250
+msgid "Media ids must be items in this site's media library."
+msgstr ""
+
+#: src/Ai/OpsValidator.php:256
+msgid "Unknown product."
+msgstr ""
+
+#: src/Ai/OpsValidator.php:261
+msgid "Unknown category."
+msgstr ""
+
+#: src/Ai/OpsValidator.php:264
+msgid "Text may only use p, strong, em, a and br."
+msgstr ""
+
+#: src/Ai/OpsValidator.php:280
+#: src/Schema/PageValidator.php:356
+msgid "Schedule end must be after start."
+msgstr ""
+
+#: src/Ai/OpsValidator.php:283
+msgid "Schedule end is in the past, so the block would never show."
+msgstr ""
+
+#: src/Ai/Proposals.php:65
+msgid "Unknown AI mode."
+msgstr ""
+
+#: src/Ai/Proposals.php:68
+msgid "Describe the change you want."
+msgstr ""
+
+#. translators: %d: maximum characters.
+#: src/Ai/Proposals.php:72
+#, php-format
+msgid "Please keep the request under %d characters."
+msgstr ""
+
+#: src/Ai/Proposals.php:102
+msgid "You are not allowed to view analytics."
+msgstr ""
+
+#: src/Ai/Proposals.php:207
+msgid "This proposal has expired or does not belong to this page. Ask again to get a fresh one."
+msgstr ""
+
+#: src/Ai/Proposals.php:213
+msgid "This page requires changes from external AI agents to be confirmed in the CrazyLinks editor."
+msgstr ""
+
+#: src/Ai/Proposals.php:241
+msgid "The page changed since this proposal was made and the changes no longer fit. Ask again."
+msgstr ""
+
+#: src/Ai/Proposals.php:302
+msgid "Unknown suggestion type."
+msgstr ""
+
+#: src/Ai/Proposals.php:401
+#: src/Schema/ValidationResult.php:67
+msgid "The page document is invalid."
+msgstr ""
+
+#: src/Ai/Proposals.php:406
+msgid "Fix the problems on the page before asking the AI."
+msgstr ""
+
+#: src/Ai/Proposals.php:420
+msgid "These changes cannot be applied to this page."
+msgstr ""
+
+#: src/Ai/Status.php:156
+msgid "AI editing needs WordPress 7.0 or later."
+msgstr ""
+
+#: src/Ai/Status.php:158
+msgid "AI features are turned off on this site."
+msgstr ""
+
+#: src/Ai/Status.php:160
+msgid "AI editing is off. An administrator can turn it on in CrazyLinks → Settings."
+msgstr ""
+
+#: src/Ai/Status.php:162
+msgid "Your account is not allowed to use AI editing."
+msgstr ""
+
+#: src/Ai/Status.php:164
+msgid "No AI provider is connected. Add one in Settings → Connectors."
+msgstr ""
+
+#: src/Ai/WpAiClientDriver.php:116
+msgid "The AI returned changes that do not fit this page, even after a retry. Try rephrasing the request."
+msgstr ""
+
+#: src/Ai/WpAiClientDriver.php:159
+msgid "The AI did not return usable suggestions. Please try again."
+msgstr ""
+
+#: src/Ai/WpAiClientDriver.php:179
+msgid "The AI did not return JSON."
+msgstr ""
+
+#: src/Ai/WpAiClientDriver.php:225
+msgid "The AI returned no text."
+msgstr ""
+
+#: src/Ai/WpAiClientDriver.php:278
+msgid "AI requests are turned off on this site."
+msgstr ""
+
+#: src/Ai/WpAiClientDriver.php:282
+msgid "Could not reach the AI provider. Please try again in a moment."
+msgstr ""
+
+#: src/Ai/WpAiClientDriver.php:284
+msgid "This page is too large for the AI model. Try a smaller change."
+msgstr ""
+
+#: src/Ai/WpAiClientDriver.php:288
+msgid "The AI provider is rate-limiting this site. Please try again shortly."
+msgstr ""
+
+#. translators: %s: provider error message.
+#: src/Ai/WpAiClientDriver.php:293
+#, php-format
+msgid "The AI provider returned an error: %s"
+msgstr ""
+
+#: src/Analytics/Chart.php:68
+msgid "Daily page views and link clicks"
+msgstr ""
+
+#. translators: 1: first date, 2: last date, 3: highest value on the axis.
+#: src/Analytics/Chart.php:72
+#, php-format
+msgid "Line chart from %1$s to %2$s. The vertical axis runs from 0 to %3$s. The same numbers are in the data table below the chart."
+msgstr ""
+
+#: src/Analytics/ListColumns.php:41
+#: src/Analytics/ListColumns.php:47
+msgid "Views (30d)"
+msgstr ""
+
+#: src/Analytics/ListColumns.php:42
+#: src/Analytics/ListColumns.php:48
+msgid "Clicks (30d)"
+msgstr ""
+
+#: src/Analytics/ListColumns.php:43
+#: src/Analytics/ListColumns.php:49
+msgid "CTR"
+msgstr ""
+
+#: src/Analytics/ListColumns.php:79
+msgid "No views yet"
+msgstr ""
+
+#: src/Analytics/Summary.php:50
+msgid "Dates must look like 2026-01-31."
+msgstr ""
+
+#: src/Analytics/Summary.php:55
+msgid "The start date must not be after the end date."
+msgstr ""
+
+#: src/Analytics/Summary.php:69
+msgid "That range is too long."
+msgstr ""
+
+#: src/Analytics/Summary.php:219
+msgid "(removed block)"
+msgstr ""
+
+#: src/PostType.php:44
+#: src/PostType.php:54
+msgid "Link Pages"
+msgstr ""
+
+#: src/PostType.php:45
+msgid "Link Page"
+msgstr ""
+
+#: src/PostType.php:46
+#: src/PostType.php:47
+msgid "Add Link Page"
+msgstr ""
+
+#: src/PostType.php:49
+msgid "New Link Page"
+msgstr ""
+
+#: src/PostType.php:50
+msgid "View Link Page"
+msgstr ""
+
+#: src/PostType.php:51
+msgid "Search Link Pages"
+msgstr ""
+
+#: src/PostType.php:52
+msgid "No link pages found."
+msgstr ""
+
+#: src/PostType.php:53
+msgid "No link pages found in Trash."
+msgstr ""
+
+#: src/Privacy.php:38
+msgid "Suggested text:"
+msgstr ""
+
+#: src/Privacy.php:39
+msgid "Our link pages count visits and link clicks without cookies. For each view or click we store the page and link, the time, a device class (mobile, tablet or desktop), the operating system family, whether the page was opened inside an app such as Instagram or TikTok, the website that referred you (host name only) and any campaign tags in the link."
+msgstr ""
+
+#: src/Privacy.php:40
+msgid "We do not store your IP address. To count unique visitors we store a one-way hash of your IP address and browser user agent combined with a secret that changes every day (UTC) and is then discarded, so visits cannot be linked from one day to the next. A shorter-lived keyed hash of your IP address alone is used to limit abuse; it expires within an hour and is then deleted."
+msgstr ""
+
+#: src/Privacy.php:41
+msgid "Limitation: someone with access to both our database and our site configuration on the same day could test candidate IP addresses against that day's hashes. After the daily secret is discarded this is no longer possible."
+msgstr ""
+
+#: src/Privacy.php:42
+msgid "Raw visit records are kept for a limited period set by the site owner and then reduced to daily totals that contain no visitor hashes."
+msgstr ""
+
+#: src/Privacy.php:43
+msgid "If a link page offers an email sign-up form and you submit it, we store your email address, the consent text you agreed to, the time you agreed, which link page and form you used, and whether you confirmed. We send you one email asking you to confirm (double opt-in) unless the site owner turned that off, and every email includes an unsubscribe link. We do not store your IP address or browser details with your sign-up; a keyed hash of your IP address is used to limit sign-up attempts and expires within an hour. Sign-ups that are never confirmed, and addresses that unsubscribed, are deleted after the period set by the site owner (confirmed addresses stay until you unsubscribe or ask us to erase them). You can ask us to export or erase this data, and WordPress's personal data tools include it."
+msgstr ""
+
+#: src/Privacy.php:44
+msgid "Embedded media (for example YouTube or Spotify players) load from the provider only after you tap them; the provider's own privacy policy then applies."
+msgstr ""
+
+#: src/Privacy.php:45
+msgid "If the site owner turns on AI editing, staff who edit link pages can ask an AI service (the provider the owner connected in WordPress, for example Anthropic, Google or OpenAI) to suggest changes. The request, the content of the link page being edited and, for some requests, public facts about this site (title, tagline, recent post titles, menu links) or click totals per link are sent to that provider. Visitor data, email subscribers, IP addresses and account passwords or keys are never sent. We keep a record of these AI requests (who asked, when, what was asked and the proposed changes) for the period set by the site owner, 90 days by default; WordPress's personal data export and erase tools include it."
+msgstr ""
+
+#: src/Render/Icons.php:232
+#: src/Subscribers/ListTable.php:61
+#: src/Subscribers/PersonalData.php:78
+#: templates/blocks/contact.php:22
+#: assets/build/editor/index.js:1
+msgid "Email"
+msgstr ""
+
+#: src/Render/Icons.php:233
+#: templates/blocks/contact.php:18
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:19
+msgid "Phone"
+msgstr ""
+
+#: src/Render/Icons.php:234
+msgid "Website"
+msgstr ""
+
+#: src/Render/Icons.php:258
+msgid "Verified"
+msgstr ""
+
+#: src/Render/Payments.php:28
+msgid "Buy me a coffee"
+msgstr ""
+
+#: src/Render/Payments.php:34
+msgid "Support me on Ko-fi"
+msgstr ""
+
+#: src/Render/Payments.php:40
+msgid "Pay with PayPal"
+msgstr ""
+
+#: src/Render/Payments.php:46
+msgid "Pay with Venmo"
+msgstr ""
+
+#: src/Render/Payments.php:52
+msgid "Pay with Cash App"
+msgstr ""
+
+#: src/Render/Payments.php:58
+msgid "Pay securely"
+msgstr ""
+
+#: src/Render/Payments.php:64
+msgid "Become a patron"
+msgstr ""
+
+#: src/Render/Payments.php:70
+msgid "Donate on GoFundMe"
+msgstr ""
+
+#: src/Render/Payments.php:76
+msgid "Pay"
+msgstr ""
+
+#: src/Render/Themes.php:28
+#: assets/build/editor/index.js:1
+msgid "Default"
+msgstr ""
+
+#: src/Render/Themes.php:68
+msgid "Midnight"
+msgstr ""
+
+#: src/Render/Themes.php:95
+msgid "Sunrise"
+msgstr ""
+
+#: src/Render/Themes.php:122
+msgid "Paper"
+msgstr ""
+
+#: src/Render/Themes.php:162
+msgid "Brutalist"
+msgstr ""
+
+#: src/Render/Themes.php:187
+msgid "Pastel"
+msgstr ""
+
+#: src/Render/Themes.php:231
+msgid "Mono"
+msgstr ""
+
+#: src/Render/Themes.php:271
+msgid "Neon"
+msgstr ""
+
+#: src/Render/Themes.php:298
+msgid "Forest"
+msgstr ""
+
+#: src/Render/Themes.php:325
+msgid "Terracotta"
+msgstr ""
+
+#: src/Render/Themes.php:365
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Glass"
+msgstr ""
+
+#: src/Render/Themes.php:392
+msgid "Aurora"
+msgstr ""
+
+#: src/Render/Themes.php:419
+msgid "Retro"
+msgstr ""
+
+#: src/Render/Themes.php:446
+msgid "Blueprint"
+msgstr ""
+
+#: src/Rest/AiController.php:35
+#: src/Rest/PagesController.php:61
+#: src/Rest/RevisionsController.php:40
+msgid "Page id."
+msgstr ""
+
+#: src/Rest/AiController.php:51
+msgid "What to change, in plain words."
+msgstr ""
+
+#: src/Rest/AiController.php:74
+msgid "Editor working copy to change instead of the saved page."
+msgstr ""
+
+#: src/Rest/AiController.php:97
+msgid "Edited operations (default: as proposed). Validated like the original."
+msgstr ""
+
+#: src/Rest/AiController.php:102
+msgid "Editor working copy the proposal was made for."
+msgstr ""
+
+#: src/Rest/AnalyticsController.php:83
+msgid "Sorry, you are not allowed to view analytics for this page."
+msgstr ""
+
+#: src/Rest/PagesController.php:85
+msgid "Delete permanently instead of moving to the trash."
+msgstr ""
+
+#: src/Rest/PagesController.php:322
+msgid "The page could not be deleted."
+msgstr ""
+
+#: src/Rest/PagesController.php:383
+msgid "Internal page name."
+msgstr ""
+
+#: src/Rest/PagesController.php:389
+msgid "URL slug."
+msgstr ""
+
+#: src/Rest/PagesController.php:423
+msgid "Page document (schemas/page.v1.json). Validated server-side."
+msgstr ""
+
+#: src/Rest/PagesController.php:428
+msgid "Non-blocking validation warnings returned after create and update (for example missing alt text), each with a JSON path and message."
+msgstr ""
+
+#: src/Rest/PagesController.php:448
+msgid "Limit to a status."
+msgstr ""
+
+#: src/Rest/PagesController.php:487
+msgid "You are not allowed to publish link pages."
+msgstr ""
+
+#: src/Rest/PreviewController.php:49
+msgid "Page document to render."
+msgstr ""
+
+#: src/Rest/PreviewController.php:54
+msgid "Existing page id (for slug, author and cached embeds)."
+msgstr ""
+
+#: src/Rest/PreviewController.php:129
+#: assets/build/editor/index.js:19
+msgid "Preview"
+msgstr ""
+
+#: src/Rest/PreviewController.php:146
+msgid "Rendered page HTML including the plugin stylesheet."
+msgstr ""
+
+#: src/Rest/PreviewController.php:151
+msgid "Complete standalone HTML document for a sandboxed preview frame."
+msgstr ""
+
+#: src/Rest/PreviewController.php:156
+msgid "Non-blocking validation warnings (for example missing alt text), each with a JSON path and message."
+msgstr ""
+
+#: src/Rest/RevisionsController.php:46
+msgid "Revision id."
+msgstr ""
+
+#: src/Rest/RevisionsController.php:63
+msgid "Working copy of the page document."
+msgstr ""
+
+#: src/Rest/RevisionsController.php:67
+msgid "Working copy of the page name."
+msgstr ""
+
+#: src/Rest/RevisionsController.php:136
+msgid "Revision not found."
+msgstr ""
+
+#: src/Rest/RevisionsController.php:247
+msgid "The autosave could not be stored."
+msgstr ""
+
+#: src/Rest/RevisionsController.php:346
+msgid "The revision could not be restored."
+msgstr ""
+
+#: src/Rest/SubscribeController.php:119
+msgid "This form is not available."
+msgstr ""
+
+#: src/Rest/SubscribeController.php:156
+#: src/Rest/SubscribeController.php:175
+msgid "This link is not valid."
+msgstr ""
+
+#: src/Rest/SubscribersController.php:141
+msgid "Subscriber not found."
+msgstr ""
+
+#: src/Schema/PageValidator.php:110
+msgid "The page document is too large."
+msgstr ""
+
+#. translators: %s: JSON parser message.
+#: src/Schema/PageValidator.php:116
+#, php-format
+msgid "Invalid JSON: %s"
+msgstr ""
+
+#: src/Schema/PageValidator.php:120
+msgid "The page document must be a JSON object."
+msgstr ""
+
+#: src/Schema/PageValidator.php:262
+#: assets/build/editor/index.js:1
+msgid "The profile picture uses your name as its description. Add a name."
+msgstr ""
+
+#: src/Schema/PageValidator.php:274
+#: assets/build/editor/index.js:1
+msgid "This image has no alternative text. Describe it, or mark it decorative."
+msgstr ""
+
+#: src/Schema/PageValidator.php:280
+#: assets/build/editor/index.js:1
+msgid "This gallery image has no alternative text. Describe it, or mark it decorative."
+msgstr ""
+
+#: src/Schema/PageValidator.php:286
+#: assets/build/editor/index.js:1
+msgid "This link image has no alternative text. Describe it, or mark it decorative."
+msgstr ""
+
+#. translators: %s: contrast ratio such as 3.2.
+#: src/Schema/PageValidator.php:300
+#, php-format
+msgid "Text in this section is hard to read on its background (%s:1, needs 4.5:1). Pick another text or background colour."
+msgstr ""
+
+#: src/Schema/PageValidator.php:341
+msgid "Duplicate block id."
+msgstr ""
+
+#: src/Schema/PageValidator.php:349
+msgid "parent_id must reference a group block on this page."
+msgstr ""
+
+#: src/Schema/PageValidator.php:362
+msgid "Only users allowed to post unfiltered HTML can add or change custom HTML blocks."
+msgstr ""
+
+#. translators: %s: allowed URL schemes.
+#: src/Schema/PageValidator.php:371
+#, php-format
+msgid "URL is not allowed. Allowed schemes: %s."
+msgstr ""
+
+#: src/Schema/PageValidator.php:383
+msgid "A video block needs an attachment or a URL."
+msgstr ""
+
+#: src/Schema/PageValidator.php:386
+msgid "Invalid email address."
+msgstr ""
+
+#: src/Schema/PageValidator.php:393
+msgid "Only users allowed to post unfiltered HTML can change custom CSS."
+msgstr ""
+
+#: src/Schema/PageValidator.php:410
+msgid "Enter a valid handle or a URL for this payment service."
+msgstr ""
+
+#: src/Schema/PageValidator.php:413
+msgid "This URL does not belong to the selected payment service."
+msgstr ""
+
+#: src/Settings.php:154
+msgid "AI editing stays off until you tick the box that confirms page content may be sent to your AI provider."
+msgstr ""
+
+#: src/Settings.php:196
+msgid "The URL base must be 1-32 lowercase letters, numbers or hyphens and must not be a reserved WordPress path. The previous value was kept."
+msgstr ""
+
+#: src/Subscribers/ListTable.php:62
+#: src/Subscribers/PersonalData.php:82
+#: assets/src/block-editor.js:39
+msgid "Page"
+msgstr ""
+
+#: src/Subscribers/ListTable.php:63
+#: src/Subscribers/PersonalData.php:86
+msgid "Status"
+msgstr ""
+
+#: src/Subscribers/ListTable.php:64
+msgid "Consent date"
+msgstr ""
+
+#: src/Subscribers/ListTable.php:88
+#: src/Subscribers/ListTable.php:137
+msgid "Resend confirmation"
+msgstr ""
+
+#: src/Subscribers/ListTable.php:89
+#: src/Subscribers/ListTable.php:139
+#: assets/build/editor/index.js:7
+msgid "Delete"
+msgstr ""
+
+#: src/Subscribers/ListTable.php:173
+msgid "No consent text on this form"
+msgstr ""
+
+#: src/Subscribers/ListTable.php:190
+msgid "No subscribers found."
+msgstr ""
+
+#: src/Subscribers/ListTable.php:217
+msgid "All"
+msgstr ""
+
+#: src/Subscribers/ListTable.php:243
+msgid "Filter by page"
+msgstr ""
+
+#: src/Subscribers/ListTable.php:243
+msgid "All pages"
+msgstr ""
+
+#: src/Subscribers/ListTable.php:256
+msgid "Filter"
+msgstr ""
+
+#: src/Subscribers/ListTable.php:257
+msgid "Export CSV"
+msgstr ""
+
+#: src/Subscribers/ListTable.php:267
+msgid "Pending"
+msgstr ""
+
+#: src/Subscribers/ListTable.php:268
+msgid "Confirmed"
+msgstr ""
+
+#: src/Subscribers/ListTable.php:269
+msgid "Unsubscribed"
+msgstr ""
+
+#. translators: 1: page name, 2: site name.
+#: src/Subscribers/Mailer.php:37
+#, php-format
+msgid "Someone, hopefully you, asked to receive email from %1$s on %2$s."
+msgstr ""
+
+#: src/Subscribers/Mailer.php:41
+msgid "Please confirm your address by opening this link (it works for 7 days):"
+msgstr ""
+
+#: src/Subscribers/Mailer.php:43
+msgid "If this was not you, ignore this message and you will not hear from us again."
+msgstr ""
+
+#. translators: %s: site name.
+#: src/Subscribers/Mailer.php:46
+#, php-format
+msgid "Please confirm your subscription to %s"
+msgstr ""
+
+#. translators: 1: page name, 2: site name.
+#: src/Subscribers/Mailer.php:59
+#, php-format
+msgid "You are subscribed to updates from %1$s on %2$s."
+msgstr ""
+
+#. translators: %s: site name.
+#: src/Subscribers/Mailer.php:64
+#, php-format
+msgid "You are subscribed to %s"
+msgstr ""
+
+#: src/Subscribers/Mailer.php:74
+msgid "Unsubscribe at any time:"
+msgstr ""
+
+#. translators: %s: the consent wording the visitor agreed to.
+#: src/Subscribers/Mailer.php:77
+#, php-format
+msgid "You agreed to: \"%s\""
+msgstr ""
+
+#: src/Subscribers/PersonalData.php:38
+#: src/Subscribers/PersonalData.php:53
+#: src/Subscribers/PersonalData.php:73
+msgid "CrazyLinks email sign-ups"
+msgstr ""
+
+#: src/Subscribers/PersonalData.php:74
+msgid "Addresses submitted through CrazyLinks email sign-up forms."
+msgstr ""
+
+#: src/Subscribers/PersonalData.php:90
+#: assets/build/editor/index.js:1
+msgid "Consent text"
+msgstr ""
+
+#: src/Subscribers/PersonalData.php:94
+msgid "Consent given (UTC)"
+msgstr ""
+
+#: src/Subscribers/PersonalData.php:98
+msgid "Confirmed (UTC)"
+msgstr ""
+
+#: src/Subscribers/PersonalData.php:102
+msgid "Signed up (UTC)"
+msgstr ""
+
+#: src/Subscribers/Service.php:41
+#: assets/build/editor/index.js:1
+msgid "Check your inbox and click the link we sent to confirm your email."
+msgstr ""
+
+#: src/Subscribers/Service.php:42
+#: assets/build/editor/index.js:1
+msgid "You are in. Thanks for subscribing!"
+msgstr ""
+
+#: src/Subscribers/Service.php:43
+msgid "Your subscription is confirmed. Thank you!"
+msgstr ""
+
+#: src/Subscribers/Service.php:44
+msgid "You have been unsubscribed."
+msgstr ""
+
+#: src/Subscribers/Service.php:45
+msgid "That confirmation link has expired. Please sign up again."
+msgstr ""
+
+#: src/Subscribers/Service.php:46
+msgid "Please enter a valid email address."
+msgstr ""
+
+#: src/Subscribers/Service.php:47
+msgid "Please tick the consent box to subscribe."
+msgstr ""
+
+#: src/Subscribers/Service.php:48
+msgid "Too many attempts. Please try again later."
+msgstr ""
+
+#: src/Subscribers/Service.php:49
+msgid "Sorry, that did not work. Please try again."
+msgstr ""
+
+#: templates/blocks/contact.php:25
+#: assets/build/editor/index.js:1
+msgid "Address"
+msgstr ""
+
+#: templates/blocks/contact.php:32
+msgid "Save contact"
+msgstr ""
+
+#: templates/blocks/contact.php:32
+msgid "Download vCard"
+msgstr ""
+
+#: templates/blocks/contact.php:35
+#: assets/build/editor/index.js:1
+msgid "Contact"
+msgstr ""
+
+#: templates/blocks/countdown.php:24
+#: assets/build/editor/index.js:7
+msgid "Days"
+msgstr ""
+
+#: templates/blocks/countdown.php:25
+msgid "Hours"
+msgstr ""
+
+#: templates/blocks/countdown.php:26
+msgid "Min"
+msgstr ""
+
+#: templates/blocks/countdown.php:27
+msgid "Sec"
+msgstr ""
+
+#: templates/blocks/countdown.php:46
+msgid "This countdown has ended."
+msgstr ""
+
+#: templates/blocks/countdown.php:48
+msgid "Continue"
+msgstr ""
+
+#: templates/blocks/email-capture.php:34
+msgid "Leave this field empty"
+msgstr ""
+
+#: templates/blocks/email-capture.php:38
+msgid "Email address"
+msgstr ""
+
+#: templates/blocks/email-capture.php:39
+msgid "you@example.com"
+msgstr ""
+
+#: templates/blocks/email-capture.php:40
+#: assets/build/editor/index.js:1
+msgid "Subscribe"
+msgstr ""
+
+#. translators: %s: embedded media title.
+#: templates/blocks/embed.php:35
+#, php-format
+msgid "Play: %s"
+msgstr ""
+
+#: templates/blocks/gallery.php:44
+msgid "View image link"
+msgstr ""
+
+#: templates/blocks/gallery.php:62
+#: assets/build/editor/index.js:1
+msgid "Gallery"
+msgstr ""
+
+#: templates/blocks/latest-posts.php:40
+#: assets/build/editor/index.js:1
+msgid "Latest posts"
+msgstr ""
+
+#: templates/blocks/link.php:66
+#: assets/build/editor/index.js:3
+msgid "New"
+msgstr ""
+
+#: templates/blocks/link.php:124
+msgid "(pinned)"
+msgstr ""
+
+#: templates/blocks/link.php:127
+#: assets/build/editor/index.js:3
+msgid "(opens in a new tab)"
+msgstr ""
+
+#: templates/blocks/map.php:19
+msgid "Open in Google Maps"
+msgstr ""
+
+#: templates/blocks/map.php:22
+msgid "Open in Apple Maps"
+msgstr ""
+
+#: templates/blocks/socials.php:20
+msgid "Social profiles"
+msgstr ""
+
+#: templates/blocks/video.php:54
+#: assets/build/editor/index.js:1
+msgid "Video"
+msgstr ""
+
+#: templates/blocks/video.php:56
+msgid "Download the video"
+msgstr ""
+
+#: templates/page.php:22
+msgid "For the best experience, open this page in your browser."
+msgstr ""
+
+#: templates/page.php:23
+msgid "Dismiss"
+msgstr ""
+
+#: templates/page.php:48
+msgid "Made with CrazyLinks"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Alignment"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Left"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Center"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Right"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "A button that opens a URL. Click-tracked."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Title"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "http, https, mailto, tel or sms."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Subtitle"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Display"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Classic button"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Button with thumbnail"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Featured card (16:9)"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Thumbnail image"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Thumbnail alternative text"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Describe the image. Leave empty to use the Media Library text."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Thumbnail is decorative"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Screen readers skip it; no alternative text is needed."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Thumbnail focal point"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "The part of the image that stays in view when it is cropped."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Thumbnail side"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Tile size (Grid layout)"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "1 × 1 (default)"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "2 × 1 (full width)"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "2 × 2 (full width, taller)"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Only applies when the page uses the Grid layout."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Icon"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Emoji"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Badge"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Short label such as \"New\" or \"Sale\"."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Badge colour"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Button fill (this link only)"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Page default"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Solid"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Outline"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Soft"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Button colour (this link only)"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Text colour (this link only)"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Show a NEW flag until"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Open in a new tab"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Link relationship"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "App deep link"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Social icons"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "A row of brand icons linking to your profiles."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Profiles"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "profile"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Network"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Style"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Icons"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Buttons"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Heading"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "A title for a part of the page, with size, weight, colour, subtext and an optional divider."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Text"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Subtext"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "A short line under the heading."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Size"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Default (medium)"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Small"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Medium"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Large"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Extra large"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Weight"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Default (bold)"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Normal"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Bold"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Black"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Divider"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:7
+#: assets/build/editor/index.js:9
+msgid "None"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Line"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Dots"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Shown before the text instead of an icon."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Level"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Heading 2"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Heading 3"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Colour (this heading only)"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Uppercase"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Space above"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Tight"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Loose"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "A paragraph with basic formatting."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:7
+msgid "Content"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Allowed HTML: p, strong, em, a, br."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "A line, dots or blank space between sections."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Space"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Image"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "One image from the Media Library, optionally linked."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Alternative text"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Describe the image for people who cannot see it."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Decorative image"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Link URL"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Caption"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "A grid of images, each optionally linked."
+msgstr ""
+
+#. translators: %d: number of images.
+#: assets/build/editor/index.js:1
+#, js-format
+msgid "%d images"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Images"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "image"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Columns"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Mode"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Grid"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Carousel (renders as a grid for now)"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Your newest blog posts as cards, updated automatically."
+msgstr ""
+
+#. translators: %d: number of posts.
+#: assets/build/editor/index.js:1
+#, js-format
+msgid "%d newest posts"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Number of posts"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Category ID"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "0 or empty for all categories."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Featured cards"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Classic buttons"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Post type"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Embed"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "YouTube, Spotify, Vimeo, SoundCloud and other oEmbed URLs."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Accessible title"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "A video from the Media Library or a URL."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Choose a video or enter a URL."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Video file"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Or video URL"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Poster image"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Autoplay (muted)"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Loop"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Muted"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Email sign-up"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Collect email addresses with a consent line."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Join my list"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Field placeholder"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Button text"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Message after sign-up (check your inbox)"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Message after confirming"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Tags"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Comma-separated."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Phone, email and address, with an optional vCard download."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Offer a vCard download"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:7
+msgid "Section"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Holds other blocks, with its own heading, background and layout. Hide or schedule it to hide everything inside."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Description"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Title (older groups)"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Used when the heading is empty. Clear it and use Heading instead."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Collapsible"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Visitors tap the heading to open or close it. Needs a heading."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Start closed"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:7
+#: assets/build/editor/index.js:9
+msgid "Layout"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "List"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Grid (two columns)"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Background"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "None (page background)"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Solid colour"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Gradient"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Pattern"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Background colour"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Gradient from"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Gradient to"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Gradient angle"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Radial gradient"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Background image"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Overlay colour"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Darkens or tints the image so text stays readable."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Stripes"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Lines"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Checks"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Noise"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Pattern colour"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Text colour"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Blocks inside use this colour. Left empty, a section with a background picks a readable colour."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Padding"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Automatic"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Corners"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Same as buttons"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Square"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Slightly rounded"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:9
+msgid "Rounded"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Very rounded"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Products"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "WooCommerce products by id or category."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Product IDs"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Or product category ID"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Payment or tip"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Buy Me a Coffee, Ko-fi, PayPal, Venmo, Cash App, Stripe and more."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Enter your handle or a URL."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Service"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Handle"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Or full URL"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Button label"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Amount hint"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Custom HTML"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Raw HTML. Only for users allowed to post unfiltered HTML."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "HTML"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Spacer"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Empty vertical space."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Height (px)"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Countdown"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Counts down to a date, then shows a link."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Counts down to"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Label"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Text after the end"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Link after the end"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Link label"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Map link"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "An address that opens in Google or Apple Maps."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Open in"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Google and Apple Maps"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Google Maps"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Apple Maps"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Edit this block in the JSON panel."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "The request failed."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "This field is required."
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Not saved: someone else is editing this page."
+msgstr ""
+
+#. translators: %d: number of problems.
+#: assets/build/editor/index.js:2
+#, js-format
+msgid "Not saved: %d field needs attention."
+msgid_plural "Not saved: %d fields need attention."
+msgstr[0] ""
+msgstr[1] ""
+
+#: assets/build/editor/index.js:2
+msgid "Saving…"
+msgstr ""
+
+#: assets/build/editor/index.js:2
+msgid "Published."
+msgstr ""
+
+#: assets/build/editor/index.js:2
+msgid "Saved."
+msgstr ""
+
+#. translators: %d: number of problems.
+#: assets/build/editor/index.js:3
+#, js-format
+msgid "Not saved: %d problem."
+msgid_plural "Not saved: %d problems."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %s: error message.
+#: assets/build/editor/index.js:3
+#, js-format
+msgid "Not saved: %s"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Published"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+#: assets/build/editor/index.js:7
+msgid "Scheduled"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Private"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Pending review"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Draft"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Submit anyway"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Update anyway"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Publish anyway"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Autosaving…"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Unsaved changes (autosaved)"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Unsaved changes"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "All changes saved"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+#: assets/build/editor/index.js:20
+msgid "All link pages"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Page name"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Undo"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Redo"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "History"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+#: assets/build/editor/index.js:19
+msgid "Advanced: edit JSON"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "View page"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Publish the page to view it"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Save draft"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Publish"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Submit for review"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Some things need a look"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "These images have no alternative text, so people using a screen reader will miss them:"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Go back and fix"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Choose media"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Use this"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Replace"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Select"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Remove"
+msgstr ""
+
+#. translators: %d: attachment id.
+#: assets/build/editor/index.js:3
+#, js-format
+msgid "Attachment #%d"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Horizontal position (%)"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Vertical position (%)"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Reset to centre"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Profile"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+#: assets/build/editor/index.js:19
+msgid "Name"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Bio"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+#: assets/build/editor/index.js:19
+msgid "Avatar"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Avatar style"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Circle"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Rounded square"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Shape mask"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Hero (full width)"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Banner with avatar"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+#: assets/build/editor/index.js:9
+msgid "Shape"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Squircle"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Blob"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Header layout"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Centered"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Left-aligned"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Hero"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Banner"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Banner image"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Banner focal point"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "The part of the banner that stays in view when it is cropped."
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Location"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Pronouns"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Show a verified badge"
+msgstr ""
+
+#. translators: %s: control label.
+#: assets/build/editor/index.js:3
+#, js-format
+msgid "Pick %s"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Reset"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Clear"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Nothing here yet."
+msgstr ""
+
+#. translators: 1: item kind, 2: position.
+#: assets/build/editor/index.js:3
+#, js-format
+msgid "%1$s %2$d"
+msgstr ""
+
+#. translators: %s: item name.
+#: assets/build/editor/index.js:3
+#, js-format
+msgid "Move %s up"
+msgstr ""
+
+#. translators: %s: item name.
+#: assets/build/editor/index.js:3
+#, js-format
+msgid "Move %s down"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Add images"
+msgstr ""
+
+#. translators: %s: item kind.
+#: assets/build/editor/index.js:3
+#, js-format
+msgid "Add %s"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Or paste profile URLs (one per line)"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "The network is detected from each address."
+msgstr ""
+
+#. translators: %s: rejected entries.
+#: assets/build/editor/index.js:3
+#, js-format
+msgid "Not recognised as URLs: %s"
+msgstr ""
+
+#. translators: %d: number of profiles added.
+#: assets/build/editor/index.js:3
+#, js-format
+msgid "Added %d profiles."
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Add pasted profiles"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Mon"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Tue"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Wed"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Thu"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Fri"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Sat"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Sun"
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Pick at least one day."
+msgstr ""
+
+#: assets/build/editor/index.js:3
+msgid "Enter a start and end time."
+msgstr ""
+
+#. translators: %s: start time.
+#: assets/build/editor/index.js:4
+#, js-format
+msgid "all day from %s"
+msgstr ""
+
+#. translators: %s: time range such as 22:00–01:00.
+#: assets/build/editor/index.js:5
+#, js-format
+msgid "%s (ends the next day)"
+msgstr ""
+
+#. translators: 1: days such as Mon–Thu, 2: times such as 12:30–14:00.
+#: assets/build/editor/index.js:6
+#, js-format
+msgid "%1$s, %2$s, site time"
+msgstr ""
+
+#: assets/build/editor/index.js:6
+msgid "Every day"
+msgstr ""
+
+#: assets/build/editor/index.js:6
+msgid "Your local time."
+msgstr ""
+
+#. translators: 1: contrast ratio.
+#: assets/build/editor/index.js:7
+#, js-format
+msgid "Text in this section is hard to read on its background (%1$s:1, needs 4.5:1). Pick another text or background colour."
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Repeat weekly"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Show only on some days, between two times (site timezone)."
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Monday"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Tuesday"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Wednesday"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Thursday"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Friday"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Saturday"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Sunday"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Until"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Other (custom URL)"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Only users allowed to post unfiltered HTML can change this block."
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Visibility, schedule and more"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Visible"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Pin to top"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Count clicks"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Attention animation"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Visitors who prefer reduced motion never see it."
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Pulse"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Shake"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Wobble"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Shimmer"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Show from"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Hide after"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Everything inside this section follows its schedule."
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Not in a section"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Untitled section"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Move up"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Move down"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Duplicate"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Confirm delete"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Delete this section and the blocks inside it?"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Delete this block?"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+#: assets/build/editor/index.js:19
+msgid "Cancel"
+msgstr ""
+
+#. translators: %s: block type label.
+#: assets/build/editor/index.js:7
+#, js-format
+msgid "Delete %s"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Drop here to add to the section"
+msgstr ""
+
+#. translators: %s: block label.
+#: assets/build/editor/index.js:7
+#, js-format
+msgid "Reorder %s"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "(empty)"
+msgstr ""
+
+#. translators: %d: number of problems.
+#: assets/build/editor/index.js:7
+#, js-format
+msgid "%d problem"
+msgid_plural "%d problems"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of warnings.
+#: assets/build/editor/index.js:7
+#, js-format
+msgid "%d warning"
+msgid_plural "%d warnings"
+msgstr[0] ""
+msgstr[1] ""
+
+#: assets/build/editor/index.js:7
+msgid "Clicks in the last 30 days"
+msgstr ""
+
+#. translators: %s: click count.
+#: assets/build/editor/index.js:7
+#, js-format
+msgid "%s click"
+msgid_plural "%s clicks"
+msgstr[0] ""
+msgstr[1] ""
+
+#: assets/build/editor/index.js:7
+msgid "Unpin"
+msgstr ""
+
+#. translators: %s: block label.
+#: assets/build/editor/index.js:7
+#, js-format
+msgid "Hide %s"
+msgstr ""
+
+#. translators: %s: block label.
+#: assets/build/editor/index.js:7
+#, js-format
+msgid "Show %s"
+msgstr ""
+
+#. translators: %s: block label.
+#: assets/build/editor/index.js:7
+#, js-format
+msgid "Picked up %s."
+msgstr ""
+
+#. translators: 1: block label, 2: position.
+#: assets/build/editor/index.js:7
+#, js-format
+msgid "%1$s moved to position %2$d."
+msgstr ""
+
+#. translators: 1: block label, 2: position.
+#: assets/build/editor/index.js:7
+#, js-format
+msgid "%1$s dropped at position %2$d."
+msgstr ""
+
+#. translators: %s: block label.
+#: assets/build/editor/index.js:7
+#, js-format
+msgid "Moving %s was cancelled."
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Your page has no blocks yet. Add a link to get started."
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "To reorder or move a block into or out of a section, press Space or Enter, use the arrow keys to move, then Space or Enter to drop. Escape cancels."
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Press Space or Enter to pick up, arrow keys to move, Space or Enter to drop."
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Blocks"
+msgstr ""
+
+#. translators: %s: section label.
+#: assets/build/editor/index.js:7
+#, js-format
+msgid "Blocks in %s"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Add to section"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Media"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Commerce"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Advanced"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Add a block to the section"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Add a block"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Search blocks"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "No block matches your search."
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Add block"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+#: assets/build/editor/index.js:9
+#: assets/build/editor/index.js:19
+msgid "Theme"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Body text on the background"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Headings on the background"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Muted text on the background"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Muted text on cards"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Accent colour on the background"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Button text on the button"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Sign-up button text on the button"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "Badge text on the badge"
+msgstr ""
+
+#: assets/build/editor/index.js:7
+msgid "(dark mode)"
+msgstr ""
+
+#. translators: 1: pair of colours, 2: dark mode marker, 3: ratio, 4: required ratio.
+#: assets/build/editor/index.js:8
+#, js-format
+msgid "%1$s%2$s: %3$s:1, needs %4$s:1"
+msgstr ""
+
+#. translators: 1: link title, 2: ratio.
+#: assets/build/editor/index.js:9
+#, js-format
+msgid "Badge on \"%1$s\": white text on the badge colour is %2$s:1, needs 4.5:1"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Low contrast. Aim for 4.5:1 (3:1 for headings) so everyone can read the page."
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Picking a theme resets colours, background and button style to the theme. Layout and custom CSS are kept."
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Colour"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Angle"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Radial"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Overlay"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Blur"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Pattern size"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Muted text colour"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Font"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Sans-serif (system)"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Serif (system)"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Rounded (system)"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Monospace (system)"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Text size"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Pill"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Fill"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Button colour"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Button text colour"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Shadow"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Hard"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Border width"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Hover effect"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Lift"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Darken"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Accent colour"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Corner radius"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Link layout"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Grid (2 columns)"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Featured first link"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Dark mode"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Follow the visitor's device"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Always light"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Always dark"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Custom CSS"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "CSS added to this page"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Scope rules under .cl-page."
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "This page has custom CSS. Only users allowed to post unfiltered HTML can change it."
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Standalone page"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Inside my theme"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Page address"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Slug"
+msgstr ""
+
+#. translators: %s: page URL.
+#: assets/build/editor/index.js:9
+#, js-format
+msgid "Address: %s"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Search and sharing"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "SEO title"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Social sharing image"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Used for Open Graph previews. 1200 × 630 works best."
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Hide from search engines (noindex)"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "UTM tags on outbound links"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Add UTM parameters to tracked links"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Source"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Campaign"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Existing UTM parameters on a link are never overwritten."
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Suggest opening in the browser"
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Shows a dismissible hint to visitors inside Instagram, TikTok and other in-app browsers."
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Show \"Made with CrazyLinks\""
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Adds a small credit line under your links. Off by default."
+msgstr ""
+
+#: assets/build/editor/index.js:9
+msgid "Rendering"
+msgstr ""
+
+#. translators: %s: site-wide rendering mode.
+#: assets/build/editor/index.js:10
+#, js-format
+msgid "Site default (%s)"
+msgstr ""
+
+#: assets/build/editor/index.js:10
+msgid "Unknown"
+msgstr ""
+
+#: assets/build/editor/index.js:10
+msgid "You do not have permission to view analytics."
+msgstr ""
+
+#: assets/build/editor/index.js:10
+msgid "(deleted block)"
+msgstr ""
+
+#: assets/build/editor/index.js:10
+msgid "Date range"
+msgstr ""
+
+#: assets/build/editor/index.js:10
+msgid "Analytics are not available right now."
+msgstr ""
+
+#: assets/build/editor/index.js:10
+msgid "No data yet. Views and clicks appear here once people visit the page."
+msgstr ""
+
+#: assets/build/editor/index.js:10
+msgid "No data yet. Publish the page to start counting views and clicks."
+msgstr ""
+
+#: assets/build/editor/index.js:10
+msgid "Click-through rate"
+msgstr ""
+
+#. translators: 1: total views, 2: total clicks.
+#: assets/build/editor/index.js:11
+#, js-format
+msgid "Daily views and clicks. Views: %1$s, clicks: %2$s."
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Clicks per block"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Block"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Devices"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Operating systems"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "In-app browsers"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Referrers"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Country data is not collected on this site."
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Edit"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Describe the change…"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Move the podcast link under the merch link"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Pin my newest link to the top"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Hide the tour link after December 31"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Build from this site"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Anything to include or leave out?"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Build my link page from this site"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Use my latest posts and my social profiles"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Build from description"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Who are you and what should visitors find?"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "I'm a wedding photographer in Austin. I want booking, portfolio and Instagram."
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Restyle"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Describe a look or a mood…"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Make it feel like a 90s skate brand"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Calm and minimal, black text on white"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Ask about analytics"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Ask a question about clicks…"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Which link did best this month and what should I pin?"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Could not reach your site. Check your connection."
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "The AI request failed."
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Compare"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Before"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "After"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "The preview could not be rendered."
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Preview with the AI changes"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "Preview without the AI changes"
+msgstr ""
+
+#: assets/build/editor/index.js:11
+msgid "No changes"
+msgstr ""
+
+#. translators: %d: number of blocks.
+#: assets/build/editor/index.js:12
+#, js-format
+msgid "%d added"
+msgid_plural "%d added"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of blocks.
+#: assets/build/editor/index.js:13
+#, js-format
+msgid "%d changed"
+msgid_plural "%d changed"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of blocks.
+#: assets/build/editor/index.js:14
+#, js-format
+msgid "%d moved"
+msgid_plural "%d moved"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of blocks.
+#: assets/build/editor/index.js:15
+#, js-format
+msgid "%d removed"
+msgid_plural "%d removed"
+msgstr[0] ""
+msgstr[1] ""
+
+#: assets/build/editor/index.js:15
+msgid "design updated"
+msgstr ""
+
+#: assets/build/editor/index.js:15
+msgid "profile updated"
+msgstr ""
+
+#: assets/build/editor/index.js:15
+msgid "The AI needs a little more detail:"
+msgstr ""
+
+#: assets/build/editor/index.js:15
+msgid "Send answers"
+msgstr ""
+
+#. translators: %d: percentage of the monthly AI budget used.
+#: assets/build/editor/index.js:16
+#, js-format
+msgid "This site has used %d%% of its monthly AI budget."
+msgstr ""
+
+#: assets/build/editor/index.js:16
+msgid "Saving AI changes…"
+msgstr ""
+
+#: assets/build/editor/index.js:16
+msgid "AI changes saved. Undo is available."
+msgstr ""
+
+#: assets/build/editor/index.js:16
+#: assets/build/editor/index.js:19
+msgid "Apply"
+msgstr ""
+
+#: assets/build/editor/index.js:16
+msgid "Discard"
+msgstr ""
+
+#: assets/build/editor/index.js:16
+msgid "Applied and saved. Use Undo or the page history to go back."
+msgstr ""
+
+#: assets/build/editor/index.js:16
+msgid "applied"
+msgstr ""
+
+#: assets/build/editor/index.js:16
+msgid "discarded"
+msgstr ""
+
+#: assets/build/editor/index.js:16
+msgid "open"
+msgstr ""
+
+#: assets/build/editor/index.js:16
+msgid "Earlier requests this session"
+msgstr ""
+
+#: assets/build/editor/index.js:16
+msgid "Suggestions"
+msgstr ""
+
+#: assets/build/editor/index.js:16
+msgid "Suggest titles for the selected link"
+msgstr ""
+
+#: assets/build/editor/index.js:16
+msgid "Rewrite my bio"
+msgstr ""
+
+#: assets/build/editor/index.js:16
+msgid "Select a link in the Links tab or the preview to get title ideas."
+msgstr ""
+
+#: assets/build/editor/index.js:16
+msgid "Open CrazyLinks settings"
+msgstr ""
+
+#: assets/build/editor/index.js:16
+msgid "AI editing is not available. Connect an AI provider in Settings → Connectors."
+msgstr ""
+
+#: assets/build/editor/index.js:16
+msgid "What do you want to do?"
+msgstr ""
+
+#: assets/build/editor/index.js:16
+msgid "Ask AI"
+msgstr ""
+
+#: assets/build/editor/index.js:16
+msgid "Thinking…"
+msgstr ""
+
+#: assets/build/editor/index.js:16
+msgid "Propose changes"
+msgstr ""
+
+#: assets/build/editor/index.js:16
+msgid "Examples"
+msgstr ""
+
+#: assets/build/editor/index.js:16
+msgid "Nothing changes until you press Apply. Every applied change can be undone and is kept in the page history."
+msgstr ""
+
+#: assets/build/editor/index.js:16
+msgid "External AI agents need my confirmation for this page"
+msgstr ""
+
+#: assets/build/editor/index.js:16
+msgid "Changes proposed by assistants connected through the MCP Adapter can only be applied here, in the editor."
+msgstr ""
+
+#. translators: %d: number of blocks.
+#: assets/build/editor/index.js:17
+#, js-format
+msgid "%d block has a problem and is hidden in the preview."
+msgid_plural "%d blocks have problems and are hidden in the preview."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of problems.
+#: assets/build/editor/index.js:18
+#, js-format
+msgid "Preview paused: fix %d problem."
+msgid_plural "Preview paused: fix %d problems."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of blocks.
+#: assets/build/editor/index.js:19
+#, js-format
+msgid "%d unfinished block is not shown yet."
+msgid_plural "%d unfinished blocks are not shown yet."
+msgstr[0] ""
+msgstr[1] ""
+
+#: assets/build/editor/index.js:19
+msgid "Preview width"
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Desktop"
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Page preview"
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Page history"
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "No revisions yet. Each save keeps one."
+msgstr ""
+
+#. translators: 1: author, 2: number of blocks.
+#: assets/build/editor/index.js:19
+#, js-format
+msgid "%1$s · %2$d blocks"
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Autosave"
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Revision loaded into the editor. Save to keep it, or undo."
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Load into editor"
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Revision restored."
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Revision restored. The previous version was kept as a revision."
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Confirm restore"
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Restore"
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Restoring replaces your unsaved changes."
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "The page document (schemas/page.v1.json). Changes apply to the editor; the server validates them on preview and save."
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "The document must be a JSON object."
+msgstr ""
+
+#. translators: %s: parser message.
+#: assets/build/editor/index.js:19
+#, js-format
+msgid "Not applied: %s"
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Open the plain JSON screen"
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "About you"
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Pick a look"
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Your profiles"
+msgstr ""
+
+#. translators: 1: step number, 2: step title.
+#: assets/build/editor/index.js:19
+#, js-format
+msgid "Step %1$d of 3: %2$s"
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Short bio"
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Paste links to your profiles, one per line"
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Instagram, TikTok, YouTube, X, email addresses and more are detected automatically."
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Detected profiles"
+msgstr ""
+
+#. translators: %s: entries.
+#: assets/build/editor/index.js:19
+#, js-format
+msgid "Not recognised: %s"
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Back"
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Next"
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Create my page"
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Skip and start blank"
+msgstr ""
+
+#: assets/build/editor/index.js:19
+msgid "Someone else"
+msgstr ""
+
+#. translators: %s: user name.
+#: assets/build/editor/index.js:20
+#, js-format
+msgid "%s is editing this page. If you take over, they will be locked out and your changes replace theirs. Saving is off until you decide."
+msgstr ""
+
+#: assets/build/editor/index.js:20
+msgid "Take over"
+msgstr ""
+
+#: assets/build/editor/index.js:20
+msgid "Autosave skipped: the page has problems."
+msgstr ""
+
+#: assets/build/editor/index.js:20
+msgid "Design"
+msgstr ""
+
+#. translators: %s: date and time.
+#: assets/build/editor/index.js:21
+#, js-format
+msgid "There is an autosave of this page from %s that is newer than the saved version."
+msgstr ""
+
+#: assets/build/editor/index.js:21
+msgid "Restore the autosave"
+msgstr ""
+
+#: assets/build/editor/index.js:21
+msgid "Page settings"
+msgstr ""
+
+#: assets/build/editor/index.js:21
+msgid "Live preview"
+msgstr ""
+
+#: assets/src/block-editor.js:23
+msgid "Select a link page"
+msgstr ""
+
+#: assets/src/block-editor.js:50
+msgid "CrazyLinks Page"
+msgstr ""
+
+#: assets/src/block-editor.js:50
+msgid "Choose a link page in the block settings."
+msgstr ""
+
+#: blocks/page/block.json
+msgctxt "block title"
+msgid "CrazyLinks Page"
+msgstr ""
+
+#: blocks/page/block.json
+msgctxt "block description"
+msgid "Embed a CrazyLinks link page."
+msgstr ""
+
+#: blocks/page/block.json
+msgctxt "block keyword"
+msgid "link in bio"
+msgstr ""
+
+#: blocks/page/block.json
+msgctxt "block keyword"
+msgid "links"
+msgstr ""
+
+#: blocks/page/block.json
+msgctxt "block keyword"
+msgid "linktree"
+msgstr ""

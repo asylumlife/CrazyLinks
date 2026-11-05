@@ -1,0 +1,11 @@
+{
+  "summary": "Hid the newsletter sign-up.",
+  "operations": [
+    {
+      "op": "update_block",
+      "id": "01JM00000000000000000000A7",
+      "visible": false
+    }
+  ],
+  "questions": []
+}

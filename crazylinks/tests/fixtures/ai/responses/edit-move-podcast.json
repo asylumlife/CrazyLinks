@@ -1,0 +1,11 @@
+{
+  "summary": "Moved the podcast link above the merch store.",
+  "operations": [
+    {
+      "op": "move_block",
+      "id": "01JM00000000000000000000A5",
+      "after_id": "01JM00000000000000000000A3"
+    }
+  ],
+  "questions": []
+}

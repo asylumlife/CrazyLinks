@@ -1,0 +1,18 @@
+{
+  "summary": "Added a dinner menu link to the Menus group.",
+  "operations": [
+    {
+      "op": "add_block",
+      "after_id": "01JC00000000000000000000C4",
+      "block": {
+        "type": "link",
+        "parent_id": "01JC00000000000000000000C2",
+        "props": {
+          "title": "Dinner menu",
+          "url": "https://beanthere.cafe/dinner"
+        }
+      }
+    }
+  ],
+  "questions": []
+}

@@ -1,0 +1,53 @@
+{
+  "summary": "Built a first page from your site: profile, latest posts and a contact link.",
+  "operations": [
+    {
+      "op": "set_profile",
+      "profile": {
+        "name": "Test Blog",
+        "bio": "Just another WordPress site"
+      }
+    },
+    {
+      "op": "set_design",
+      "design": {
+        "theme": "default"
+      }
+    },
+    {
+      "op": "add_block",
+      "after_id": null,
+      "ref": "new-1",
+      "block": {
+        "type": "heading",
+        "props": {
+          "text": "Latest posts"
+        }
+      }
+    },
+    {
+      "op": "add_block",
+      "after_id": "new-1",
+      "ref": "new-2",
+      "block": {
+        "type": "latest_posts",
+        "props": {
+          "count": 3,
+          "display": "featured"
+        }
+      }
+    },
+    {
+      "op": "add_block",
+      "after_id": "new-2",
+      "block": {
+        "type": "link",
+        "props": {
+          "title": "Visit the website",
+          "url": "http://example.org/"
+        }
+      }
+    }
+  ],
+  "questions": []
+}

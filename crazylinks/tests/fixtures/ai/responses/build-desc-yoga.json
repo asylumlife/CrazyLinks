@@ -1,0 +1,67 @@
+{
+  "summary": "Built a calm page for Sam Yoga with your schedule, booking link and socials.",
+  "operations": [
+    {
+      "op": "set_profile",
+      "profile": {
+        "name": "Sam Yoga",
+        "bio": "Yoga teacher in Denver. Group classes and private sessions.",
+        "location": "Denver, CO"
+      }
+    },
+    {
+      "op": "set_design",
+      "design": {
+        "theme": "forest",
+        "button": {
+          "shape": "pill"
+        }
+      }
+    },
+    {
+      "op": "add_block",
+      "after_id": null,
+      "ref": "new-1",
+      "block": {
+        "type": "socials",
+        "props": {
+          "items": [
+            {
+              "network": "instagram",
+              "url": "https://instagram.com/samyoga"
+            },
+            {
+              "network": "youtube",
+              "url": "https://youtube.com/@samyoga"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "add_block",
+      "after_id": "new-1",
+      "ref": "new-2",
+      "block": {
+        "type": "link",
+        "props": {
+          "title": "Class schedule",
+          "url": "https://samyoga.co/schedule"
+        }
+      }
+    },
+    {
+      "op": "add_block",
+      "after_id": "new-2",
+      "block": {
+        "type": "link",
+        "props": {
+          "title": "Book a private session",
+          "url": "https://samyoga.co/book",
+          "display": "featured"
+        }
+      }
+    }
+  ],
+  "questions": []
+}

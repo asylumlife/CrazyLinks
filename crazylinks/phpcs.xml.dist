@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<ruleset name="CrazyLinks">
+	<description>WordPress coding standards for CrazyLinks.</description>
+
+	<file>.</file>
+	<exclude-pattern>/vendor/*</exclude-pattern>
+	<exclude-pattern>/assets/build/*</exclude-pattern>
+	<exclude-pattern>/node_modules/*</exclude-pattern>
+	<exclude-pattern>/tests/*</exclude-pattern>
+
+	<arg name="extensions" value="php"/>
+	<arg name="colors"/>
+	<arg value="sp"/>
+	<arg name="parallel" value="8"/>
+
+	<config name="minimum_wp_version" value="6.9"/>
+	<config name="testVersion" value="8.1-"/>
+
+	<rule ref="WordPress-Extra">
+		<!-- PSR-4 class files (src/Foo/Bar.php) instead of class-bar.php. -->
+		<exclude name="WordPress.Files.FileName"/>
+		<!-- Modern PHP project: short array syntax is allowed. -->
+		<exclude name="Universal.Arrays.DisallowShortArraySyntax"/>
+	</rule>
+	<rule ref="WordPress-Docs"/>
+
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="crazylinks"/>
+			</property>
+		</properties>
+	</rule>
+	<rule ref="WordPress.WP.Capabilities">
+		<properties>
+			<property name="custom_capabilities" type="array">
+				<element value="edit_crazylinks_pages"/>
+				<element value="edit_others_crazylinks_pages"/>
+				<element value="edit_published_crazylinks_pages"/>
+				<element value="edit_private_crazylinks_pages"/>
+				<element value="publish_crazylinks_pages"/>
+				<element value="read_private_crazylinks_pages"/>
+				<element value="delete_crazylinks_pages"/>
+				<element value="delete_others_crazylinks_pages"/>
+				<element value="delete_published_crazylinks_pages"/>
+				<element value="delete_private_crazylinks_pages"/>
+				<element value="view_crazylinks_analytics"/>
+				<element value="manage_crazylinks"/>
+				<element value="use_crazylinks_ai"/>
+			</property>
+		</properties>
+	</rule>
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="crazylinks"/>
+				<element value="CrazyLinks"/>
+			</property>
+		</properties>
+	</rule>
+	<!-- Templates are included inside a closure, so their variables are local, not globals. -->
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound">
+		<exclude-pattern>/templates/blocks/*</exclude-pattern>
+	</rule>
+</ruleset>

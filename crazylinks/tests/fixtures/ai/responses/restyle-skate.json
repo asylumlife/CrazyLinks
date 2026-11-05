@@ -1,0 +1,20 @@
+{
+  "summary": "Switched to a bold, high-contrast skate look with square buttons and hard shadows.",
+  "operations": [
+    {
+      "op": "set_design",
+      "design": {
+        "theme": "brutalist",
+        "accent": "#ff3b30",
+        "button": {
+          "shape": "square",
+          "shadow": "hard"
+        },
+        "text": {
+          "font": "system-mono"
+        }
+      }
+    }
+  ],
+  "questions": []
+}

@@ -1,0 +1,17 @@
+{
+  "summary": "Added a YouTube link at the end of the page.",
+  "operations": [
+    {
+      "op": "add_block",
+      "after_id": "01JM00000000000000000000A7",
+      "block": {
+        "type": "link",
+        "props": {
+          "title": "YouTube",
+          "url": "https://youtube.com/@alexrivers"
+        }
+      }
+    }
+  ],
+  "questions": []
+}

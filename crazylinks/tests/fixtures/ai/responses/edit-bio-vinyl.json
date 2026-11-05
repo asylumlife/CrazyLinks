@@ -1,0 +1,12 @@
+{
+  "summary": "Updated the bio to mention the vinyl release.",
+  "operations": [
+    {
+      "op": "set_profile",
+      "profile": {
+        "bio": "Indie folk from Portland. New album Low Tide out now, on streaming and vinyl."
+      }
+    }
+  ],
+  "questions": []
+}

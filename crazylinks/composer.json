@@ -1,0 +1,39 @@
+{
+  "name": "asylumlife/crazylinks",
+  "description": "Self-hosted link-in-bio pages for WordPress.",
+  "type": "wordpress-plugin",
+  "license": "GPL-2.0-or-later",
+  "require": {
+    "php": ">=8.1"
+  },
+  "require-dev": {
+    "wp-coding-standards/wpcs": "^3.4",
+    "phpstan/phpstan": "^2.3",
+    "szepeviktor/phpstan-wordpress": "^2.0",
+    "phpstan/extension-installer": "^1.4",
+    "yoast/phpunit-polyfills": "^4.0",
+    "phpunit/phpunit": "^9.6"
+  },
+  "autoload": {
+    "psr-4": {
+      "CrazyLinks\\": "src/"
+    }
+  },
+  "config": {
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true,
+      "phpstan/extension-installer": true
+    },
+    "platform": {
+      "php": "8.1.0"
+    },
+    "sort-packages": true
+  },
+  "scripts": {
+    "lint": "phpcs",
+    "analyse": "phpstan analyse --memory-limit=1G",
+    "test": "phpunit",
+    "build:assets": "php bin/build-assets.php",
+    "make-pot": "wp i18n make-pot . languages/crazylinks.pot --exclude=vendor,tests,assets/build"
+  }
+}
