@@ -1,0 +1,10 @@
+{
+  "summary": "Removed the tour dates link.",
+  "operations": [
+    {
+      "op": "remove_block",
+      "id": "01JM00000000000000000000A6"
+    }
+  ],
+  "questions": []
+}

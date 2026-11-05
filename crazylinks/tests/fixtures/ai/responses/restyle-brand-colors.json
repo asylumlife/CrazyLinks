@@ -1,0 +1,22 @@
+{
+  "summary": "Applied your brand colors: deep green background and gold buttons with dark text.",
+  "operations": [
+    {
+      "op": "set_design",
+      "design": {
+        "background": {
+          "type": "solid",
+          "color": "#0b3d2e"
+        },
+        "button": {
+          "color": "#f2c14e",
+          "text_color": "#1a1a1a"
+        },
+        "text": {
+          "color": "#ffffff"
+        }
+      }
+    }
+  ],
+  "questions": []
+}

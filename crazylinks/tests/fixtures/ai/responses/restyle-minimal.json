@@ -1,0 +1,19 @@
+{
+  "summary": "A calm, minimal paper look with black text and flat buttons.",
+  "operations": [
+    {
+      "op": "set_design",
+      "design": {
+        "theme": "paper",
+        "button": {
+          "shadow": "none",
+          "fill": "outline"
+        },
+        "text": {
+          "color": "#111111"
+        }
+      }
+    }
+  ],
+  "questions": []
+}

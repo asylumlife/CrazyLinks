@@ -1,0 +1,29 @@
+{
+  "summary": "Grouped the album and single links under Music.",
+  "operations": [
+    {
+      "op": "add_block",
+      "after_id": "01JM00000000000000000000A1",
+      "ref": "new-1",
+      "block": {
+        "type": "group",
+        "props": {
+          "title": "Music"
+        }
+      }
+    },
+    {
+      "op": "move_block",
+      "id": "01JM00000000000000000000A2",
+      "after_id": null,
+      "parent_id": "new-1"
+    },
+    {
+      "op": "move_block",
+      "id": "01JM00000000000000000000A3",
+      "after_id": "01JM00000000000000000000A2",
+      "parent_id": "new-1"
+    }
+  ],
+  "questions": []
+}

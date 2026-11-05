@@ -1,0 +1,13 @@
+{
+  "summary": "Renamed the shop link.",
+  "operations": [
+    {
+      "op": "update_block",
+      "id": "01JM00000000000000000000Z9",
+      "props": {
+        "title": "Shop"
+      }
+    }
+  ],
+  "questions": []
+}

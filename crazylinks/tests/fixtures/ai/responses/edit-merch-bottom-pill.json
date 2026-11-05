@@ -1,0 +1,19 @@
+{
+  "summary": "Moved the merch link to the bottom and made the buttons pill-shaped.",
+  "operations": [
+    {
+      "op": "move_block",
+      "id": "01JM00000000000000000000A4",
+      "after_id": "01JM00000000000000000000A7"
+    },
+    {
+      "op": "set_design",
+      "design": {
+        "button": {
+          "shape": "pill"
+        }
+      }
+    }
+  ],
+  "questions": []
+}

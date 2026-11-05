@@ -1,0 +1,17 @@
+{
+  "summary": "Added the album cover.",
+  "operations": [
+    {
+      "op": "add_block",
+      "after_id": "01JM00000000000000000000A2",
+      "block": {
+        "type": "image",
+        "props": {
+          "image": 999999,
+          "alt": "Low Tide album cover"
+        }
+      }
+    }
+  ],
+  "questions": []
+}

@@ -1,0 +1,18 @@
+{
+  "summary": "Added a Ko-fi tip button after the merch store.",
+  "operations": [
+    {
+      "op": "add_block",
+      "after_id": "01JM00000000000000000000A4",
+      "block": {
+        "type": "payment",
+        "props": {
+          "service": "kofi",
+          "handle": "alexrivers",
+          "label": "Buy me a coffee"
+        }
+      }
+    }
+  ],
+  "questions": []
+}

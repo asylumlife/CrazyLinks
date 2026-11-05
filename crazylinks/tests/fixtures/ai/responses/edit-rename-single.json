@@ -1,0 +1,13 @@
+{
+  "summary": "Renamed the Harbor Lights link.",
+  "operations": [
+    {
+      "op": "update_block",
+      "id": "01JM00000000000000000000A3",
+      "props": {
+        "title": "Stream Harbor Lights"
+      }
+    }
+  ],
+  "questions": []
+}

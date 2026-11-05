@@ -1,0 +1,26 @@
+{
+  "summary": "Added TikTok to the social icons.",
+  "operations": [
+    {
+      "op": "update_block",
+      "id": "01JM00000000000000000000A1",
+      "props": {
+        "items": [
+          {
+            "network": "instagram",
+            "url": "https://instagram.com/alexrivers"
+          },
+          {
+            "network": "spotify",
+            "url": "https://open.spotify.com/artist/123"
+          },
+          {
+            "network": "tiktok",
+            "url": "https://tiktok.com/@alexrivers"
+          }
+        ]
+      }
+    }
+  ],
+  "questions": []
+}

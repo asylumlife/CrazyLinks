@@ -1,0 +1,30 @@
+/* CrazyLinks admin: Analytics and Subscribers screens. */
+.cl-analytics__filters { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end; margin: 12px 0 16px; }
+.cl-analytics__filters label { display: flex; flex-direction: column; gap: 2px; font-weight: 600; }
+.cl-analytics__filters [hidden] { display: none; }
+.cl-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 0 0 16px; }
+.cl-card { background: #fff; border: 1px solid #c3c4c7; border-radius: 4px; padding: 12px 16px; }
+.cl-card__label { margin: 0; color: #50575e; font-size: 13px; }
+.cl-card__value { margin: 4px 0 0; font-size: 28px; line-height: 1.1; font-weight: 600; }
+.cl-card__label abbr { cursor: help; text-decoration: underline dotted; }
+.cl-panel { background: #fff; border: 1px solid #c3c4c7; border-radius: 4px; padding: 12px 16px; margin: 0 0 16px; }
+.cl-panel h2 { margin: 0 0 8px; font-size: 15px; }
+.cl-chart { width: 100%; height: auto; display: block; }
+.cl-chart__grid { stroke: #dcdcde; stroke-width: 1; }
+.cl-chart__label { fill: #50575e; font-size: 11px; }
+.cl-chart__area { fill: #2271b1; fill-opacity: .12; }
+.cl-chart__line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.cl-chart__line--views { stroke: #2271b1; }
+.cl-chart__line--clicks { stroke: #b32d2e; stroke-dasharray: 6 3; }
+.cl-chart__dot--views { fill: #2271b1; }
+.cl-chart__dot--clicks { fill: #b32d2e; }
+.cl-legend { display: flex; gap: 16px; margin: 4px 0 0; font-size: 12px; color: #50575e; }
+.cl-legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid #2271b1; vertical-align: middle; margin-right: 4px; }
+.cl-legend i.is-clicks { border-top: 2px dashed #b32d2e; }
+.cl-table-wrap { overflow-x: auto; }
+.cl-breakdowns { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.cl-breakdowns table { width: 100%; }
+.cl-num { text-align: right; font-variant-numeric: tabular-nums; }
+.cl-bar { display: block; height: 4px; background: #2271b1; border-radius: 2px; margin-top: 3px; }
+.cl-muted { color: #50575e; }
+.cl-exports { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }

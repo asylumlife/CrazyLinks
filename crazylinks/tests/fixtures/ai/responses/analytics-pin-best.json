@@ -1,0 +1,11 @@
+{
+  "summary": "Low Tide (album) had the most clicks this month (412, 38% of clicks). Pinning it keeps it at the top.",
+  "operations": [
+    {
+      "op": "update_block",
+      "id": "01JM00000000000000000000A2",
+      "pinned": true
+    }
+  ],
+  "questions": []
+}

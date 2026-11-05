@@ -1,0 +1,10 @@
+{
+  "summary": "Removed the hours widget.",
+  "operations": [
+    {
+      "op": "remove_block",
+      "id": "01JC00000000000000000000C6"
+    }
+  ],
+  "questions": []
+}

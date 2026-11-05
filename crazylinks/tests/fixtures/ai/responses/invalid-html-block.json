@@ -1,0 +1,16 @@
+{
+  "summary": "Added a Spotify player.",
+  "operations": [
+    {
+      "op": "add_block",
+      "after_id": "01JM00000000000000000000A3",
+      "block": {
+        "type": "html",
+        "props": {
+          "html": "<iframe src=\"https://open.spotify.com/embed/album/lowtide\"></iframe>"
+        }
+      }
+    }
+  ],
+  "questions": []
+}

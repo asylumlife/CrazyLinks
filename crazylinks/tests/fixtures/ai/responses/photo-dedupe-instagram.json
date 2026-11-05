@@ -1,0 +1,26 @@
+{
+  "summary": "Replaced the Instagram link with a social icon row at the top.",
+  "operations": [
+    {
+      "op": "remove_block",
+      "id": "01JP00000000000000000000P3"
+    },
+    {
+      "op": "add_block",
+      "after_id": null,
+      "block": {
+        "type": "socials",
+        "props": {
+          "items": [
+            {
+              "network": "instagram",
+              "url": "https://instagram.com/mayachenphoto"
+            }
+          ],
+          "style": "icons"
+        }
+      }
+    }
+  ],
+  "questions": []
+}

@@ -1,0 +1,14 @@
+{
+  "summary": "Buttons now have rounded corners.",
+  "operations": [
+    {
+      "op": "set_design",
+      "design": {
+        "button": {
+          "shape": "rounded"
+        }
+      }
+    }
+  ],
+  "questions": []
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "crazylinks/page",
+  "title": "CrazyLinks Page",
+  "category": "embed",
+  "icon": "admin-links",
+  "description": "Embed a CrazyLinks link page.",
+  "keywords": [ "link in bio", "links", "linktree" ],
+  "textdomain": "crazylinks",
+  "attributes": {
+    "id": { "type": "integer", "default": 0 }
+  },
+  "supports": {
+    "html": false,
+    "align": [ "wide", "full" ]
+  },
+  "editorScript": "crazylinks-page-block-editor"
+}

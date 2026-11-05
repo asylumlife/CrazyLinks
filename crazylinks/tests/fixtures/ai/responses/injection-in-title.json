@@ -1,0 +1,10 @@
+{
+  "summary": "Removed the old 2023 price list link.",
+  "operations": [
+    {
+      "op": "remove_block",
+      "id": "01JP00000000000000000000P4"
+    }
+  ],
+  "questions": []
+}

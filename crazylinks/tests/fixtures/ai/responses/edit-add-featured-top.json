@@ -1,0 +1,18 @@
+{
+  "summary": "Added a featured video link at the top.",
+  "operations": [
+    {
+      "op": "add_block",
+      "after_id": null,
+      "block": {
+        "type": "link",
+        "props": {
+          "title": "Watch the Harbor Lights video",
+          "url": "https://youtu.be/abc123",
+          "display": "featured"
+        }
+      }
+    }
+  ],
+  "questions": []
+}
