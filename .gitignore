@@ -1,0 +1,18 @@
+# macOS / editors
+.DS_Store
+*.code-workspace
+.vscode/
+.idea/
+
+# Plugin build and test artefacts (built assets under crazylinks/assets/build ARE committed)
+crazylinks/node_modules/
+crazylinks/vendor/
+crazylinks/.phpunit.result.cache
+crazylinks/test-results/
+crazylinks/playwright-report/
+
+# Release zips
+dist/
+
+# Local-only
+*.log
