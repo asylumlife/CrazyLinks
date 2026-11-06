@@ -77,7 +77,6 @@ The suite currently has 468 PHPUnit tests, 216 Vitest tests and 5 Playwright tes
 |---|---|
 | `crazylinks/` | The plugin |
 | `docs/` | Specification, dev environment notes, screenshots |
-| `reports/`, `research_notes/` | The competitor and ecosystem research behind the spec |
 
 ## Project status
 

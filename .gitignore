@@ -16,3 +16,8 @@ dist/
 
 # Local-only
 *.log
+
+# Kept out of the public repository (owner decision 2026-11-06)
+research_notes/
+reports/
+.claude/
