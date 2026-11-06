@@ -34,7 +34,7 @@ jobs:
         uses: shivammathur/setup-php@2.31.1
         with:
           php-version: '8.3'
-          tools: composer:v2, wp-cli
+          tools: composer:v2
           coverage: none
 
       - name: Install Composer dependencies
@@ -46,10 +46,30 @@ jobs:
       - name: phpstan
         run: vendor/bin/phpstan analyse --no-progress
 
-      # Best effort: downloads WordPress core with WP-CLI and the test library
-      # from wordpress-develop at the pinned tag (script default 7.1.4).
+      # The install script cannot run unmodified on ubuntu runners: it uses
+      # bsdtar-only `tar --include` flags (GNU tar rejects them) and `wp core
+      # download` (PharData truncates paths over 100 chars, breaking
+      # wp-includes/php-ai-client). So prepare both directories here with
+      # the official zip and GNU tar patterns; the script then skips its own
+      # downloads and only writes wp-tests-config.php and the database.
       - name: Install WordPress test library
-        run: bin/install-wp-tests.sh crazylinks_test root root 127.0.0.1:3306 7.1.4 "$RUNNER_TEMP/crazylinks-tests"
+        env:
+          WP_VERSION: '7.1.4'
+        run: |
+          set -euo pipefail
+          T="$RUNNER_TEMP/crazylinks-tests"
+          mkdir -p "$T"
+          curl -sSfL -o "$T/wordpress.zip" "https://wordpress.org/wordpress-${WP_VERSION}.zip"
+          unzip -q "$T/wordpress.zip" -d "$T/unzip"
+          mv "$T/unzip/wordpress" "$T/wordpress"
+          mkdir -p "$T/wordpress/wp-content/plugins" "$T/wordpress/wp-content/themes" "$T/wordpress/wp-content/uploads"
+          curl -sSfL "https://github.com/WordPress/wordpress-develop/archive/refs/tags/${WP_VERSION}.tar.gz" \
+            | tar xz -C "$T" --wildcards \
+              "wordpress-develop-${WP_VERSION}/tests/phpunit/includes/*" \
+              "wordpress-develop-${WP_VERSION}/tests/phpunit/data/*" \
+              "wordpress-develop-${WP_VERSION}/wp-tests-config-sample.php"
+          mv "$T/wordpress-develop-${WP_VERSION}" "$T/develop"
+          bin/install-wp-tests.sh crazylinks_test root root 127.0.0.1:3306 "$WP_VERSION" "$T"
 
       - name: phpunit
         env:
