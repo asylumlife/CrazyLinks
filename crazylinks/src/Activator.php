@@ -22,6 +22,9 @@ final class Activator {
 	 * @param bool $network_wide Network activation.
 	 */
 	public static function activate( $network_wide = false ): void {
+		// Store the option once so later saves never take WordPress's add_option path, which runs
+		// the sanitizer twice.
+		add_option( Settings::OPTION, Settings::defaults(), '', true );
 		if ( is_multisite() && $network_wide ) {
 			foreach ( get_sites(
 				[

@@ -210,7 +210,12 @@ final class Settings {
 			$out['subscriber_retention_days'] = min( 3650, absint( $input['subscriber_retention_days'] ) );
 		}
 		unset( $out['retention_months'] );
-		if ( isset( $input['ai_section'] ) ) {
+		// The form marks the AI section with a hidden field. WordPress runs this sanitizer twice when the
+		// option is written for the first time (update_option, then add_option), and the second pass
+		// receives our own output, which has no marker but does carry `ai_consent` (never posted by the
+		// form). Treat either as "the AI section is present" so a first save cannot drop AI settings
+		// (AsylumLife.com, 2026-11-05).
+		if ( isset( $input['ai_section'] ) || array_key_exists( 'ai_consent', $input ) ) {
 			$out = self::sanitize_ai( $input, $out );
 		}
 
