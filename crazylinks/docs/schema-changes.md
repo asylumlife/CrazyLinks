@@ -100,3 +100,17 @@ New block type `product` (`props_product`, all optional): a store product, or th
 - Sections accept it as a child like any other block. `ai-ops.v1.json` is regenerated with `php bin/build-ai-schema.php`.
 - The older `woo_products` placeholder type is unchanged and still renders nothing.
 
+
+## 2026-11-06: email capture routed to Mailchimp
+
+`props_email_capture`, all optional:
+
+| Prop | Values | Default |
+|---|---|---|
+| `destination` | `local` `mailchimp` (enum gained `mailchimp`) | `local` |
+| `audience_id` | Mailchimp audience id, `^[0-9a-z]{6,20}$`; must be one of the site's configured audiences | the site default audience |
+| `tags` | up to 10 strings of at most 40 characters (unchanged shape; now used for Mailchimp) | none |
+
+- `mailchimp` sends sign-ups to the account connected under Settings → Integrations; Mailchimp sends the confirmation email and the plugin sends none. The API key and the default audience are settings, never page JSON.
+- The default `pending_text` for a Mailchimp block is "Check your email to confirm your subscription." (template and REST message).
+- `ai-ops.v1.json` regenerated with `php bin/build-ai-schema.php`.

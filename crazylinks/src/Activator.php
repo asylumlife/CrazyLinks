@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Activator {
 
-	public const DB_VERSION = '5';
+	public const DB_VERSION = '6';
 
 	/**
 	 * Activation hook.
@@ -61,6 +61,7 @@ final class Activator {
 	public static function deactivate( $network_wide = false ): void {
 		unset( $network_wide );
 		Analytics\Rollup::unschedule();
+		Subscribers\Sync::unschedule();
 		delete_option( 'crazylinks_flush_rewrite' );
 		Frontend\Router::remove_rules();
 		flush_rewrite_rules( false );
@@ -118,7 +119,8 @@ final class Activator {
   KEY expires (expires)
 ) {$charset};"
 		);
-		// Email sign-ups (Subscribers\Store). Never holds an IP address or user agent.
+		// Email sign-ups (Subscribers\Store). Never holds an IP address or user agent. DB 6 added the
+		// destination, audience and sync columns for email services (Subscribers\Sync).
 		dbDelta(
 			"CREATE TABLE {$wpdb->prefix}crazylinks_subscribers (
   id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -132,11 +134,20 @@ final class Activator {
   token_hash char(64) NOT NULL,
   created_at datetime NOT NULL,
   updated_at datetime NOT NULL,
+  destination varchar(16) NOT NULL DEFAULT 'local',
+  audience_id varchar(32) NOT NULL DEFAULT '',
+  sync_status varchar(8) NOT NULL DEFAULT '',
+  sync_attempts tinyint(3) unsigned NOT NULL DEFAULT 0,
+  sync_error varchar(255) NOT NULL DEFAULT '',
+  synced_at datetime DEFAULT NULL,
+  external_id varchar(64) NOT NULL DEFAULT '',
   PRIMARY KEY  (id),
   UNIQUE KEY page_email (page_id,email),
   KEY token_hash (token_hash),
   KEY email (email),
-  KEY status_updated (status,updated_at)
+  KEY status_updated (status,updated_at),
+  KEY sync_status (sync_status),
+  KEY audience_email (audience_id,email)
 ) {$charset};"
 		);
 		// AI proposals and applied changes (SPEC §7.3, §10). Instructions and operations only; no secrets.

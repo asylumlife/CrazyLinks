@@ -66,6 +66,7 @@ final class EditingGuide {
 					'- Block ids are 26-character ULIDs returned by get-page. Blocks you add get new ids when they are saved; to refer to a block added earlier in the same list, give it `"ref": "new-1"` (then `new-2`, ...) and use that ref as `id`, `after_id` or `parent_id`. Ids shown in a preview for new blocks are provisional.',
 					'- Props are plain JSON objects (never JSON encoded as a string). Only the props listed for a block type are accepted.',
 					'- Custom HTML blocks and custom CSS cannot be created or changed.',
+					'- An email_capture `audience_id` must be one of the Mailchimp audiences listed under "This site" (omit it to use the site default); never invent one. `destination: "mailchimp"` only works when the site has Mailchimp connected.',
 				],
 				$lines['rules'],
 				[ '- When the request is ambiguous (which of two similar links? which URL?), ask the person before sending operations.' ]
@@ -348,7 +349,15 @@ final class EditingGuide {
 		foreach ( Context::themes() as $slug => $label ) {
 			$themes[] = '`' . $slug . '` (' . $label . ')';
 		}
-		return '- Timezone: ' . wp_timezone_string() . '; now: ' . wp_date( 'c' ) . "\n- Theme presets for `design.theme`: " . implode( ', ', $themes ) . "\n- Fields marked * inside objects are required.";
+		$audiences = [];
+		foreach ( \CrazyLinks\Subscribers\Integrations::cached_audiences() as $aud ) {
+			$audiences[] = '`' . $aud['id'] . '` (' . $aud['name'] . ')';
+		}
+		$default = \CrazyLinks\Subscribers\Integrations::default_audience();
+		$mail    = \CrazyLinks\Subscribers\Integrations::mailchimp_connected()
+			? '- Mailchimp is connected. Audiences for email_capture `audience_id`: ' . ( $audiences ? implode( ', ', $audiences ) : ( '' !== $default ? '`' . $default . '` (the default)' : 'none listed yet; omit `audience_id`' ) ) . ( '' !== $default ? '; site default `' . $default . '`.' : '.' )
+			: '- Mailchimp is not connected: keep email_capture `destination` at `local` and leave out `audience_id`.';
+		return '- Timezone: ' . wp_timezone_string() . '; now: ' . wp_date( 'c' ) . "\n- Theme presets for `design.theme`: " . implode( ', ', $themes ) . "\n" . $mail . "\n- Fields marked * inside objects are required.";
 	}
 
 	/**

@@ -39,6 +39,11 @@ final class Settings {
 			'fetch_oembed'              => true,
 			// Product block: address of a separate WooCommerce store (https). Empty uses WooCommerce on this site, if active.
 			'store_url'                 => '',
+			// Email service for sign-up blocks routed to it (SPEC §11). '' = local list only.
+			'subscriber_adapter'        => '',
+			// Never sent to the browser or returned by REST; the settings field shows a mask.
+			'mailchimp_api_key'         => '',
+			'mailchimp_audience'        => '',
 			// AI editing (SPEC §10). Off until the owner opts in.
 			'ai_enabled'                => false,
 			'ai_consent'                => false,
@@ -227,6 +232,10 @@ final class Settings {
 			} else {
 				$out['store_url'] = $store;
 			}
+		}
+		// Integrations: present in the form and in our own output (second pass of a first save).
+		if ( array_key_exists( 'subscriber_adapter', $input ) ) {
+			$out = Subscribers\Integrations::sanitize( $input, $out );
 		}
 		// The form marks the AI section with a hidden field. WordPress runs this sanitizer twice when the
 		// option is written for the first time (update_option, then add_option), and the second pass

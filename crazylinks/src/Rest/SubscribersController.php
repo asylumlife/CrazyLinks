@@ -12,7 +12,7 @@ use CrazyLinks\Subscribers\Store;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * GET /crazylinks/v1/subscribers and DELETE /crazylinks/v1/subscribers/{id}.
+ * GET /crazylinks/v1/subscribers (filters page_id, status, sync, search) and DELETE /crazylinks/v1/subscribers/{id}.
  * Capability: manage_crazylinks. Responses never include token hashes.
  */
 final class SubscribersController extends \WP_REST_Controller {
@@ -45,6 +45,10 @@ final class SubscribersController extends \WP_REST_Controller {
 						'status'   => [
 							'type' => 'string',
 							'enum' => Store::STATUSES,
+						],
+						'sync'     => [
+							'type' => 'string',
+							'enum' => Store::SYNC_STATUSES,
 						],
 						'search'   => [
 							'type' => 'string',
@@ -102,6 +106,7 @@ final class SubscribersController extends \WP_REST_Controller {
 				'page_id'  => (int) $request['page_id'],
 				'status'   => (string) $request['status'],
 				'search'   => (string) $request['search'],
+				'sync'     => (string) $request['sync'],
 				'per_page' => $per_page,
 				'paged'    => (int) $request['page'],
 			]
@@ -119,6 +124,10 @@ final class SubscribersController extends \WP_REST_Controller {
 					'consent_at'   => $row['consent_at'] ? (string) $row['consent_at'] : null,
 					'confirmed_at' => $row['confirmed_at'] ? (string) $row['confirmed_at'] : null,
 					'created_at'   => (string) $row['created_at'],
+					'destination'  => (string) $row['destination'],
+					'sync_status'  => (string) $row['sync_status'],
+					'sync_error'   => (string) $row['sync_error'],
+					'synced_at'    => $row['synced_at'] ? (string) $row['synced_at'] : null,
 				];
 			},
 			$result['items']

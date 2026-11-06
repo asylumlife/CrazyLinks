@@ -183,6 +183,16 @@ final class Context {
 				];
 			}
 		}
+		if ( \CrazyLinks\Subscribers\Integrations::mailchimp_connected() ) {
+			// Audience ids and names only (from the cache, no request), for email_capture audience_id.
+			$facts['audiences'] = array_map(
+				static fn( array $a ): array => [
+					'id'   => $a['id'],
+					'name' => $a['name'],
+				],
+				\CrazyLinks\Subscribers\Integrations::cached_audiences()
+			);
+		}
 		/**
 		 * Filters the public site facts sent to the AI for "build from this site".
 		 * Never add secrets, emails or visitor data here.

@@ -156,3 +156,57 @@ describe( 'product block', () => {
 		).toBe( '5 newest products' );
 	} );
 } );
+
+describe( 'email sign-up block and Mailchimp', () => {
+	const def = blockDef( 'email_capture' );
+	const visible = ( props: JsonObject ) =>
+		def.fields
+			.filter( ( f ) => ! f.showIf || f.showIf( props ) )
+			.map( ( f ) => f.key );
+
+	it( 'defaults to the local list', () => {
+		expect( def.defaults() ).toMatchObject( { destination: 'local' } );
+	} );
+
+	it( 'shows the audience and tags only for Mailchimp blocks', () => {
+		expect( visible( { destination: 'local' } ) ).not.toContain(
+			'audience_id'
+		);
+		expect( visible( { destination: 'local' } ) ).not.toContain( 'tags' );
+		expect( visible( { destination: 'mailchimp' } ) ).toEqual(
+			expect.arrayContaining( [ 'destination', 'audience_id', 'tags' ] )
+		);
+		expect(
+			def.fields.find( ( f ) => f.key === 'audience_id' )?.kind
+		).toBe( 'audience' );
+	} );
+
+	it( 'offers both destinations from the schema enum', () => {
+		const enumValues = (
+			( defs.props_email_capture.properties as JsonObject )
+				.destination as JsonObject
+		 ).enum as string[];
+		const options =
+			def.fields
+				.find( ( f ) => f.key === 'destination' )
+				?.options?.map( ( o ) => o.value ) ?? [];
+		expect( options ).toEqual( enumValues );
+	} );
+
+	it( 'uses the Mailchimp wording for the pending message', () => {
+		const pending = ( props: JsonObject ) =>
+			def.fields.filter(
+				( f ) =>
+					f.key === 'pending_text' &&
+					( ! f.showIf || f.showIf( props ) )
+			);
+		expect( pending( { destination: 'local' } ) ).toHaveLength( 1 );
+		expect( pending( { destination: 'mailchimp' } ) ).toHaveLength( 1 );
+		expect( pending( { destination: 'mailchimp' } )[ 0 ].placeholder ).toBe(
+			'Check your email to confirm your subscription.'
+		);
+		expect(
+			pending( { destination: 'local' } )[ 0 ].placeholder
+		).toContain( 'Check your inbox' );
+	} );
+} );

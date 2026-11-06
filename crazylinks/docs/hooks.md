@@ -366,3 +366,78 @@ With the MCP Adapter plugin active and the `ai_mcp_server` setting on, CrazyLink
 | Ability | Annotations | HTTP method on `/run` | Permission |
 |---|---|---|---|
 | `crazylinks/search-products` | readonly | GET | `edit_crazylinks_pages`; `{search?, limit?}` -> list of `{id, name, price, url}` |
+
+## Email services: Mailchimp (0.3.0)
+
+An Email sign-up block with `destination: "mailchimp"` sends its sign-ups to the Mailchimp account connected under **Settings → Integrations**. Blocks with `destination: "local"` (the default) are unchanged. Code: `Subscribers\Adapters\Adapter` (interface), `Subscribers\Adapters\Mailchimp`, `Subscribers\Adapters` (registry), `Subscribers\Integrations` (settings, key mask, webhook secret, audience cache), `Subscribers\Sync` (push, retry, backfill, webhook updates), `Rest\IntegrationsController`.
+
+### Flow
+
+1. Sign-up on a Mailchimp block (after the usual honeypot, per-IP rate limit, reachability and consent checks): the local row is created with `destination = mailchimp`, `status = pending`, `audience_id` (the block's `audience_id`, else the default audience) and `sync_status = queued`. No email is sent by the plugin; the visitor sees the block's `pending_text` (default "Check your email to confirm your subscription.").
+2. The row is pushed **inline** during the same request with a 5-second timeout (`crazylinks_sync_inline_timeout`): `PUT /3.0/lists/{audience}/members/{md5(email)}` with `email_address`, `status_if_new: pending`, `timestamp_signup` and `tags`, then `POST …/tags` for the tags (existing members). `status` is never sent, so an existing member's status never changes; a member who had unsubscribed and signs up again gets one extra `PUT {status: pending}` (Mailchimp asks them to confirm). A member who is already `subscribed` is marked confirmed locally at once.
+3. Success: `sync_status = sent`, `external_id` = Mailchimp member id, `synced_at`. Failure: `sync_status = failed`, `sync_error` (plain-language message), and a single cron event `crazylinks_subscriber_sync` (args `[id]`) is scheduled 1, 4, 16 and 64 minutes later (`crazylinks_sync_retry_delay`), 5 attempts in total. Errors another attempt cannot fix (member in compliance state, member exists, audience not found, other 400s) stop at once.
+4. Mailchimp's webhook (subscribe, unsubscribe, cleaned) updates every local row with that email and audience: subscribe → `confirmed` (with `confirmed_at`), unsubscribe and cleaned → `unsubscribed`. The `crazylinks_subscriber_confirmed` / `_unsubscribed` actions fire as for local rows.
+5. Mailchimp chosen but no key or no audience: the sign-up falls back to the local double opt-in (row `destination = local`, `sync_status = skipped`) so nobody is lost; Backfill sends it later once confirmed.
+
+Requests go only to `https://{dc}.api.mailchimp.com/3.0`, `{dc}` taken from the key suffix (`…-us6`); HTTP Basic auth (`crazylinks:{key}`), `wp_remote_request`, 10-second timeout (5 inline), no redirects, every response decoded and checked, error details redacted of addresses. Endpoints: `GET /ping`, `GET /lists`, `PUT /lists/{id}/members/{hash}`, `POST /lists/{id}/members/{hash}/tags`, `POST /lists/{id}/members/{hash}/actions/delete-permanent`, `GET`/`POST /lists/{id}/webhooks`.
+
+### Columns added to `{prefix}crazylinks_subscribers` (DB version 6)
+
+`destination` (`local`|`mailchimp`), `audience_id`, `sync_status` (`''`|`queued`|`sent`|`failed`|`skipped`), `sync_attempts`, `sync_error` (255), `synced_at`, `external_id`; keys `sync_status`, `audience_email`. Added by `Activator::maybe_upgrade()` (dbDelta). The subscriber array passed to the `crazylinks_subscriber_*` actions now carries these keys too.
+
+### Settings (`crazylinks_settings`) and options
+
+| Key / option | Default | Meaning |
+|---|---|---|
+| `subscriber_adapter` | `''` | `''` = local list only, or an adapter id (`mailchimp`). |
+| `mailchimp_api_key` | `''` | Never sent to the browser, never in REST output, page JSON or editor data. The settings field shows 12 bullets and the last four characters; submitting the mask (or the stored key, as WordPress's second sanitizer pass on a first save does) keeps it; an empty field removes it; an invalid value keeps the previous one. |
+| `mailchimp_audience` | `''` | Default audience id (`^[0-9a-z]{6,20}$`). |
+| option `crazylinks_mailchimp_webhook_secret` | generated once | 32 random characters, not autoloaded; the `key` in the webhook URL. |
+| option `crazylinks_sync_backfill` | none | Backfill progress (`running`, `last_id`, `total`, `sent`, `failed`, `started`, `finished`). |
+| transients `crazylinks_mc_audiences_*`, `crazylinks_mc_test` | | Audience list (10 minutes, per key) and the last connection test. |
+
+All are removed on uninstall when "delete data" is on; the two cron hooks are always unscheduled on uninstall and deactivation.
+
+### REST routes (`crazylinks/v1`)
+
+| Route | Methods | Permission | Notes |
+|---|---|---|---|
+| `/integrations/audiences?refresh=` | GET | `manage_crazylinks` (401 logged out, 403 otherwise, editors included) | `{adapter, available, default, audiences: [{id, name, member_count}], error}`; cached 10 minutes. Feeds the editor's audience select (others get a text field). |
+| `/integrations/mailchimp/webhook?key=<secret>` | GET | public | 200 `{ok:true}` for Mailchimp's URL check. |
+| `/integrations/mailchimp/webhook?key=<secret>` | POST | public, no cookie auth; the secret (compared with `hash_equals`) | Mailchimp's form-encoded `type`, `data[email]`, `data[list_id]`. Wrong or missing secret 403 (and at most 10 per IP per hour, then 429); 120 deliveries per IP per minute (`crazylinks_webhook_rate_limit`). Always `{ok:true}` with 200, also for unknown addresses and other event types. Logs nothing. |
+| `/subscribers` | GET | `manage_crazylinks` | New `sync` filter; items gain `destination`, `sync_status`, `sync_error`, `synced_at`. |
+
+### Filters
+
+| Hook | Value | Purpose |
+|---|---|---|
+| `crazylinks_subscriber_adapters` | `array<string, Adapter>` | Register more services (Kit, beehiiv, a generic webhook): an object implementing `CrazyLinks\Subscribers\Adapters\Adapter` under its `id()`. |
+| `crazylinks_sync_inline_timeout` | `int` (5) | Timeout of the push made while the visitor waits. |
+| `crazylinks_sync_retry_delay` | `int $seconds`, `int $attempts` | Wait before the next attempt (60 × 4^(attempts−1), max 6 hours). |
+| `crazylinks_webhook_rate_limit` | `int` (120) | Webhook deliveries per IP per minute. |
+
+### Cron hooks
+
+| Hook | Args | Purpose |
+|---|---|---|
+| `crazylinks_subscriber_sync` | `int $id` | One retry of a failed push. |
+| `crazylinks_subscriber_backfill` | none | One backfill batch (25 rows); schedules the next batch 5 seconds later until done. |
+
+### Admin
+
+- Settings → Integrations: service select, API key (masked), default audience (select from the API, text field when it cannot load), **Test connection** (tests the key in the field without saving it when it is new), webhook URL to paste into Mailchimp, **Register webhook in Mailchimp** (creates it for the default audience: events subscribe, unsubscribe, cleaned; sources user, admin, API; skipped when the same URL exists).
+- Subscribers: a Sync column (Queued / Sent / Failed with the error / Skipped), a sync filter, row and bulk **Retry sync** (attempts start again), **Backfill to Mailchimp** (every locally confirmed row not yet sent, `status_if_new: subscribed`, the block's tags, in cron batches with a progress notice). CSV export adds `destination, audience_id, sync_status, sync_attempts, sync_error, synced_at, external_id`.
+
+### WP-CLI
+
+- `wp crazylinks subscribers test-connection`: pings Mailchimp and lists the audiences (marks the default).
+- `wp crazylinks subscribers sync [--retry-failed] [--backfill]`: pushes queued rows; `--retry-failed` also restarts failed and skipped rows; `--backfill` runs the backfill in the foreground.
+- `wp crazylinks subscribers export` gains `--sync=<state>`.
+
+### Personal data
+
+The eraser also removes the address permanently from every audience it was sent to (`delete-permanent`; already gone counts as removed). When Mailchimp cannot be reached the local rows are still deleted and the eraser reports `items_retained` with a message naming the audience. The exporter adds Destination and "Sent to email service".
+
+### AI
+
+`audience_id` and `destination` come from the schema like every other prop. The editing guide adds a rule that `audience_id` must be one of the site's audiences and lists them (from the cache) under "This site"; "build from this site" facts carry `audiences` (id and name) when Mailchimp is connected; `OpsValidator` rejects an `audience_id` that is neither a cached audience nor the default.

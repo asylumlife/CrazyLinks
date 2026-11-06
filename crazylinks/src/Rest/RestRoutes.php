@@ -36,6 +36,7 @@ final class RestRoutes {
 		( new SubscribersController() )->register_routes();
 		( new AiController() )->register_routes();
 		( new StoreController() )->register_routes();
+		( new IntegrationsController() )->register_routes();
 	}
 
 	/**

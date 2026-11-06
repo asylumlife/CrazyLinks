@@ -102,6 +102,14 @@ final class PersonalData {
 						'name'  => __( 'Signed up (UTC)', 'crazylinks' ),
 						'value' => (string) $row['created_at'],
 					],
+					[
+						'name'  => __( 'Destination', 'crazylinks' ),
+						'value' => 'mailchimp' === $row['destination'] ? 'Mailchimp' : __( 'This site only', 'crazylinks' ),
+					],
+					[
+						'name'  => __( 'Sent to email service', 'crazylinks' ),
+						'value' => '' === (string) $row['sync_status'] ? __( 'No', 'crazylinks' ) : (string) $row['sync_status'] . ( $row['synced_at'] ? ' (' . (string) $row['synced_at'] . ' UTC)' : '' ),
+					],
 				],
 			];
 		}
@@ -121,7 +129,7 @@ final class PersonalData {
 	private static function rows_for_email( string $email, int $page ): array {
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table; privacy export must be live.
-		return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT id, page_id, block_id, email, status, consent_text, consent_at, confirmed_at, created_at, updated_at FROM %i WHERE email = %s ORDER BY id ASC LIMIT %d OFFSET %d', Store::table(), $email, self::PER_PAGE, ( $page - 1 ) * self::PER_PAGE ), ARRAY_A );
+		return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ' . Store::COLUMNS . ' FROM %i WHERE email = %s ORDER BY id ASC LIMIT %d OFFSET %d', Store::table(), $email, self::PER_PAGE, ( $page - 1 ) * self::PER_PAGE ), ARRAY_A );
 	}
 
 	/**
@@ -133,11 +141,35 @@ final class PersonalData {
 	 */
 	public function erase( $email, $page = 1 ): array {
 		unset( $page );
+		$messages = [];
+		$retained = false;
+		$done     = [];
+		// Also remove the address from every email service audience it was sent to.
+		foreach ( Store::synced_for_email( (string) $email ) as $row ) {
+			$service  = (string) $row['destination'];
+			$adapter  = Adapters::get( 'local' === $service ? Integrations::adapter_id() : $service ) ?? Adapters::get( Adapters\Mailchimp::ID );
+			$audience = (string) $row['audience_id'];
+			if ( ! $adapter || '' === $audience || isset( $done[ $adapter->id() . '|' . $audience ] ) ) {
+				continue;
+			}
+			$done[ $adapter->id() . '|' . $audience ] = true;
+			$result                                   = $adapter->is_configured() ? $adapter->remove( (string) $email, $audience ) : new \WP_Error( 'crazylinks_sync_not_connected', __( 'the service is no longer connected', 'crazylinks' ) );
+			if ( is_wp_error( $result ) ) {
+				$retained   = true;
+				$messages[] = sprintf(
+					/* translators: 1: service name, 2: audience id, 3: error. */
+					__( 'Could not remove the address from %1$s audience %2$s: %3$s Remove it there by hand.', 'crazylinks' ),
+					$adapter->label(),
+					$audience,
+					$result->get_error_message()
+				);
+			}
+		}
 		$removed = Store::delete_by_email( (string) $email );
 		return [
 			'items_removed'  => $removed > 0,
-			'items_retained' => false,
-			'messages'       => [],
+			'items_retained' => $retained,
+			'messages'       => $messages,
 			'done'           => true,
 		];
 	}

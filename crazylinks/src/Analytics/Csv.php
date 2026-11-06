@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Csv {
 
-	public const SUBSCRIBER_HEADER = [ 'email', 'status', 'page_id', 'page', 'block_id', 'consent_text', 'consent_at', 'confirmed_at', 'created_at' ];
+	public const SUBSCRIBER_HEADER = [ 'email', 'status', 'page_id', 'page', 'block_id', 'consent_text', 'consent_at', 'confirmed_at', 'created_at', 'destination', 'audience_id', 'sync_status', 'sync_attempts', 'sync_error', 'synced_at', 'external_id' ];
 
 	/**
 	 * One safe cell value.
@@ -64,6 +64,13 @@ final class Csv {
 			(string) $row['consent_at'],
 			(string) $row['confirmed_at'],
 			(string) $row['created_at'],
+			(string) ( $row['destination'] ?? 'local' ),
+			(string) ( $row['audience_id'] ?? '' ),
+			(string) ( $row['sync_status'] ?? '' ),
+			(int) ( $row['sync_attempts'] ?? 0 ),
+			(string) ( $row['sync_error'] ?? '' ),
+			(string) ( $row['synced_at'] ?? '' ),
+			(string) ( $row['external_id'] ?? '' ),
 		];
 	}
 

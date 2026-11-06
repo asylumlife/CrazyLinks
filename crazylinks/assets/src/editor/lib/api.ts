@@ -70,6 +70,20 @@ export interface StoreProducts {
 	products: StoreProduct[];
 }
 
+export interface Audience {
+	id: string;
+	name: string;
+	member_count: number;
+}
+
+export interface Audiences {
+	adapter: string;
+	available: boolean;
+	default: string;
+	audiences: Audience[];
+	error: string;
+}
+
 export const api = {
 	preview( page: PageDoc, id: number, signal?: AbortSignal ) {
 		return apiFetch< PreviewResponse >( {
@@ -133,6 +147,12 @@ export const api = {
 		return apiFetch< StoreProducts >( {
 			path: `${ NS }/store/products?${ q.toString() }`,
 			signal,
+		} );
+	},
+	/** Mailchimp audiences for the Email sign-up block (site managers only). */
+	audiences() {
+		return apiFetch< Audiences >( {
+			path: `${ NS }/integrations/audiences`,
 		} );
 	},
 	analytics( id: number, range: string ) {

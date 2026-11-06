@@ -120,7 +120,7 @@ class SubscribersTest extends TestCase {
 	public function test_table_has_no_ip_or_user_agent_columns(): void {
 		global $wpdb;
 		$cols = $wpdb->get_col( 'SHOW COLUMNS FROM ' . Store::table() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		$this->assertSame( [ 'id', 'page_id', 'block_id', 'email', 'status', 'consent_text', 'consent_at', 'confirmed_at', 'token_hash', 'created_at', 'updated_at' ], $cols );
+		$this->assertSame( [ 'id', 'page_id', 'block_id', 'email', 'status', 'consent_text', 'consent_at', 'confirmed_at', 'token_hash', 'created_at', 'updated_at', 'destination', 'audience_id', 'sync_status', 'sync_attempts', 'sync_error', 'synced_at', 'external_id' ], $cols );
 	}
 
 	public function test_full_double_opt_in_flow(): void {
