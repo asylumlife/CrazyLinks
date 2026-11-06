@@ -4,7 +4,7 @@ Tags: link in bio, linktree, links, bio link, landing page
 Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.1.5
+Stable tag: 0.1.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -133,6 +133,9 @@ Simple Icons, released under CC0. See LICENSE-icons.txt. The logos remain tradem
 5. The page JSON in the editor screen.
 
 == Changelog ==
+
+= 0.1.6 =
+* Change: AI requests no longer ask the provider for schema-constrained output (Anthropic rejects the operations grammar as too large). The model is asked for a bare JSON object, which the server validates against the full schema with one retry. The `crazylinks_ai_structured_output` filter turns provider-side schemas back on.
 
 = 0.1.5 =
 * Fix: Anthropic's strict structured output rejects open objects, so block props now travel as a JSON string inside the response and are decoded before validation.

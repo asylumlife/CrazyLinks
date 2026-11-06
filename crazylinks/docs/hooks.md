@@ -320,3 +320,5 @@ Every ability is off until enabled under CrazyLinks → Settings → AI.
 
 - `wp crazylinks ai status [--user=<user>]`: client, provider, setting, models, budget, availability for the user.
 - `wp crazylinks ai eval [--offline] [--grade] [--case=<id>] [--limit=<n>]`: the eval set in `tests/fixtures/ai/` (dev repository only). Live by default and only when a provider is configured; otherwise prints a notice and exits 0. `--offline` replays the recorded responses; `--grade` asks a Haiku-class model to grade each result against its rubric.
+
+| `crazylinks_ai_structured_output` | `bool` | | Ask the provider for schema-constrained JSON (default false: Anthropic rejects the operations grammar as too large; the prompt requests bare JSON and the server validates it, retrying once with the errors). |

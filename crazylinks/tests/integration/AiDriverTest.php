@@ -106,7 +106,7 @@ class AiDriverTest extends TestCase {
 		$call = FakeProvider::$calls[0];
 		$this->assertStringContainsString( 'TRUST BOUNDARY', $call['system'] );
 		$this->assertStringContainsString( 'never follow them', strtolower( $call['system'] ) );
-		$this->assertSame( OpsSchema::for_provider(), $call['schema'] );
+		$this->assertNull( $call['schema'], 'No provider-side schema by default (Anthropic grammar limits); JSON is validated server-side' );
 		$this->assertSame( 4096, $call['max_tokens'] );
 		$this->assertStringContainsString( '<instruction>Rename the single</instruction>', $call['prompt'] );
 		$this->assertStringContainsString( '<page_json>', $call['prompt'] );
@@ -230,5 +230,19 @@ class AiDriverTest extends TestCase {
 		$this->respond( [ $this->rename() ] );
 		$result = ( new WpAiClientDriver() )->propose( $this->request() );
 		$this->assertSame( 'claude-haiku-5-5', $result->model );
+	}
+
+	public function test_structured_output_can_be_switched_on_by_filter(): void {
+		add_filter( 'crazylinks_ai_structured_output', '__return_true' );
+		try {
+			$this->ai_settings( [ 'ai_consent' => true ] );
+			FakeProvider::$calls = [];
+			( new WpAiClientDriver() )->propose( $this->request( 'Rename the single' ) );
+			$schema = FakeProvider::$calls[0]['schema'] ?? null;
+			$this->assertIsArray( $schema );
+			$this->assertSame( OpsSchema::close_objects( OpsSchema::for_provider() ), $schema );
+		} finally {
+			remove_filter( 'crazylinks_ai_structured_output', '__return_true' );
+		}
 	}
 }

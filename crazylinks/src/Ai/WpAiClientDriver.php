@@ -189,6 +189,21 @@ final class WpAiClientDriver implements AiDriver {
 	}
 
 	/**
+	 * Whether to ask the provider for schema-constrained output. Off by default: Anthropic's structured
+	 * outputs rejected both the full and the compact operations schema ("compiled grammar is too large",
+	 * AsylumLife.com, 2026-11-05), so the prompt asks for a bare JSON object and OpsValidator checks it,
+	 * with one retry carrying the validation errors.
+	 */
+	public static function structured_output(): bool {
+		/**
+		 * Filters whether CrazyLinks requests schema-constrained output from the AI provider.
+		 *
+		 * @param bool $on Default false.
+		 */
+		return (bool) apply_filters( 'crazylinks_ai_structured_output', false );
+	}
+
+	/**
 	 * One structured-output call.
 	 *
 	 * @param string               $system     System instruction.
@@ -198,7 +213,7 @@ final class WpAiClientDriver implements AiDriver {
 	 * @param array<string, mixed> $schema     JSON schema.
 	 * @return array{text:string, provider:string, model:string, prompt_tokens:int, completion_tokens:int, estimated:bool}|WP_Error
 	 */
-	private function generate( string $system, string $message, array $models, int $max_tokens, array $schema ): array|WP_Error {
+	private function generate( string $system, string $message, array $models, int $max_tokens, ?array $schema ): array|WP_Error {
 		$timeout = static fn() => (float) max( 10, (int) Settings::get( 'ai_timeout' ) );
 		add_filter( 'wp_ai_client_default_request_timeout', $timeout );
 		try {
@@ -206,7 +221,10 @@ final class WpAiClientDriver implements AiDriver {
 		} finally {
 			remove_filter( 'wp_ai_client_default_request_timeout', $timeout );
 		}
-		$builder = $builder->using_system_instruction( $system )->using_max_tokens( $max_tokens )->as_json_response( $schema );
+		$builder = $builder->using_system_instruction( $system )->using_max_tokens( $max_tokens );
+		if ( self::structured_output() && $schema ) {
+			$builder = $builder->as_json_response( OpsSchema::close_objects( $schema ) );
+		}
 		if ( $models ) {
 			$builder = $builder->using_model_preference( ...$models );
 		}
