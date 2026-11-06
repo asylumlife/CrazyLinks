@@ -235,9 +235,9 @@ final class SettingsPage {
 		echo '<p>' . esc_html__( 'CrazyLinks server:', 'crazylinks' ) . ' <code>' . esc_html( McpStatus::endpoint() ) . '</code><br>';
 		echo esc_html__( 'MCP Adapter default server (enabled abilities through its discover and execute tools):', 'crazylinks' ) . ' <code>' . esc_html( McpStatus::default_endpoint() ) . '</code></p>';
 		echo '<p class="description">' . esc_html( McpStatus::user_advice() ) . '</p>';
-		echo '<p><label for="crazylinks_mcp_desktop">' . esc_html__( 'Claude Desktop: add this to claude_desktop_config.json (Settings → Developer → Edit Config), with your username and application password:', 'crazylinks' ) . '</label><br>';
+		echo '<p><label for="crazylinks_mcp_desktop">' . esc_html__( 'Claude Desktop: add this to claude_desktop_config.json (Settings → Developer → Edit Config). Your WordPress login name is already filled in; replace only the password placeholder with the application password itself, not its name:', 'crazylinks' ) . '</label><br>';
 		printf( '<textarea id="crazylinks_mcp_desktop" class="large-text code" rows="13" readonly>%s</textarea></p>', esc_textarea( McpStatus::desktop_config() ) );
-		echo '<p><label for="crazylinks_mcp_code">' . esc_html__( 'Claude Code: run this in a terminal (base64 of "username:application password", for example with: echo -n \'username:xxxx xxxx xxxx xxxx xxxx xxxx\' | base64):', 'crazylinks' ) . '</label><br>';
+		echo '<p><label for="crazylinks_mcp_code">' . esc_html__( 'Claude Code: run this in a terminal (base64 of "login name:application password", for example with: echo -n \'login:xxxx xxxx xxxx xxxx xxxx xxxx\' | base64):', 'crazylinks' ) . '</label><br>';
 		printf( '<textarea id="crazylinks_mcp_code" class="large-text code" rows="3" readonly>%s</textarea></p>', esc_textarea( McpStatus::code_command() ) );
 		echo '<p class="description">' . esc_html__( 'Never paste a real password into a shared document. claude.ai on the web cannot connect yet because it needs OAuth.', 'crazylinks' ) . '</p>';
 	}

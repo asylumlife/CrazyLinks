@@ -621,6 +621,12 @@ class AiMcpTest extends TestCase {
 		$env    = $config['mcpServers']['crazylinks']['env'];
 		$this->assertSame( McpStatus::endpoint(), $env['WP_API_URL'] );
 		$this->assertSame( 'YOUR-APPLICATION-PASSWORD', $env['WP_API_PASSWORD'] );
-		$this->assertStringContainsString( '<base64 of username:application-password>', McpStatus::code_command() );
+		$login = wp_get_current_user()->user_login;
+		$this->assertSame( $login, $env['WP_API_USERNAME'], 'The login name is pre-filled so nobody pastes the Application Password name there' );
+		$this->assertStringContainsString( '<base64 of ' . $login . ':application-password>', McpStatus::code_command() );
+		$this->assertStringContainsString( 'login name', $html );
+
+		wp_set_current_user( 0 );
+		$this->assertSame( 'YOUR-WORDPRESS-USERNAME', json_decode( McpStatus::desktop_config(), true )['mcpServers']['crazylinks']['env']['WP_API_USERNAME'], 'Logged out (WP-CLI without --user) falls back to a placeholder' );
 	}
 }
