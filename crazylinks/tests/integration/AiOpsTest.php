@@ -131,8 +131,22 @@ class AiOpsTest extends TestCase {
 		$this->assertArrayNotHasKey( 'patch_link', $p['$defs'] );
 		$block = $p['$defs']['op_add_block']['properties']['block'];
 		$this->assertSame( OpsSchema::block_types(), $block['properties']['type']['enum'] );
-		$this->assertSame( 'object', $block['properties']['props']['type'] );
-		$this->assertSame( 'object', $p['$defs']['op_update_block']['properties']['props']['type'] );
+		$this->assertSame( 'string', $block['properties']['props']['type'], 'Props travel as a JSON string (no open objects in strict mode)' );
+		$this->assertSame( 'string', $p['$defs']['op_update_block']['properties']['props']['type'] );
+		$open = [];
+		$walk = static function ( $node, string $path ) use ( &$walk, &$open ): void {
+			if ( ! is_array( $node ) ) {
+				return;
+			}
+			if ( ( $node['type'] ?? '' ) === 'object' && ( $node['additionalProperties'] ?? null ) !== false ) {
+				$open[] = $path;
+			}
+			foreach ( $node as $k => $child ) {
+				$walk( $child, $path . '/' . $k );
+			}
+		};
+		$walk( $p, '' );
+		$this->assertSame( [], $open, 'Every object in the provider schema declares additionalProperties false' );
 		$this->assertLessThan( 16000, strlen( $json ), 'Provider schema stays small enough to compile as a grammar' );
 		$this->assertLessThan( 20, count( $p['$defs'] ) );
 		// The full schema still carries every block type for server-side validation.
@@ -371,5 +385,23 @@ class AiOpsTest extends TestCase {
 		$this->assertSame( 'Remove link “Tour dates”', $items[4]['text'] );
 		$this->assertSame( 'Restyle: button shape → pill, accent color → #f97316', $items[5]['text'] );
 		$this->assertSame( 'Update the profile: bio', $items[6]['text'] );
+	}
+
+	public function test_props_returned_as_json_strings_are_inflated(): void {
+		$payload = [
+			'summary'    => 'x',
+			'operations' => [
+				[ 'op' => 'add_block', 'after_id' => null, 'block' => [ 'type' => 'link', 'props' => '{"title":"Merch","url":"https://example.com/shop"}' ] ],
+				[ 'op' => 'update_block', 'id' => '01HZZZZZZZZZZZZZZZZZZZZZZA', 'props' => '{"title":"New"}' ],
+				[ 'op' => 'update_block', 'id' => '01HZZZZZZZZZZZZZZZZZZZZZZB', 'props' => [ 'title' => 'Already an object' ] ],
+				[ 'op' => 'update_block', 'id' => '01HZZZZZZZZZZZZZZZZZZZZZZC', 'props' => 'not json' ],
+			],
+			'questions'  => [],
+		];
+		$out = OpsSchema::inflate_props( $payload );
+		$this->assertSame( [ 'title' => 'Merch', 'url' => 'https://example.com/shop' ], $out['operations'][0]['block']['props'] );
+		$this->assertSame( [ 'title' => 'New' ], $out['operations'][1]['props'] );
+		$this->assertSame( [ 'title' => 'Already an object' ], $out['operations'][2]['props'] );
+		$this->assertSame( 'not json', $out['operations'][3]['props'], 'Invalid JSON is left for the validator to report' );
 	}
 }

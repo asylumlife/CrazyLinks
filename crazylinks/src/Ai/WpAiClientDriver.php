@@ -263,6 +263,7 @@ final class WpAiClientDriver implements AiDriver {
 			return null;
 		}
 		$decoded = json_decode( substr( $text, $start, $end - $start + 1 ), true, 64 );
+		$decoded = OpsSchema::inflate_props( $decoded );
 		return is_array( $decoded ) && ( [] === $decoded || ! array_is_list( $decoded ) ) ? $decoded : null;
 	}
 

@@ -96,7 +96,7 @@ final class OpsSchema {
 	 * @return array<string, mixed>
 	 */
 	public static function for_provider(): array {
-		$schema = self::strip( self::compact( self::get() ) );
+		$schema = self::close_objects( self::strip( self::compact( self::get() ) ) );
 		/**
 		 * Filters the JSON schema CrazyLinks sends to the AI provider for structured output.
 		 * The response is validated against the full schemas/ai-ops.v1.json either way.
@@ -125,16 +125,10 @@ final class OpsSchema {
 			'type' => 'string',
 			'enum' => $types,
 		];
-		$block['properties']['props']                = [
-			'type'        => 'object',
-			'description' => 'Props for this block type, exactly as listed in the instructions.',
-		];
+		$block['properties']['props']                = self::props_as_string( 'Props for this block type, exactly as listed in the instructions, as a JSON object encoded in a string. Example: {"title":"Merch","url":"https://example.com/shop"}' );
 		$block['description']                        = 'A new block. The props object must contain the fields listed for its type.';
 		$defs['op_add_block']['properties']['block'] = $block;
-		$defs['op_update_block']['properties']['props'] = [
-			'type'        => 'object',
-			'description' => 'Props to merge into the block, using the field names listed for its type.',
-		];
+		$defs['op_update_block']['properties']['props'] = self::props_as_string( 'Props to merge into the block, using the field names listed for its type, as a JSON object encoded in a string.' );
 		foreach ( array_keys( $defs ) as $name ) {
 			if ( preg_match( '/^(new|patch|props)_/', $name ) ) {
 				unset( $defs[ $name ] );
@@ -142,6 +136,72 @@ final class OpsSchema {
 		}
 		$schema['$defs'] = $defs;
 		return $schema;
+	}
+
+	/**
+	 * Anthropic's structured outputs allow no free-form objects (every object needs additionalProperties
+	 * false), so block props travel as a JSON-encoded string and are decoded by inflate_props().
+	 *
+	 * @param string $description Field description.
+	 * @return array<string, string>
+	 */
+	private static function props_as_string( string $description ): array {
+		return [
+			'type'        => 'string',
+			'description' => $description,
+		];
+	}
+
+	/**
+	 * Decodes props that the provider returned as JSON strings (see props_as_string()). Props that are
+	 * already objects, and strings that are not valid JSON objects, are left as they are so the validator
+	 * reports them.
+	 *
+	 * @param mixed $payload Decoded model output.
+	 * @return mixed
+	 */
+	public static function inflate_props( $payload ) {
+		if ( ! is_array( $payload ) || ! isset( $payload['operations'] ) || ! is_array( $payload['operations'] ) ) {
+			return $payload;
+		}
+		foreach ( $payload['operations'] as &$op ) {
+			if ( ! is_array( $op ) ) {
+				continue;
+			}
+			if ( isset( $op['props'] ) && is_string( $op['props'] ) ) {
+				$decoded = json_decode( $op['props'], true );
+				if ( is_array( $decoded ) ) {
+					$op['props'] = $decoded;
+				}
+			}
+			if ( isset( $op['block']['props'] ) && is_string( $op['block']['props'] ) ) {
+				$decoded = json_decode( $op['block']['props'], true );
+				if ( is_array( $decoded ) ) {
+					$op['block']['props'] = $decoded;
+				}
+			}
+		}
+		unset( $op );
+		return $payload;
+	}
+
+	/**
+	 * Sets additionalProperties false on every object node that does not declare it (strict providers
+	 * reject open objects).
+	 *
+	 * @param array<mixed> $node Node.
+	 * @return array<mixed>
+	 */
+	public static function close_objects( array $node ): array {
+		if ( ( $node['type'] ?? '' ) === 'object' && ! array_key_exists( 'additionalProperties', $node ) ) {
+			$node['additionalProperties'] = false;
+		}
+		foreach ( $node as $key => $value ) {
+			if ( is_array( $value ) && 'enum' !== $key && 'required' !== $key ) {
+				$node[ $key ] = self::close_objects( $value );
+			}
+		}
+		return $node;
 	}
 
 	/**
