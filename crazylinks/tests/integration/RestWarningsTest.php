@@ -58,4 +58,26 @@ class RestWarningsTest extends TestCase {
 		$read = $this->request( 'GET', '/pages/' . $id );
 		$this->assertArrayNotHasKey( 'warnings', $read->get_data(), 'Plain reads do not re-validate.' );
 	}
+
+	/**
+	 * Regression: the editor sends slug "" for a page without one; WordPress calls REST sanitizers as
+	 * ( $value, $request, $param ), so a bare sanitize_title() turned the empty slug into the request object
+	 * and the handler fataled on the live site (2026-11-05).
+	 */
+	public function test_empty_slug_from_the_editor_does_not_break_update_or_create(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+		$doc = $this->doc();
+
+		$created = $this->request( 'POST', '/pages', [ 'title' => 'Untitled yet', 'slug' => '', 'status' => 'draft', 'page' => $doc ] );
+		$this->assertSame( 201, $created->get_status() );
+		$id = (int) $created->get_data()['id'];
+
+		$updated = $this->request( 'PATCH', '/pages/' . $id, [ 'page' => $doc, 'title' => 'Untitled yet', 'slug' => '', 'status' => 'publish' ] );
+		$this->assertSame( 200, $updated->get_status(), wp_json_encode( $updated->get_data() ) );
+		$this->assertSame( 'publish', $updated->get_data()['status'] );
+		$this->assertNotSame( '', get_post( $id )->post_name, 'WordPress derives a slug from the title when none is given.' );
+
+		$renamed = $this->request( 'PATCH', '/pages/' . $id, [ 'slug' => 'My Chosen Slug' ] );
+		$this->assertSame( 'my-chosen-slug', $renamed->get_data()['slug'] );
+	}
 }

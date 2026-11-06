@@ -388,7 +388,9 @@ final class PagesController extends \WP_REST_Controller {
 					'type'        => 'string',
 					'description' => __( 'URL slug.', 'crazylinks' ),
 					'context'     => [ 'view', 'edit' ],
-					'arg_options' => [ 'sanitize_callback' => 'sanitize_title' ],
+					// Not the bare 'sanitize_title': REST passes ( $value, $request, $param ) to sanitizers, and
+					// sanitize_title() would take the request object as its $fallback_title for an empty slug.
+					'arg_options' => [ 'sanitize_callback' => [ self::class, 'sanitize_slug_arg' ] ],
 				],
 				'status'   => [
 					'type'    => 'string',
@@ -474,6 +476,15 @@ final class PagesController extends \WP_REST_Controller {
 		$result              = ( new PageValidator() )->validate( is_array( $page ) ? $page : (string) wp_json_encode( $page ), get_current_user_id(), $previous );
 		$this->last_warnings = $result->warnings();
 		return $result->is_valid() ? $result->document() : $result->to_wp_error();
+	}
+
+	/**
+	 * Sanitizes the slug argument with a single-parameter signature.
+	 *
+	 * @param mixed $value Raw value.
+	 */
+	public static function sanitize_slug_arg( $value ): string {
+		return sanitize_title( is_scalar( $value ) ? (string) $value : '' );
 	}
 
 	/**
