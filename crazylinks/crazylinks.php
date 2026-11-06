@@ -3,7 +3,7 @@
  * Plugin Name:       CrazyLinks
  * Plugin URI:        https://github.com/asylumlife/crazylinks
  * Description:       A self-hosted link-in-bio page builder. Your link page, your domain, your data.
- * Version:           0.1.2
+ * Version:           0.1.3
  * Requires at least: 6.9
  * Requires PHP:      8.1
  * Author:            Asylum Life
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CRAZYLINKS_VERSION', '0.1.2' );
+define( 'CRAZYLINKS_VERSION', '0.1.3' );
 define( 'CRAZYLINKS_FILE', __FILE__ );
 define( 'CRAZYLINKS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CRAZYLINKS_URL', plugin_dir_url( __FILE__ ) );

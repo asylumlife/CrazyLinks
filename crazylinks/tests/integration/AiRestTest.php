@@ -568,4 +568,23 @@ class AiRestTest extends TestCase {
 		$this->assertFalse( $off['ai_enabled'] );
 		$this->assertFalse( $off['ai_consent'] );
 	}
+
+	/**
+	 * Regression: WordPress sanitizes twice when an option is first created (update_option then
+	 * add_option). The second pass must not drop the AI section (AsylumLife.com, 2026-11-05).
+	 */
+	public function test_first_ever_settings_save_keeps_ai_enabled(): void {
+		$form = [ 'base' => 'linktree', 'analytics' => '1', 'render_mode' => 'standalone', 'ai_section' => '1', 'ai_enabled' => '1', 'ai_user_hourly' => '31' ];
+		$twice = \CrazyLinks\Settings::sanitize( \CrazyLinks\Settings::sanitize( $form ) );
+		$this->assertTrue( $twice['ai_enabled'] );
+		$this->assertTrue( $twice['ai_consent'] );
+		$this->assertSame( 31, $twice['ai_user_hourly'] );
+
+		( new \CrazyLinks\Admin\SettingsPage() )->register();
+		delete_option( \CrazyLinks\Settings::OPTION );
+		update_option( \CrazyLinks\Settings::OPTION, $form );
+		$stored = get_option( \CrazyLinks\Settings::OPTION );
+		$this->assertTrue( $stored['ai_enabled'], 'First-ever save through update_option must keep AI on.' );
+		$this->assertSame( 'linktree', $stored['base'] );
+	}
 }
