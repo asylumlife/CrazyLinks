@@ -247,7 +247,7 @@ final class EditingGuide {
 	 * @param array{type:string, required:string[], props:array<string, string>} $block Block type.
 	 */
 	private static function block_markdown( array $block ): string {
-		$line = '### ' . $block['type'] . ( 'group' === $block['type'] ? ' (a Section: other blocks join it with parent_id; sections never nest)' : '' );
+		$line = '### ' . $block['type'] . ( 'group' === $block['type'] ? ' (a Section: other blocks join it with parent_id; sections never nest)' : '' ) . ( 'product' === $block['type'] ? ' (use `crazylinks-search-products` to get a `product_id`; the store address is a site setting)' : '' );
 		if ( $block['required'] ) {
 			$line .= "\nRequired: `" . implode( '`, `', $block['required'] ) . '`.';
 		}

@@ -21,7 +21,7 @@ CrazyLinks adds link-in-bio pages to your own WordPress site, the kind of page L
 * Link pages as their own post type, with revisions and a schema-checked JSON format.
 * Links as a classic button, a button with a thumbnail on the left or right, or a large image card. Each link can have a subtitle, a badge, a NEW flag that expires on a date you choose, an attention animation and a pin.
 * Page layouts: list, two-column grid, or a large first link.
-* Blocks: profile header, links, social icons, heading, text, divider, image, gallery, latest posts, video, email capture form (sign-ups are not stored yet), contact card, countdown, map link, payment buttons, collapsible group, spacer, and custom HTML for administrators. WooCommerce products are planned.
+* Blocks: profile header, links, social icons, heading, text, divider, image, gallery, latest posts, product (from WooCommerce on this site or a separate store), video, email capture form (sign-ups are not stored yet), contact card, countdown, map link, payment buttons, collapsible group, spacer, and custom HTML for administrators.
 * Social icons for 37 networks and contact types, drawn as inline SVG from the Simple Icons set. Other plugins can add icons with a filter.
 * Payment buttons for Buy Me a Coffee, Ko-fi, PayPal.me, Venmo, Cash App, Stripe Payment Links, Patreon and GoFundMe. The button opens the service itself; no money passes through your site.
 * 14 design presets (light, dark, gradient, bold, pastel, mono, neon, earthy, frosted glass, patterned). Every preset meets WCAG AA contrast, and some switch to a dark variant when the visitor's device prefers it. You can override any colour, font, button shape, radius or background (solid, gradient, image or pattern).
@@ -44,7 +44,7 @@ Email sign-ups (the Email capture block) store the address, the consent text sho
 
 = External services =
 
-CrazyLinks makes no requests to external services on its own. It loads no remote scripts, styles or fonts. Sign-up confirmation emails are sent with your site's own mail function (`wp_mail`), so no third-party email service is contacted unless you have configured one for WordPress as a whole.
+CrazyLinks makes no requests to external services on its own, except the optional ones below. It loads no remote scripts, styles or fonts. Sign-up confirmation emails are sent with your site's own mail function (`wp_mail`), so no third-party email service is contacted unless you have configured one for WordPress as a whole.
 
 The only outbound request is optional and author-initiated: when someone saves a page that contains an **Embed** block or a **Video** block with a video URL, WordPress's built-in oEmbed client asks the provider of that URL for embed details (title, thumbnail, player HTML). Only these providers are allowed: YouTube, Vimeo, Spotify, SoundCloud, TikTok, X/Twitter and Instagram. What is sent is the URL the author entered. The response is cached on the page, so visitors never trigger the request. The provider's player loads in the visitor's browser only after they tap the embed. Provider terms and privacy policies:
 
@@ -55,6 +55,8 @@ The only outbound request is optional and author-initiated: when someone saves a
 * TikTok: https://www.tiktok.com/legal/terms-of-service, https://www.tiktok.com/legal/privacy-policy
 * X/Twitter: https://x.com/tos, https://x.com/privacy
 * Instagram: https://help.instagram.com/581066165581870, https://privacycenter.instagram.com/policy
+
+**Your store (optional, off until you set an address).** If you enter a store address under CrazyLinks → Settings → Store, the site contacts that address to read product data for the Product block: the store's public WooCommerce Store API (`/wp-json/wc/store/v1/products`) and, for the settings status line, the site name from `/wp-json/`. Only the request itself is sent (a plain GET with a CrazyLinks user agent): no cookies, no visitor data, no information about your site or its users. It is the only address CrazyLinks ever requests for products, it is never taken from a page or from visitor input, and redirects are not followed. Answers are cached for 15 minutes, and the last good answer is kept so a store that is down does not empty your page. Visitors' browsers load the product image from the store's image address and follow the Buy link to the store, which has its own privacy policy. With no address set, the Product block uses WooCommerce on the same site (if installed) and contacts nothing.
 
 Gallery, latest posts, countdown, map and payment blocks make no requests. Map blocks are plain links to Google Maps or Apple Maps that open only when a visitor taps them.
 
@@ -137,6 +139,9 @@ Simple Icons, released under CC0. See LICENSE-icons.txt. The logos remain tradem
 5. The page JSON in the editor screen.
 
 == Changelog ==
+
+= 0.3.0 =
+* New: Product block (WooCommerce on the same site or a separate store through the Store API), newest-products mode, store setting, search-products ability
 
 = 0.2.4 =
 * New: a setting to turn off the MCP Adapter's default server, so only the CrazyLinks MCP server stays reachable; the settings box lists what the default server also exposes.

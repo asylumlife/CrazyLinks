@@ -96,6 +96,7 @@ Rate-limit and de-duplication state lives in the persistent object cache (group 
 |---|---|---|
 | `retention_days` | 90 | Raw events older than this are deleted by the daily cron after rollup (0 keeps them). Replaces `retention_months`; a site that only has the old key keeps `months * 30` days. Events are never deleted before their day has been rolled up. |
 | `double_opt_in` | true | Require email confirmation. |
+| `store_url` | `''` | Product block: address of a separate WooCommerce store (https; http only when `wp_get_environment_type()` is `local`). Sanitized by `Woo\Store::sanitize_url()`; an invalid value keeps the previous one. The only host the plugin contacts for products. Empty uses WooCommerce on this site when active. |
 | `subscriber_retention_days` | 90 | Pending and unsubscribed rows not changed for this long are deleted by the daily cron (0 keeps them). Confirmed rows are never deleted automatically. |
 
 ## REST routes (`crazylinks/v1`)
@@ -320,6 +321,7 @@ Errors: 400 invalid operations (`data.errors[] {path, message}`), 403/401 permis
 | `crazylinks/apply-operations` | destructive | POST | `edit_post` on `id`; `{id, operations, summary?, expected_modified?, idempotency_key?}` → `applied`, `revision_id`, `pending_proposal_id`, `change_list`, `changed_blocks[]`, `removed_block_ids[]`, `block_count`, `summary`, `modified`, `link`, `source: "mcp"`, `message`, `replayed` (on idempotent replays). Errors: 400 `crazylinks_ai_invalid_ops` (errors listed in the message), 409 `crazylinks_conflict` (`data.modified`), 409 `crazylinks_page_locked` (another user holds the editor lock), 429 rate limit |
 | `crazylinks/get-analytics-summary` | readonly | GET | `view_crazylinks_analytics` + `edit_post` |
 | `crazylinks/suggest-titles` | readonly | GET | `use_crazylinks_ai` |
+| `crazylinks/search-products` | readonly | GET | `edit_crazylinks_pages`; `{search?, limit?}` -> `{id, name, price, url}[]` |
 
 Every ability is off until enabled under CrazyLinks → Settings → AI. Exposure meta: `meta.show_in_rest` is always true (core's REST routes), `meta.public` and `meta.mcp.public` follow the enable switch, `meta.mcp.type` is `tool`. The MCP Adapter turns names into tool names with `/` → `-` (`crazylinks-preview-operations`).
 
@@ -335,3 +337,32 @@ With the MCP Adapter plugin active and the `ai_mcp_server` setting on, CrazyLink
 - `wp crazylinks ai eval [--offline] [--grade] [--case=<id>] [--limit=<n>]`: the eval set in `tests/fixtures/ai/` (dev repository only). Live by default and only when a provider is configured; otherwise prints a notice and exits 0. `--offline` replays the recorded responses; `--grade` asks a Haiku-class model to grade each result against its rubric.
 
 | `crazylinks_ai_structured_output` | `bool` | | Ask the provider for schema-constrained JSON (default false: Anthropic rejects the operations grammar as too large; the prompt requests bare JSON and the server validates it, retrying once with the errors). |
+
+## Product block and store (0.3.0)
+
+- Block type `product` (props in `docs/schema-changes.md`); partial `templates/blocks/product.php`; data source `CrazyLinks\Woo\Store`. The store address is the `store_url` setting, never a block prop.
+- Requests: `GET {store_url}/wp-json/wc/store/v1/products?...` (and `GET {store_url}/wp-json/?_fields=name` for the settings status line), 5-second timeout, no redirects, `reject_unsafe_urls` unless http is allowed. Results are cached in transients (15 minutes) and the last good copy is kept in the non-autoloaded option `crazylinks_store_last`, so an unreachable store serves stale data. A failed request is not repeated for 2 minutes.
+- Without `store_url`, WooCommerce on the same site is used through `wc_get_products()` / `wc_get_product()`.
+
+### Filters
+
+| Hook | Value | Extra args | Purpose |
+|---|---|---|---|
+| `crazylinks_store_cache_ttl` | `int $seconds` | `string $kind` (`product`, `latest`, `search`) | How long fetched store data is served without asking the store again. Default 900. |
+| `crazylinks_store_allow_http` | `bool $allow` | | Whether an `http://` store address is accepted. Default: `wp_get_environment_type() === 'local'`. |
+
+### REST route
+
+| Route | Permission | Params | Returns |
+|---|---|---|---|
+| `GET /crazylinks/v1/store/products` | `edit_crazylinks_pages` (401 logged out, 403 otherwise) | `search`, `per_page` (1-50, default 10), `include` (one product id) | `{available, products: [{id, name, price, url, image, on_sale}]}`; feeds the editor's product picker through `Store::search()` |
+
+### /go/ for products
+
+`/go/{block_id}/` (single mode) and `/go/{block_id}/{product_id}/` (newest mode) redirect to the product page URL from the cached store data (`Store::known_product()`: transient, else the last good copy; never a request to the store). 404 when nothing is cached, when the id is not one the block currently lists, or when a single block is given a product id.
+
+### Ability
+
+| Ability | Annotations | HTTP method on `/run` | Permission |
+|---|---|---|---|
+| `crazylinks/search-products` | readonly | GET | `edit_crazylinks_pages`; `{search?, limit?}` -> list of `{id, name, price, url}` |

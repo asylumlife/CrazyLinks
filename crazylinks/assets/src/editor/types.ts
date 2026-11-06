@@ -12,6 +12,7 @@ export type BlockType =
 	| 'image'
 	| 'gallery'
 	| 'latest_posts'
+	| 'product'
 	| 'embed'
 	| 'video'
 	| 'email_capture'

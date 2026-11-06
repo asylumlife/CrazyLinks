@@ -20,7 +20,7 @@ CrazyLinks → Settings → AI editing → **External AI agents**. Every ability
 | Preview changes | `crazylinks-preview-operations` | Checks operations against a page without saving: `valid`, errors to fix, warnings, a plain-English change list, `changed_blocks` (only the blocks the operations touched, as they will be), `removed_block_ids` and `block_count`. Pass `include_document: true` for the whole resulting page. |
 | Save changes | `crazylinks-apply-operations` | Validates the operations again and saves them, creating a revision marked "AI (external)" in the page history. Returns `change_list`, `changed_blocks` and `removed_block_ids` too, so you do not need to read the page again. |
 
-Optional: **Read click totals** (`crazylinks-get-analytics-summary`, aggregate clicks per block, no visitor data). **Propose changes**, **Apply proposed changes** and **Suggest link titles** use this site's own AI provider (Settings → Connectors); leave them off if you only use Claude through MCP.
+Optional: **Find store products** (`crazylinks-search-products`, read only: id, name, price and URL of products in the store set under Settings → Store, so a `product` block gets a real `product_id`). **Read click totals** (`crazylinks-get-analytics-summary`, aggregate clicks per block, no visitor data). **Propose changes**, **Apply proposed changes** and **Suggest link titles** use this site's own AI provider (Settings → Connectors); leave them off if you only use Claude through MCP.
 
 In the same section, **External agents (MCP)** shows whether the MCP Adapter is active, both endpoint URLs and copyable connection snippets. Keep **Offer a CrazyLinks MCP server** ticked (the default).
 

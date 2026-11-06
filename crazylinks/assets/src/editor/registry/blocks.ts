@@ -21,7 +21,8 @@ export type FieldKind =
 	| 'numbers'
 	| 'multicheck'
 	| 'focal'
-	| 'items';
+	| 'items'
+	| 'product';
 
 export interface Option {
 	value: string;
@@ -1162,6 +1163,111 @@ export function blockDefs(): Record< string, BlockDef > {
 						[ 'lg', __( 'Very rounded', 'crazylinks' ) ],
 					] ),
 					advanced: true,
+				},
+			],
+		},
+		{
+			type: 'product',
+			label: __( 'Product', 'crazylinks' ),
+			description: __(
+				'A product, or your newest products, from your store with a Buy button.',
+				'crazylinks'
+			),
+			icon: 'cart',
+			category: 'content',
+			trackable: true,
+			defaults: () => ( {
+				mode: 'single',
+				count: 3,
+				display: 'card',
+				show_price: true,
+				button_text: __( 'Buy', 'crazylinks' ),
+			} ),
+			summary: ( p ) =>
+				p.mode === 'latest'
+					? /* translators: %d: number of products. */ __(
+							'%d newest products',
+							'crazylinks'
+						).replace(
+							'%d',
+							String( typeof p.count === 'number' ? p.count : 3 )
+						)
+					: str( p.title ) ||
+						( typeof p.product_id === 'number' && p.product_id > 0
+							? `#${ p.product_id }`
+							: '' ),
+			fields: [
+				{
+					key: 'mode',
+					label: __( 'Show', 'crazylinks' ),
+					kind: 'select',
+					options: opts( [
+						[ 'single', __( 'One product', 'crazylinks' ) ],
+						[ 'latest', __( 'Newest products', 'crazylinks' ) ],
+					] ),
+				},
+				{
+					key: 'product_id',
+					label: __( 'Product', 'crazylinks' ),
+					kind: 'product',
+					min: 0,
+					showIf: ( p ) => p.mode !== 'latest',
+				},
+				{
+					key: 'count',
+					label: __( 'Number of products', 'crazylinks' ),
+					kind: 'number',
+					min: 1,
+					max: 12,
+					showIf: ( p ) => p.mode === 'latest',
+				},
+				{
+					key: 'category',
+					label: __( 'Category slug', 'crazylinks' ),
+					kind: 'text',
+					maxLength: 60,
+					placeholder: 'shirts',
+					help: __( 'Leave empty for all categories.', 'crazylinks' ),
+					showIf: ( p ) => p.mode === 'latest',
+				},
+				{
+					key: 'display',
+					label: __( 'Display', 'crazylinks' ),
+					kind: 'select',
+					options: opts( [
+						[ 'card', __( 'Card', 'crazylinks' ) ],
+						[ 'button', __( 'Link button', 'crazylinks' ) ],
+					] ),
+				},
+				{
+					key: 'show_price',
+					label: __( 'Show price', 'crazylinks' ),
+					kind: 'toggle',
+				},
+				{
+					key: 'button_text',
+					label: __( 'Button text', 'crazylinks' ),
+					kind: 'text',
+					maxLength: 40,
+				},
+				{
+					key: 'title',
+					label: __(
+						'Title (replaces the product name)',
+						'crazylinks'
+					),
+					kind: 'text',
+					maxLength: 120,
+					advanced: true,
+					showIf: ( p ) => p.mode !== 'latest',
+				},
+				{
+					key: 'subtitle',
+					label: __( 'Subtitle', 'crazylinks' ),
+					kind: 'text',
+					maxLength: 160,
+					advanced: true,
+					showIf: ( p ) => p.mode !== 'latest',
 				},
 			],
 		},

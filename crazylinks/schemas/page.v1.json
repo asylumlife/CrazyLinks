@@ -454,6 +454,7 @@
             "image",
             "gallery",
             "latest_posts",
+            "product",
             "embed",
             "video",
             "email_capture",
@@ -654,6 +655,25 @@
             "properties": {
               "props": {
                 "$ref": "#/$defs/props_latest_posts"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "product"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "props": {
+                "$ref": "#/$defs/props_product"
               }
             }
           }
@@ -1321,6 +1341,59 @@
           "type": "string",
           "maxLength": 40,
           "pattern": "^[a-z0-9_-]*$"
+        }
+      }
+    },
+    "props_product": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "single",
+            "latest"
+          ],
+          "description": "single shows the product with product_id; latest shows the newest count products (optionally one category)."
+        },
+        "product_id": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Product id in the connected store (single mode). 0 means none. Find ids with the search-products ability."
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 60,
+          "pattern": "^[a-z0-9_-]*$",
+          "description": "Product category slug (latest mode); empty for all."
+        },
+        "display": {
+          "type": "string",
+          "enum": [
+            "card",
+            "button"
+          ]
+        },
+        "show_price": {
+          "type": "boolean"
+        },
+        "button_text": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Overrides the product name (single mode)."
+        },
+        "subtitle": {
+          "type": "string",
+          "maxLength": 160
         }
       }
     },

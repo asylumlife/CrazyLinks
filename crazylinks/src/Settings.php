@@ -37,6 +37,8 @@ final class Settings {
 			'subscriber_retention_days' => 90,
 			'clicks_per_minute'         => 60,
 			'fetch_oembed'              => true,
+			// Product block: address of a separate WooCommerce store (https). Empty uses WooCommerce on this site, if active.
+			'store_url'                 => '',
 			// AI editing (SPEC §10). Off until the owner opts in.
 			'ai_enabled'                => false,
 			'ai_consent'                => false,
@@ -216,6 +218,16 @@ final class Settings {
 			$out['subscriber_retention_days'] = min( 3650, absint( $input['subscriber_retention_days'] ) );
 		}
 		unset( $out['retention_months'] );
+		// Only when the form (or caller) carries the field, so partial updates leave the store alone.
+		if ( array_key_exists( 'store_url', $input ) ) {
+			$raw   = trim( (string) $input['store_url'] );
+			$store = Woo\Store::sanitize_url( $raw );
+			if ( '' !== $raw && '' === $store ) {
+				add_settings_error( self::OPTION, 'crazylinks_store_url', __( 'The store address must be a full https:// address (http only on a local development site). The previous value was kept.', 'crazylinks' ) );
+			} else {
+				$out['store_url'] = $store;
+			}
+		}
 		// The form marks the AI section with a hidden field. WordPress runs this sanitizer twice when the
 		// option is written for the first time (update_option, then add_option), and the second pass
 		// receives our own output, which has no marker but does carry `ai_consent` (never posted by the
@@ -227,6 +239,9 @@ final class Settings {
 
 		if ( $out['base'] !== $old['base'] ) {
 			update_option( 'crazylinks_flush_rewrite', 1 );
+		}
+		if ( ( $out['store_url'] ?? '' ) !== ( $old['store_url'] ?? '' ) ) {
+			Woo\Store::flush();
 		}
 		Render\Cache::bump();
 		return $out;

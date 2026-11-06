@@ -106,3 +106,53 @@ describe( 'block registry', () => {
 		).toBe( 'Hi there' );
 	} );
 } );
+
+describe( 'product block', () => {
+	it( 'defaults to a one-product card with a Buy button', () => {
+		expect( blockDef( 'product' ).defaults() ).toMatchObject( {
+			mode: 'single',
+			count: 3,
+			display: 'card',
+			show_price: true,
+			button_text: 'Buy',
+		} );
+		expect( blockDef( 'product' ).icon ).toBe( 'cart' );
+		expect( blockDef( 'product' ).category ).toBe( 'content' );
+		expect( blockDef( 'product' ).trackable ).toBe( true );
+	} );
+
+	it( 'uses the product picker field and keeps defaults inside the schema', () => {
+		const kinds = blockDef( 'product' ).fields.map( ( f ) => f.key );
+		expect( kinds ).toEqual( [
+			'mode',
+			'product_id',
+			'count',
+			'category',
+			'display',
+			'show_price',
+			'button_text',
+			'title',
+			'subtitle',
+		] );
+		expect(
+			blockDef( 'product' ).fields.find( ( f ) => f.key === 'product_id' )
+				?.kind
+		).toBe( 'product' );
+	} );
+
+	it( 'summarizes both modes', () => {
+		expect(
+			blockDef( 'product' ).summary( { mode: 'single', product_id: 42 } )
+		).toBe( '#42' );
+		expect(
+			blockDef( 'product' ).summary( {
+				mode: 'single',
+				product_id: 42,
+				title: 'Tee',
+			} )
+		).toBe( 'Tee' );
+		expect(
+			blockDef( 'product' ).summary( { mode: 'latest', count: 5 } )
+		).toBe( '5 newest products' );
+	} );
+} );
