@@ -146,15 +146,16 @@ final class SettingsPage {
 			case 'ai_enabled':
 				$providers = Status::providers();
 				$who       = $providers ? implode( ', ', $providers ) : __( 'the AI provider you connect in Settings → Connectors', 'crazylinks' );
-				printf( '<label><input type="checkbox" id="%s" name="%s[ai_enabled]" value="1"%s> %s</label><br>', esc_attr( $id ), esc_attr( $opt ), checked( ! empty( $s['ai_enabled'] ), true, false ), esc_html__( 'Turn on AI editing for people with the "Use CrazyLinks AI" capability (administrators and editors).', 'crazylinks' ) );
 				printf(
-					'<label><input type="checkbox" name="%s[ai_consent]" value="1"%s> %s</label>',
+					'<label><input type="checkbox" id="%s" name="%s[ai_enabled]" value="1"%s> <strong>%s</strong> %s</label>',
+					esc_attr( $id ),
 					esc_attr( $opt ),
-					checked( ! empty( $s['ai_consent'] ), true, false ),
+					checked( ! empty( $s['ai_enabled'] ), true, false ),
+					esc_html__( 'Turn on AI editing for people with the "Use CrazyLinks AI" capability (administrators and editors).', 'crazylinks' ),
 					esc_html(
 						sprintf(
 							/* translators: %s: AI provider name(s). */
-							__( 'I agree that when someone uses AI editing, CrazyLinks sends to %s: what they typed, the page being edited (profile, design and blocks, without custom HTML or custom CSS) and, only for "Build from this site", the site title and tagline, recent post titles and links, menu links and the user\'s public profile links; for "Ask about analytics", click totals per link. Provider keys, emails, subscribers and visitor data are never sent. The provider\'s terms and privacy policy apply.', 'crazylinks' ),
+							__( 'By turning it on you agree that when someone uses AI editing, CrazyLinks sends to %s: what they typed, the page being edited (profile, design and blocks, without custom HTML or custom CSS) and, only for "Build from this site", the site title and tagline, recent post titles and links, menu links and the user\'s public profile links; for "Ask about analytics", click totals per link. Provider keys, emails, subscribers and visitor data are never sent. The provider\'s terms and privacy policy apply.', 'crazylinks' ),
 							$who
 						)
 					)

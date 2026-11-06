@@ -147,12 +147,11 @@ final class Settings {
 	 * @return array<string, mixed>
 	 */
 	private static function sanitize_ai( array $input, array $out ): array {
-		$out['ai_consent'] = ! empty( $input['ai_consent'] );
+		// One opt-in: the enable checkbox carries the consent statement (wordpress.org guideline 7), so
+		// consent is recorded whenever AI is turned on. A separate consent box let people tick "on" and
+		// silently lose it on save (AsylumLife.com, 2026-11-05).
 		$out['ai_enabled'] = ! empty( $input['ai_enabled'] );
-		if ( $out['ai_enabled'] && ! $out['ai_consent'] ) {
-			$out['ai_enabled'] = false;
-			add_settings_error( self::OPTION, 'crazylinks_ai_consent', __( 'AI editing stays off until you tick the box that confirms page content may be sent to your AI provider.', 'crazylinks' ) );
-		}
+		$out['ai_consent'] = $out['ai_enabled'];
 		foreach ( [ 'ai_model_edit', 'ai_model_suggest' ] as $key ) {
 			if ( isset( $input[ $key ] ) ) {
 				$models      = array_filter( array_map( 'trim', explode( ',', (string) $input[ $key ] ) ) );

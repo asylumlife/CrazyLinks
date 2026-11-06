@@ -556,4 +556,16 @@ class AiRestTest extends TestCase {
 		$this->assertTrue( \CrazyLinks\Ai\Bootstrap::erase( $email )['items_removed'] );
 		$this->assertSame( [], \CrazyLinks\Ai\Bootstrap::export( $email )['data'] );
 	}
+
+	/**
+	 * Regression: ticking "Turn on AI editing" alone must persist (the old separate consent box reset it).
+	 */
+	public function test_enabling_ai_in_settings_records_consent(): void {
+		$saved = \CrazyLinks\Settings::sanitize( [ 'ai_section' => '1', 'ai_enabled' => '1' ] );
+		$this->assertTrue( $saved['ai_enabled'] );
+		$this->assertTrue( $saved['ai_consent'] );
+		$off = \CrazyLinks\Settings::sanitize( [ 'ai_section' => '1' ] );
+		$this->assertFalse( $off['ai_enabled'] );
+		$this->assertFalse( $off['ai_consent'] );
+	}
 }
