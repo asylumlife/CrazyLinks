@@ -30,8 +30,6 @@ final class Plugin {
 		}
 		self::$booted = true;
 
-		load_plugin_textdomain( 'crazylinks', false, dirname( plugin_basename( CRAZYLINKS_FILE ) ) . '/languages' );
-
 		Activator::maybe_upgrade();
 		Activator::register_multisite_hooks();
 

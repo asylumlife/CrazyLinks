@@ -58,13 +58,12 @@ final class RateLimiter {
 			return false === $count || $count <= $limit;
 		}
 
-		$table = self::table();
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Plugin table, prepared values.
-		$ok = $wpdb->query( $wpdb->prepare( "INSERT INTO {$table} (k, hits, expires) VALUES (%s, 1, %d) ON DUPLICATE KEY UPDATE hits = hits + 1", $k, $expires ) );
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Per-request rate-limit counter; caching it would defeat its purpose.
+		$ok = $wpdb->query( $wpdb->prepare( 'INSERT INTO %i (k, hits, expires) VALUES (%s, 1, %d) ON DUPLICATE KEY UPDATE hits = hits + 1', self::table(), $k, $expires ) );
 		if ( false === $ok ) {
 			return true;
 		}
-		$count = (int) $wpdb->get_var( $wpdb->prepare( "SELECT hits FROM {$table} WHERE k = %s", $k ) );
+		$count = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT hits FROM %i WHERE k = %s', self::table(), $k ) );
 		// phpcs:enable
 		self::maybe_sweep( $now );
 		return $count <= $limit;
@@ -86,9 +85,8 @@ final class RateLimiter {
 			return (bool) wp_cache_add( $k, 1, self::GROUP, max( 1, $window ) );
 		}
 
-		$table = self::table();
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Plugin table, prepared values.
-		$inserted = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$table} (k, hits, expires) VALUES (%s, 1, %d)", $k, $expires ) );
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Per-request rate-limit state; caching it would defeat its purpose.
+		$inserted = $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (k, hits, expires) VALUES (%s, 1, %d)', self::table(), $k, $expires ) );
 		if ( false === $inserted ) {
 			return true;
 		}
@@ -97,7 +95,7 @@ final class RateLimiter {
 			return true;
 		}
 		// The key exists: it counts as new only if its window has passed.
-		$renewed = $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET expires = %d, hits = 1 WHERE k = %s AND expires <= %d", $expires, $k, $now ) );
+		$renewed = $wpdb->query( $wpdb->prepare( 'UPDATE %i SET expires = %d, hits = 1 WHERE k = %s AND expires <= %d', self::table(), $expires, $k, $now ) );
 		// phpcs:enable
 		return 1 === (int) $renewed;
 	}
@@ -121,13 +119,12 @@ final class RateLimiter {
 	 */
 	public static function sweep( ?int $now = null, int $limit = 0 ): void {
 		global $wpdb;
-		$table = self::table();
-		$now   = $now ?? time();
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Plugin table, prepared values.
+		$now = $now ?? time();
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Rate-limit table housekeeping write.
 		if ( $limit > 0 ) {
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE expires < %d LIMIT %d", $now, $limit ) );
+			$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE expires < %d LIMIT %d', self::table(), $now, $limit ) );
 		} else {
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE expires < %d", $now ) );
+			$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE expires < %d', self::table(), $now ) );
 		}
 		// phpcs:enable
 	}

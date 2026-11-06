@@ -15,7 +15,7 @@ Items marked **DECISION** need the owner's call before build. Items marked **VER
 | D1 | Who creates pages? | **Owner mode only.** The plugin is installed on other people's WordPress sites; the site owner and any WP user they grant the capability create pages. No hosted "member pages" mode. | Removes the Phase 3 member-pages work and its abuse/moderation burden. The data model still records `post_author`, so per-user ownership and team roles work out of the box. |
 | D2 | Distribution and pricing | **Free core with everything Linktree charges for. An agency/Pro tier is of interest and will be defined later.** | Candidate Pro features: multi-site/client management dashboard, white-label admin, client reporting, bulk operations, hosted-AI convenience. Never basics. See §3 v3.0. |
 | D3 | AI provider strategy | **Use the WordPress core AI Client (7.0+) with provider keys in Settings → Connectors.** A direct Anthropic SDK driver is added only if a concrete gap is found in the core client. | WordPress ships the plumbing but no provider; the site owner adds their own Anthropic, Google or OpenAI key once in Connectors and every AI-aware plugin, including this one, uses it. Nothing extra to build or configure for most sites. **Verified on WP 7.1.4 (2026-11-05):** a fresh install registers zero providers; the Connectors screen offers an *Install* button for the official provider plugins (`ai-provider-for-anthropic`, Google, OpenAI), which register themselves with the AI Client and store keys in the `wp_ai_client_provider_credentials` option. **Owner decision 2026-11-05:** the owner's preferred way to edit pages with AI is from Claude Desktop (or Claude Code) over MCP, billed to their Claude subscription with no API key on the site. The Connectors/API path stays as the fallback for editors who have no Claude account. Build plan in §10.7. |
-| D4 | Minimum WordPress version | **6.9 for the plugin; AI features require 7.0 and are feature-detected.** | Confirmed by owner. |
+| D4 | Minimum WordPress version | **6.9 for the plugin; AI features require 7.0 and are feature-detected.** | Confirmed by owner. **Update 2026-11-06:** minimum raised to WordPress 7.0, because the AI driver calls `wp_ai_client_prompt()` (WP 7.0+) and Plugin Check flags that against a 6.9 minimum; decided by the owner's reviewer. The 6.9 text above is kept as the original decision. |
 | D5 | Editor and rendering approach | **Custom React admin editor on its own screen. Front end is theme-agnostic by default, with rendering options layered on top** (standalone, inside the theme, embedded anywhere via block or shortcode, and a "match my site" style preset). | Owner likes the React editor and wants the plugin to work with any theme or builder without interfering with other plugins. Owner uses Divi today but is not committed to it, so builder-specific modules are later nice-to-haves, not v1 commitments. See §6.3 and §6.5. |
 | D6 | Commerce | **Integrate WooCommerce. Add a "payment and tip links" block for Buy Me a Coffee, Ko-fi, PayPal, Venmo, Cash App, Stripe Payment Links and Patreon.** | Those services all work as plain URLs, so they are branded link presets, not payment processing. Stripe Payment Links give Stripe checkout with no Woo install. |
 | D7 (note) | Owner's own site uses base `linktree` (set in Settings; pages at `/linktree/{slug}/`); the plugin default stays `l`. |
@@ -92,7 +92,7 @@ Capabilities (mapped to roles on activation, editable via any role plugin):
 | QR | Downloadable SVG/PNG QR per page with color and logo, scan counts via `?src=qr` |
 | Sharing | Social icons row (30+ networks), share sheet button, vCard download |
 | Import | Paste a Linktree URL to import links and profile (**VERIFY** legal/ToS and feasibility) |
-| Platform | WP 6.9+, PHP 8.1+, multisite-aware, translation-ready, RTL, WCAG 2.1 AA |
+| Platform | WP 7.0+ (raised from 6.9 on 2026-11-06, see D4), PHP 8.1+, multisite-aware, translation-ready, RTL, WCAG 2.1 AA |
 
 ### v1.1 — Polish
 
@@ -610,7 +610,7 @@ Test plan: Playwright is not applicable; test through the Abilities REST routes 
 | Layer | Choice |
 |---|---|
 | PHP | 8.1+, PSR-4 autoloading under `CrazyLinks\`, no runtime Composer dependencies in the free plugin (Anthropic SDK scoped via PHP-Scoper only in the optional driver) |
-| WordPress | 6.9+ minimum; AI features feature-detect 7.0+ |
+| WordPress | 7.0+ minimum (raised from 6.9 on 2026-11-06, see D4) |
 | Admin JS | `@wordpress/scripts`, React, `@wordpress/components`, `@wordpress/data`, TypeScript |
 | Front end | PHP templates, inline CSS, ≤ 8 KB vanilla JS |
 | Schemas | JSON Schema 2020-12 in `/schemas`, validated in PHP (`opis/json-schema` scoped) and TS (`ajv`) |

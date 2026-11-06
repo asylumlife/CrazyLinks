@@ -4,7 +4,7 @@ CrazyLinks exposes its page tools through the official WordPress **MCP Adapter**
 
 ## What you need
 
-- WordPress 6.9 or newer (CrazyLinks requires it anyway) and CrazyLinks 0.2.0 or newer.
+- WordPress 7.0 or newer (CrazyLinks requires it anyway) and CrazyLinks 0.2.0 or newer.
 - The **MCP Adapter** plugin by WordPress.org: Plugins → Add New → search "MCP Adapter" → Install → Activate (0.7.1 at the time of writing).
 - Claude Desktop, or Claude Code. claude.ai in the browser cannot connect yet: it needs OAuth, and WordPress offers Application Passwords.
 

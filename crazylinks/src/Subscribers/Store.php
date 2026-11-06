@@ -21,11 +21,6 @@ final class Store {
 	public const STATUSES = [ 'pending', 'confirmed', 'unsubscribed' ];
 
 	/**
-	 * Columns that are safe to hand to hooks, REST and exports (everything but the token hash).
-	 */
-	private const PUBLIC_COLUMNS = 'id, page_id, block_id, email, status, consent_text, consent_at, confirmed_at, created_at, updated_at';
-
-	/**
 	 * Table name.
 	 */
 	public static function table(): string {
@@ -74,8 +69,8 @@ final class Store {
 	 */
 	public static function get( int $id ): ?array {
 		global $wpdb;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT ' . self::PUBLIC_COLUMNS . ' FROM ' . self::table() . ' WHERE id = %d', $id ), ARRAY_A );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table; subscriber rows must be read live.
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT id, page_id, block_id, email, status, consent_text, consent_at, confirmed_at, created_at, updated_at FROM %i WHERE id = %d', self::table(), $id ), ARRAY_A );
 		return is_array( $row ) ? $row : null;
 	}
 
@@ -88,8 +83,8 @@ final class Store {
 	 */
 	public static function find( int $page_id, string $email ): ?array {
 		global $wpdb;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT ' . self::PUBLIC_COLUMNS . ' FROM ' . self::table() . ' WHERE page_id = %d AND email = %s', $page_id, $email ), ARRAY_A );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table; subscriber rows must be read live.
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT id, page_id, block_id, email, status, consent_text, consent_at, confirmed_at, created_at, updated_at FROM %i WHERE page_id = %d AND email = %s', self::table(), $page_id, $email ), ARRAY_A );
 		return is_array( $row ) ? $row : null;
 	}
 
@@ -104,8 +99,8 @@ final class Store {
 		if ( ! preg_match( '/^[a-f0-9]{48}$/', $token ) ) {
 			return null;
 		}
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT ' . self::PUBLIC_COLUMNS . ' FROM ' . self::table() . ' WHERE token_hash = %s', self::hash_token( $token ) ), ARRAY_A );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table; subscriber rows must be read live.
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT id, page_id, block_id, email, status, consent_text, consent_at, confirmed_at, created_at, updated_at FROM %i WHERE token_hash = %s', self::table(), self::hash_token( $token ) ), ARRAY_A );
 		return is_array( $row ) ? $row : null;
 	}
 
@@ -171,8 +166,8 @@ final class Store {
 			return 0;
 		}
 		$in = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
-		return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::table() . " WHERE id IN ({$in})", $ids ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Variable-length %d list built from intval'd ids above; table is bound with %i.
+		return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE id IN ({$in})", array_merge( [ self::table() ], $ids ) ) );
 	}
 
 	/**
@@ -184,8 +179,8 @@ final class Store {
 	public static function delete_by_email( string $email ): int {
 		global $wpdb;
 		$email = strtolower( trim( $email ) );
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::table() . ' WHERE email = %s', $email ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table write.
+		return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE email = %s', self::table(), $email ) );
 	}
 
 	/**
@@ -227,20 +222,18 @@ final class Store {
 		$per_page           = max( 1, min( 500, (int) ( $args['per_page'] ?? 20 ) ) );
 		$offset             = max( 0, ( (int) ( $args['paged'] ?? 1 ) - 1 ) * $per_page );
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $where is built from fixed placeholder fragments in where(); $orderby and $order come from allowlists above; the table is bound with %i.
 		$total = (int) $wpdb->get_var(
-			$params
-			? $wpdb->prepare( 'SELECT COUNT(*) FROM ' . self::table() . " WHERE {$where}", $params )
-			: 'SELECT COUNT(*) FROM ' . self::table()
+			$wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE {$where}", array_merge( [ self::table() ], $params ) )
 		);
 		$items = (array) $wpdb->get_results(
 			$wpdb->prepare(
-				'SELECT ' . self::PUBLIC_COLUMNS . ' FROM ' . self::table() . " WHERE {$where} ORDER BY {$orderby} {$order}, id DESC LIMIT %d OFFSET %d",
-				array_merge( $params, [ $per_page, $offset ] )
+				"SELECT id, page_id, block_id, email, status, consent_text, consent_at, confirmed_at, created_at, updated_at FROM %i WHERE {$where} ORDER BY {$orderby} {$order}, id DESC LIMIT %d OFFSET %d",
+				array_merge( [ self::table() ], $params, [ $per_page, $offset ] )
 			),
 			ARRAY_A
 		);
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
 		return [
 			'items' => $items,
 			'total' => $total,
@@ -258,15 +251,15 @@ final class Store {
 		[ $where, $params ] = self::where( $args );
 		$last               = 0;
 		do {
-			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $where is built from fixed placeholder fragments in where(); the table is bound with %i.
 			$rows = (array) $wpdb->get_results(
 				$wpdb->prepare(
-					'SELECT ' . self::PUBLIC_COLUMNS . ' FROM ' . self::table() . " WHERE {$where} AND id > %d ORDER BY id ASC LIMIT 500",
-					array_merge( $params, [ $last ] )
+					"SELECT id, page_id, block_id, email, status, consent_text, consent_at, confirmed_at, created_at, updated_at FROM %i WHERE {$where} AND id > %d ORDER BY id ASC LIMIT 500",
+					array_merge( [ self::table() ], $params, [ $last ] )
 				),
 				ARRAY_A
 			);
-			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
 			foreach ( $rows as $row ) {
 				$last = (int) $row['id'];
 				yield $row;
@@ -284,9 +277,13 @@ final class Store {
 	public static function counts( int $page_id = 0 ): array {
 		global $wpdb;
 		$out = array_fill_keys( self::STATUSES, 0 );
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
-		$sql = 'SELECT status, COUNT(*) AS n FROM ' . self::table() . ( $page_id > 0 ? $wpdb->prepare( ' WHERE page_id = %d', $page_id ) : '' ) . ' GROUP BY status';
-		foreach ( (array) $wpdb->get_results( $sql, ARRAY_A ) as $row ) {
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table; admin counts must be live.
+		if ( $page_id > 0 ) {
+			$results = $wpdb->get_results( $wpdb->prepare( 'SELECT status, COUNT(*) AS n FROM %i WHERE page_id = %d GROUP BY status', self::table(), $page_id ), ARRAY_A );
+		} else {
+			$results = $wpdb->get_results( $wpdb->prepare( 'SELECT status, COUNT(*) AS n FROM %i GROUP BY status', self::table() ), ARRAY_A );
+		}
+		foreach ( (array) $results as $row ) {
 			$out[ (string) $row['status'] ] = (int) $row['n'];
 		}
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
@@ -306,7 +303,9 @@ final class Store {
 			return 0;
 		}
 		$cutoff = gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS );
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::table() . " WHERE status IN ('pending', 'unsubscribed') AND updated_at < %s", $cutoff ) );
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table write.
+		$deleted = $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE status IN ('pending', 'unsubscribed') AND updated_at < %s", self::table(), $cutoff ) );
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return (int) $deleted;
 	}
 }

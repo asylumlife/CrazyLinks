@@ -1,10 +1,10 @@
 === CrazyLinks ===
 Contributors: asylumlife
 Tags: link in bio, linktree, links, bio link, landing page
-Requires at least: 6.9
+Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.2.3
+Stable tag: 0.2.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -141,6 +141,8 @@ Simple Icons, released under CC0. See LICENSE-icons.txt. The logos remain tradem
 = 0.2.4 =
 * New: a setting to turn off the MCP Adapter's default server, so only the CrazyLinks MCP server stays reachable; the settings box lists what the default server also exposes.
 * Change: preview-operations and apply-operations return only the blocks the operations touched; pass include_document: true to get the whole page.
+* Change: the minimum WordPress version is now 7.0 (the AI features call the core AI Client, which needs it); the plugin refuses to load on older versions.
+* Change: Plugin Check clean-up: subscriber, AI log and rate-limiter queries now use `%i` identifier placeholders so every statement is fully prepared, and the unneeded manual `load_plugin_textdomain()` call is gone (WordPress loads translations itself).
 
 = 0.2.3 =
 * Change: the "CrazyLinks agent" role is created automatically on activation and on update (sites without WP-CLI get it too), so it can be picked under Users → Add New.
