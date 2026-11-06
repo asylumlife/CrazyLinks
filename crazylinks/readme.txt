@@ -139,6 +139,7 @@ Simple Icons, released under CC0. See LICENSE-icons.txt. The logos remain tradem
 == Changelog ==
 
 = 0.2.1 =
+* Fix: in a Section set to the two-column grid, links with an icon, emoji or thumbnail kept the single-column badge strip beside their text, so titles sat about 20px left of center and wrapped early; badges in those tiles now sit in the corner like the page-wide grid.
 * Change: the Claude Desktop and Claude Code snippets in Settings carry your WordPress login name, and the docs name the usual mistake (using the Application Password's name as the username), which only produced a bare 401.
 
 = 0.2.0 =

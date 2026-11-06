@@ -68,7 +68,7 @@
 .cl-page.cl-layout-grid .cl-blocks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
 .cl-page.cl-layout-grid .cl-block:not(.cl-block--link),.cl-page.cl-layout-grid .cl-block--featured{grid-column:1/-1}
 .cl-page.cl-layout-grid .cl-block--link .cl-link:not(.cl-link--featured){height:100%;flex-direction:column;justify-content:center;padding:14px 12px;text-align:center}
-.cl-page.cl-layout-grid .cl-link--thumb .cl-link__body{padding:0}
+.cl-page.cl-layout-grid .cl-link--thumb .cl-link__body,.cl-page.cl-layout-grid .cl-link--thumb-right .cl-link__body{padding:0}
 .cl-page.cl-layout-grid .cl-link__thumb{width:100%;height:auto;aspect-ratio:4/5}
 .cl-page.cl-layout-grid .cl-badge{top:6px;right:6px;transform:none}
 .cl-page.cl-layout-grid .cl-tile-2x1,.cl-page.cl-layout-grid .cl-tile-2x2{grid-column:1/-1}
@@ -135,6 +135,9 @@
 .cl-page .cl-section--grid .cl-section__body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
 .cl-page .cl-section--grid .cl-section__body>.cl-block:not(.cl-block--link),.cl-page .cl-section--grid .cl-section__body>.cl-block--featured,.cl-page .cl-section--grid .cl-section__body>.cl-tile-2x1,.cl-page .cl-section--grid .cl-section__body>.cl-tile-2x2{grid-column:1/-1}
 .cl-page .cl-section--grid .cl-block--link .cl-link:not(.cl-link--featured){height:100%;flex-direction:column;justify-content:center;padding:14px 12px;text-align:center}
+/* Grid sections inside a list page need the same balance as the page-wide grid: no badge strip beside the text, badges in the corner. */
+.cl-page .cl-section--grid .cl-link--thumb .cl-link__body,.cl-page .cl-section--grid .cl-link--thumb-right .cl-link__body{padding:0}
+.cl-page .cl-section--grid .cl-badge{top:6px;right:6px;transform:none}
 /* Email capture */
 .cl-page .cl-capture{padding:16px;border-radius:var(--cl-radius);background:color-mix(in srgb,var(--cl-text) 8%,transparent)}
 .cl-page .cl-capture__heading{margin:0 0 10px;font-weight:600}
