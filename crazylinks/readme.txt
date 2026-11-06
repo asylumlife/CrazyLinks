@@ -4,7 +4,7 @@ Tags: link in bio, linktree, links, bio link, landing page
 Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.2.0
+Stable tag: 0.2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -137,6 +137,9 @@ Simple Icons, released under CC0. See LICENSE-icons.txt. The logos remain tradem
 5. The page JSON in the editor screen.
 
 == Changelog ==
+
+= 0.2.1 =
+* Change: the Claude Desktop and Claude Code snippets in Settings carry your WordPress login name, and the docs name the usual mistake (using the Application Password's name as the username), which only produced a bare 401.
 
 = 0.2.0 =
 * New: edit link pages from Claude Desktop and Claude Code through the MCP Adapter plugin. Three new abilities for assistants that write the changes themselves: get-editing-guide, preview-operations and apply-operations (expected_modified conflict check, idempotency keys, rate limits shared with AI proposals, "AI (external)" revisions, AI history rows with source mcp).

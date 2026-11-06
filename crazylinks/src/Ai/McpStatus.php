@@ -107,7 +107,17 @@ final class McpStatus {
 	 * Advice on the account an agent should use.
 	 */
 	public static function user_advice(): string {
-		return __( 'Create a dedicated WordPress user for the assistant with the lowest role that can edit link pages (Editor by default), then create an Application Password for it under Users → Profile → Application Passwords. The assistant can do only what that user can, and you can revoke the password at any time.', 'crazylinks' );
+		return __( 'Create a dedicated WordPress user for the assistant with the lowest role that can edit link pages (Editor by default), then create an Application Password for it under Users → Profile → Application Passwords. The assistant can do only what that user can, and you can revoke the password at any time. In the snippets, WP_API_USERNAME is the WordPress login name (the name typed on the login screen), not the name you gave the Application Password.', 'crazylinks' );
+	}
+
+	/**
+	 * The WordPress login name to put in the snippets: the current user's, or a placeholder.
+	 *
+	 * People paste the Application Password's *name* here by mistake (which only yields an unhelpful
+	 * 401), so the snippets carry the real login name whenever someone is logged in.
+	 */
+	public static function login(): string {
+		return is_user_logged_in() ? (string) wp_get_current_user()->user_login : 'YOUR-WORDPRESS-USERNAME';
 	}
 
 	/**
@@ -124,7 +134,7 @@ final class McpStatus {
 						'args'    => [ '-y', '@automattic/mcp-wordpress-remote@latest' ],
 						'env'     => [
 							'WP_API_URL'      => $endpoint ?? self::preferred_endpoint(),
-							'WP_API_USERNAME' => 'YOUR-WORDPRESS-USERNAME',
+							'WP_API_USERNAME' => self::login(),
 							'WP_API_PASSWORD' => 'YOUR-APPLICATION-PASSWORD',
 						],
 					],
@@ -140,6 +150,6 @@ final class McpStatus {
 	 * @param string|null $endpoint Endpoint (default: preferred).
 	 */
 	public static function code_command( ?string $endpoint = null ): string {
-		return 'claude mcp add --transport http crazylinks ' . ( $endpoint ?? self::preferred_endpoint() ) . ' --header "Authorization: Basic <base64 of username:application-password>"';
+		return 'claude mcp add --transport http crazylinks ' . ( $endpoint ?? self::preferred_endpoint() ) . ' --header "Authorization: Basic <base64 of ' . self::login() . ':application-password>"';
 	}
 }

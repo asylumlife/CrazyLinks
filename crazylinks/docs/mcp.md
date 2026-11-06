@@ -52,6 +52,8 @@ Claude Desktop talks to remote WordPress sites through the `@automattic/mcp-word
 }
 ```
 
+`WP_API_USERNAME` is your WordPress **login name**, the one you type on the login screen. It is not the name you gave the Application Password (a common mix-up that only produces a bare 401). The snippet in CrazyLinks → Settings has your login name filled in already.
+
 Restart Claude Desktop. The CrazyLinks tools appear under the connectors menu. Add `"LOG_FILE": "/path/to/mcp.log"` to `env` to debug the proxy.
 
 For a site on the same computer you can skip HTTP: `wp --path=/path/to/site mcp-adapter serve --server=crazylinks --user=claude-agent` runs the server over stdio (use it as `command` and `args`).
@@ -65,6 +67,13 @@ claude mcp add --transport http crazylinks https://example.com/wp-json/crazylink
 ```
 
 Run `/mcp` inside Claude Code to check the connection. Do not commit the header to a shared `.mcp.json`.
+
+## Help Claude use the tools well
+
+The server already tells Claude, on connection, to read the editing guide first, and the guide carries the block types, the operations format and the rules. Two optional extras make Claude noticeably more reliable with everyday requests:
+
+- **A skill.** `docs/claude-skill/crazylinks-pages/SKILL.md` (also zipped as `crazylinks-pages-skill.zip` in the plugin's release assets) teaches Claude the workflow, how to read requests like "pin", "hide", "only during my show", and how to handle confirmations, conflicts and locks. In Claude Desktop, add it under Settings → Capabilities → Skills by uploading the zip (the folder must contain `SKILL.md`). Claude uses it automatically when the conversation is about the link page.
+- **Project instructions.** If you work in a Claude Project, paste this into its instructions: *"My link-in-bio page is a CrazyLinks page on my WordPress site, available through the crazylinks tools. For any change to it: read the editing guide once, read the page, preview the operations, then apply them with expected_modified and an idempotency key, and tell me what changed with the page link. Change only what I ask for, ask when a request is ambiguous, and never invent URLs."*
 
 ## Which endpoint
 
@@ -102,7 +111,7 @@ Tick **Require changes from external agents to be confirmed in the editor** (sit
 
 | Symptom | Cause and fix |
 |---|---|
-| `401` / "not allowed" on every call | Wrong username or application password, or the password was revoked. Use the username (not the email) and paste the password with or without spaces. Logged-out requests to `/wp-json/crazylinks/mcp` are refused by design. |
+| `401` / "not allowed" on every call | Wrong username or application password, or the password was revoked. The most common cause: the Application Password's *name* was used as the username. Use your WordPress login name. Use the username (not the email) and paste the password with or without spaces. Logged-out requests to `/wp-json/crazylinks/mcp` are refused by design. |
 | `401` although the password is right | The host strips the `Authorization` header before PHP sees it (common with CGI/FastCGI and some proxies). On Apache add to `.htaccess` above the WordPress block: `RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]` (or `SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1`). Ask your host if you are on nginx or a managed platform. |
 | `403` | The account has none of the CrazyLinks capabilities. Give it the Editor role or grant the capabilities. |
 | `rest_no_route` (404) | The MCP Adapter plugin is not active, the **Offer a CrazyLinks MCP server** setting is off, or the URL is wrong. With plain permalinks the endpoint is `/?rest_route=/crazylinks/mcp`. |
