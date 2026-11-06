@@ -12,6 +12,7 @@ import { useDispatch } from '@wordpress/data';
 import { useEditor } from '../hooks';
 import AiPreview from './AiPreview';
 import { aiStore } from './store';
+import { aiApi } from './api';
 import { useAi } from './hooks';
 import { applyProposal, propose } from './run';
 import { changeIcon, sortChanges, summarizeChanges } from './changes';
@@ -36,6 +37,23 @@ export default function ProposalView( { entry }: { entry: HistoryEntry } ) {
 
 	return (
 		<div className="cl-ai-proposal" aria-live="polite">
+			{ entry.external && (
+				<p className="cl-ai-proposal__source">
+					{ proposal.author
+						? sprintf(
+								/* translators: %s: WordPress user name the agent used. */
+								__(
+									'Written by an external AI agent signed in as %s. Nothing is saved until you apply it.',
+									'crazylinks'
+								),
+								proposal.author
+							)
+						: __(
+								'Written by an external AI agent. Nothing is saved until you apply it.',
+								'crazylinks'
+							) }
+				</p>
+			) }
 			<p className="cl-ai-proposal__summary">{ proposal.summary }</p>
 			{ proposal.change_list.length > 0 && (
 				<>
@@ -125,7 +143,17 @@ export default function ProposalView( { entry }: { entry: HistoryEntry } ) {
 					</Button>
 					<Button
 						variant="tertiary"
-						onClick={ () => discard( entry.key ) }
+						onClick={ () => {
+							discard( entry.key );
+							if ( entry.external && proposal.proposal_id ) {
+								aiApi
+									.discardPending(
+										pageId,
+										proposal.proposal_id
+									)
+									.catch( () => undefined );
+							}
+						} }
 						disabled={ busy }
 					>
 						{ __( 'Discard', 'crazylinks' ) }

@@ -30,6 +30,7 @@ export type AiAction =
 			proposal: Proposal;
 			at: number;
 	  }
+	| { type: 'EXTERNAL'; proposals: Proposal[]; at: number }
 	| { type: 'SET_ANSWER'; index: number; value: string }
 	| { type: 'SET_VIEW'; view: 'after' | 'before' }
 	| { type: 'APPLIED'; key: string; revisionId: number | null }
@@ -61,6 +62,15 @@ function patchEntry(
 	return history.map( ( e ) => ( e.key === key ? { ...e, ...patch } : e ) );
 }
 
+/**
+ * History key of a pending change from an external agent.
+ *
+ * @param p Proposal.
+ */
+export function externalKey( p: Proposal ): string {
+	return `ext-${ p.proposal_id ?? '' }`;
+}
+
 export function aiReducer(
 	state: AiState = initialAiState(),
 	action: AiAction
@@ -90,9 +100,12 @@ export function aiReducer(
 				state: 'open',
 				createdAt: action.at,
 			};
-			// A new proposal supersedes open ones that were never applied.
+			// A new proposal supersedes open ones that were never applied, except changes from external
+			// agents, which wait for the person's decision.
 			const older = state.history.map( ( e ) =>
-				e.state === 'open' ? { ...e, state: 'discarded' as const } : e
+				e.state === 'open' && ! e.external
+					? { ...e, state: 'discarded' as const }
+					: e
 			);
 			return {
 				...state,
@@ -103,6 +116,35 @@ export function aiReducer(
 				current: action.key,
 				answers: {},
 				view: 'after',
+			};
+		}
+		case 'EXTERNAL': {
+			const known = new Set( state.history.map( ( e ) => e.key ) );
+			const added: HistoryEntry[] = action.proposals
+				.filter(
+					( p ) => !! p.proposal_id && ! known.has( externalKey( p ) )
+				)
+				.map( ( p ) => ( {
+					key: externalKey( p ),
+					instruction: p.summary,
+					mode: p.mode,
+					proposal: p,
+					state: 'open' as const,
+					createdAt: p.created_at
+						? Date.parse( p.created_at )
+						: action.at,
+					external: true,
+				} ) );
+			if ( ! added.length ) {
+				return state;
+			}
+			return {
+				...state,
+				history: [ ...added, ...state.history ].slice(
+					0,
+					HISTORY_SIZE + added.length
+				),
+				current: state.current ?? added[ 0 ].key,
 			};
 		}
 		case 'SET_ANSWER':
@@ -171,6 +213,14 @@ export const aiActions = {
 		proposal,
 		at,
 	} ),
+	external: (
+		proposals: Proposal[],
+		at: number = Date.now()
+	): AiAction => ( {
+		type: 'EXTERNAL',
+		proposals,
+		at,
+	} ),
 	setAnswer: ( index: number, value: string ): AiAction => ( {
 		type: 'SET_ANSWER',
 		index,
@@ -201,6 +251,9 @@ export const aiSelectors = {
 	getCurrent: ( state: AiState ): HistoryEntry | null =>
 		state.history.find( ( e ) => e.key === state.current ) ?? null,
 	isBusy: ( state: AiState ) => state.status !== 'idle',
+	/** Changes from external agents still waiting for a decision. */
+	getExternalOpen: ( state: AiState ): HistoryEntry[] =>
+		state.history.filter( ( e ) => e.external && e.state === 'open' ),
 	/** Questions paired with the answers typed so far (only answered ones). */
 	getAnswers: ( state: AiState ) => {
 		const entry = aiSelectors.getCurrent( state );

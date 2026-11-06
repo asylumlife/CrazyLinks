@@ -10,7 +10,7 @@ namespace CrazyLinks\Ai;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * WP-CLI `wp crazylinks ai`, the "AI" badge in the page history, and log pruning on the daily cron.
+ * WP-CLI `wp crazylinks ai` and `wp crazylinks mcp`, the "AI" badge in the page history, and log pruning on the daily cron.
  */
 final class Bootstrap {
 
@@ -34,6 +34,7 @@ final class Bootstrap {
 				'crazylinks_loaded',
 				static function (): void {
 					\WP_CLI::add_command( 'crazylinks ai', \CrazyLinks\Cli\AiCommand::class );
+					\WP_CLI::add_command( 'crazylinks mcp', \CrazyLinks\Cli\McpCommand::class );
 				}
 			);
 		}

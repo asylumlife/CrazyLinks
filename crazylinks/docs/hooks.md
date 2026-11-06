@@ -269,7 +269,7 @@ Hooks, REST routes, abilities and CLI commands added by AI editing (SPEC §10). 
 
 | Hook | Args | Fired |
 |---|---|---|
-| `crazylinks_ai_applied` | `int $page_id`, `int\|null $revision_id`, `string $source` (`admin`\|`mcp`), `array $operations` | After an AI proposal was applied and the page saved (editor Apply or the `crazylinks/apply-changes` ability). |
+| `crazylinks_ai_applied` | `int $page_id`, `int\|null $revision_id`, `string $source` (`admin`\|`mcp`), `array $operations` | After an AI proposal was applied and the page saved (editor Apply, the `crazylinks/apply-changes` ability, or `crazylinks/apply-operations`). A pending change from an external agent confirmed in the editor reports `mcp`. |
 | `crazylinks_daily_rollup` | none | Existing cron event; AI also hooks it (priority 20) to prune `{prefix}crazylinks_ai_log` rows older than the retention setting. |
 
 ## Filters
@@ -284,7 +284,8 @@ Hooks, REST routes, abilities and CLI commands added by AI editing (SPEC §10). 
 | `crazylinks_ai_site_facts` | `array $facts` | `int $user_id` | Public facts sent for "Build from this site": site name, tagline, home URL, 10 latest published posts, up to 3 menus, the user's display name, website, bio and social profile URLs, and up to 10 published WooCommerce products. Never add secrets, emails or visitor data. |
 | `crazylinks_ai_rate_limits` | `array{user_hourly:int, site_daily:int}` | `int $user_id` | Request limits (0 = none). Default: settings, 30 per user per hour and 300 per site per day. Exceeding either returns HTTP 429. |
 | `crazylinks_ai_monthly_tokens` | `int $tokens` | | Monthly token budget for the site (0 = unlimited). Default: setting, 2,000,000. Warning at 80%, hard stop (HTTP 429) at 100%. |
-| `crazylinks_ability_enabled` | `bool $on` | `string $name` | Whether an ability may run. Default: the per-ability checkboxes under CrazyLinks → Settings → AI (all off). |
+| `crazylinks_ability_enabled` | `bool $on` | `string $name` | Whether an ability may run and whether the MCP Adapter may expose it (`meta.public` / `meta.mcp.public` are set from it when the abilities are registered, once per request). Default: the per-ability checkboxes under CrazyLinks → Settings → AI (all off). |
+| `crazylinks_mcp_server` | `bool $enabled` | | Whether CrazyLinks adds its own MCP server (`/wp-json/crazylinks/mcp`) when the MCP Adapter plugin is active. Default: the **External agents (MCP)** setting (`ai_mcp_server`, on). Enabled abilities stay reachable through the adapter's default server either way. |
 | `crazylinks_editor_ai_available` | `bool $available` | | Existing filter: `window.crazylinks.ai.available`. The AI tab itself uses `ai.ready` / `ai.reason` to choose between the tools and the one-line pointer. |
 
 Core hooks honoured: `wp_supports_ai` (AI off for the request), `wp_ai_client_prevent_prompt` (a prevented prompt returns `crazylinks_ai_prevented`, 503), `wp_ai_client_default_request_timeout` (CrazyLinks sets its own timeout, default 60 s, only for its own requests).
@@ -297,6 +298,8 @@ Core hooks honoured: `wp_supports_ai` (AI off for the request), `wp_ai_client_pr
 | `POST /pages/{id}/ai/apply` | same | `proposal_id`, optional `operations` (edited), optional `page` | `applied`, `revision_id`, `source`, `rebased`, `edited`, `change_list`, `page` (PagesController shape); `already_applied: true` on repeats |
 | `POST /pages/{id}/ai/suggest` | same | `kind` (`titles`\|`bio`), `context` | `suggestions[]` |
 | `POST /pages/{id}/ai/settings` | same | `require_confirmation` | Per-page "external agents need confirmation" flag (post meta `_crazylinks_ai_confirm`) |
+| `GET /pages/{id}/ai/pending` | same | | Changes from external agents waiting for confirmation, shaped like a proposal plus `external: true`, `created_at`, `author` (display name of the agent's account). Re-validated on the stored page for the current user; ones that expired (7 days) or no longer fit are dropped. Apply one with `POST /ai/apply` and its `proposal_id` (any user who may edit the page). |
+| `POST /pages/{id}/ai/discard` | same | `proposal_id` | `{discarded: bool}`; removes a pending change. |
 | `GET /ai/status` | `use_crazylinks_ai` | | `available`, `reason`, `message`, `providers`, `models`, `limits`, `budget` |
 
 Errors: 400 invalid operations (`data.errors[] {path, message}`), 403/401 permissions, 409 `crazylinks_ai_conflict` (page changed and the operations no longer fit) or `crazylinks_ai_confirmation_required`, 410 `crazylinks_ai_proposal_expired` (30 minutes, other user or page), 422 `crazylinks_ai_invalid_output` (model output invalid after one retry), 429 rate limit or budget, 503 unavailable / no provider / prevented.
@@ -311,14 +314,23 @@ Errors: 400 invalid operations (`data.errors[] {path, message}`), 403/401 permis
 | `crazylinks/get-page` | readonly | GET | `edit_post` on `id` |
 | `crazylinks/propose-changes` | readonly | GET | `use_crazylinks_ai` + `edit_post`; takes `instruction` (site AI writes the operations) or `operations` (agent-written, validated, no provider needed) |
 | `crazylinks/apply-changes` | destructive, idempotent | DELETE | `edit_post`; refused with 409 when the page requires confirmation |
+| `crazylinks/get-editing-guide` | readonly | GET | `edit_crazylinks_pages` (+ `edit_post` when `id` is given); returns `guide` (markdown generated from `schemas/ai-ops.v1.json` and the prompt's operations wording), `block_types[]`, `operations[]`, and with `id` the trimmed `page` and `modified` |
+| `crazylinks/preview-operations` | readonly | GET | `edit_post` on `id` (404 for a missing page); `{id, operations}` → `valid`, `errors[]`, `warnings[]`, `summary`, `change_list[]`, `preview_document` (trimmed), `modified`. Saves and stores nothing. Invalid operations are a normal `valid: false` result |
+| `crazylinks/apply-operations` | destructive | POST | `edit_post` on `id`; `{id, operations, summary?, expected_modified?, idempotency_key?}` → `applied`, `revision_id`, `pending_proposal_id`, `change_list`, `summary`, `modified`, `link`, `source: "mcp"`, `message`, `replayed` (on idempotent replays). Errors: 400 `crazylinks_ai_invalid_ops` (errors listed in the message), 409 `crazylinks_conflict` (`data.modified`), 409 `crazylinks_page_locked` (another user holds the editor lock), 429 rate limit |
 | `crazylinks/get-analytics-summary` | readonly | GET | `view_crazylinks_analytics` + `edit_post` |
 | `crazylinks/suggest-titles` | readonly | GET | `use_crazylinks_ai` |
 
-Every ability is off until enabled under CrazyLinks → Settings → AI.
+Every ability is off until enabled under CrazyLinks → Settings → AI. Exposure meta: `meta.show_in_rest` is always true (core's REST routes), `meta.public` and `meta.mcp.public` follow the enable switch, `meta.mcp.type` is `tool`. The MCP Adapter turns names into tool names with `/` → `-` (`crazylinks-preview-operations`).
+
+## MCP server (SPEC §10.7)
+
+With the MCP Adapter plugin active and the `ai_mcp_server` setting on, CrazyLinks registers server `crazylinks` on `mcp_adapter_init`: endpoint `/wp-json/crazylinks/mcp`, HTTP transport, the adapter's error-log handler, version `CRAZYLINKS_VERSION`, tools = the enabled abilities in `Abilities::NAMES` order, and the server description (sent to clients as `instructions`) points the agent to `crazylinks-get-editing-guide`. Transport permission: 401 when logged out, 403 without any of `edit_crazylinks_pages`, `use_crazylinks_ai`, `view_crazylinks_analytics`. The adapter's default server (`/wp-json/mcp/mcp-adapter-default-server`) also reaches the enabled abilities through its `mcp-adapter-execute-ability` tool. Connection guide: `docs/mcp.md`.
 
 ## WP-CLI
 
 - `wp crazylinks ai status [--user=<user>]`: client, provider, setting, models, budget, availability for the user.
+- `wp crazylinks mcp status`: MCP Adapter active and version, CrazyLinks server on/off, both endpoints, enabled abilities, account advice and the Claude Desktop / Claude Code snippets (placeholders only).
+- `wp crazylinks mcp guide [--page=<id>]`: prints the editing guide external agents receive (and the trimmed page).
 - `wp crazylinks ai eval [--offline] [--grade] [--case=<id>] [--limit=<n>]`: the eval set in `tests/fixtures/ai/` (dev repository only). Live by default and only when a provider is configured; otherwise prints a notice and exits 0. `--offline` replays the recorded responses; `--grade` asks a Haiku-class model to grade each result against its rubric.
 
 | `crazylinks_ai_structured_output` | `bool` | | Ask the provider for schema-constrained JSON (default false: Anthropic rejects the operations grammar as too large; the prompt requests bare JSON and the server validates it, retrying once with the errors). |

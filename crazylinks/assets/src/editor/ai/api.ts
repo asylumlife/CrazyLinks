@@ -40,6 +40,18 @@ export const aiApi = {
 			data: { kind, context },
 		} );
 	},
+	pending( id: number ) {
+		return apiFetch< Proposal[] >( {
+			path: `${ NS }/pages/${ id }/ai/pending`,
+		} );
+	},
+	discardPending( id: number, proposalId: string ) {
+		return apiFetch< { discarded: boolean } >( {
+			path: `${ NS }/pages/${ id }/ai/discard`,
+			method: 'POST',
+			data: { proposal_id: proposalId },
+		} );
+	},
 	pageSettings( id: number, requireConfirmation: boolean ) {
 		return apiFetch< { require_confirmation: boolean } >( {
 			path: `${ NS }/pages/${ id }/ai/settings`,

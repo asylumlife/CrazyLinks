@@ -42,6 +42,23 @@
 	color: #3c434a;
 }
 
+.cl-ai-external {
+	margin: 0 0 12px;
+	padding: 8px 12px;
+	border-left: 4px solid #dba617;
+	background: #fcf9e8;
+
+	ul {
+		margin: 4px 0 0;
+	}
+}
+
+.cl-ai-external__intro,
+.cl-ai-proposal__source {
+	margin: 0 0 4px;
+	color: #3c434a;
+}
+
 .cl-ai-proposal {
 	padding: 12px;
 	border: 1px solid #ddd;

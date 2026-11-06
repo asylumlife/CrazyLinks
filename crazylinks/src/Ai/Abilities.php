@@ -16,11 +16,15 @@ use WP_Error;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * SPEC §10.5. Six abilities in the `crazylinks` category, exposed in REST (`abilities/v1`) so the MCP
- * Adapter can offer them to Claude, ChatGPT and other agents. Each runs as the authenticated user and
- * checks that user's capabilities; each is private until an administrator enables it under
- * CrazyLinks → Settings → AI. Changes applied through `apply-changes` are logged with source `mcp`
- * and badged "AI (external)" in the page history.
+ * SPEC §10.5 and §10.7. Nine abilities in the `crazylinks` category, exposed in REST (`abilities/v1`)
+ * and to the MCP Adapter so Claude, ChatGPT and other agents can use them. Each runs as the
+ * authenticated user and checks that user's capabilities; each is private until an administrator
+ * enables it under CrazyLinks → Settings → AI. The enable switch is applied twice: as the MCP exposure
+ * meta (`meta.public`, `meta.mcp.public`, read when the abilities are registered, once per request)
+ * and in every permission callback. `get-editing-guide`, `preview-operations` and `apply-operations`
+ * serve agents whose own model writes the operations (no site provider needed). Changes applied
+ * through `apply-changes` or `apply-operations` are logged with source `mcp` and badged
+ * "AI (external)" in the page history.
  *
  * This class is also the entry point for the rest of the AI module (CLI command, history badge, log
  * pruning) because it is the one AI class Plugin::boot() wires.
@@ -32,6 +36,9 @@ final class Abilities {
 	public const NAMES = [
 		'crazylinks/list-pages',
 		'crazylinks/get-page',
+		'crazylinks/get-editing-guide',
+		'crazylinks/preview-operations',
+		'crazylinks/apply-operations',
 		'crazylinks/propose-changes',
 		'crazylinks/apply-changes',
 		'crazylinks/get-analytics-summary',
@@ -44,6 +51,7 @@ final class Abilities {
 	public function register_hooks(): void {
 		add_action( 'wp_abilities_api_categories_init', [ $this, 'register_category' ] );
 		add_action( 'wp_abilities_api_init', [ $this, 'register_abilities' ] );
+		( new McpServer() )->register_hooks();
 		( new Bootstrap() )->register_hooks();
 	}
 
@@ -140,7 +148,7 @@ final class Abilities {
 		$this->register(
 			'crazylinks/get-page',
 			__( 'Get a link page', 'crazylinks' ),
-			__( 'Returns one link page as JSON (profile, design, blocks with ids). Custom HTML and custom CSS are summarized, not returned. Use the block ids with propose-changes.', 'crazylinks' ),
+			__( 'Returns one link page as JSON (profile, design, blocks with ids) and its modified time. Custom HTML and custom CSS are summarized, not returned. Use the block ids in operations for preview-operations and apply-operations (or propose-changes), and pass modified as expected_modified.', 'crazylinks' ),
 			[
 				'type'                 => 'object',
 				'properties'           => [ 'id' => $page_id ],
@@ -151,6 +159,128 @@ final class Abilities {
 			[ $this, 'get_page' ],
 			static fn( $input = null ) => self::can_edit( $input ),
 			$readonly
+		);
+		$operations = [
+			'type'        => 'array',
+			'description' => __( 'Operations in the CrazyLinks format (see get-editing-guide), applied in order.', 'crazylinks' ),
+			'items'       => [
+				'type'                 => 'object',
+				'additionalProperties' => true,
+			],
+		];
+		$messages   = [
+			'type'  => 'array',
+			'items' => [
+				'type'       => 'object',
+				'properties' => [
+					'path'    => [ 'type' => 'string' ],
+					'message' => [ 'type' => 'string' ],
+				],
+			],
+		];
+		$this->register(
+			'crazylinks/get-editing-guide',
+			__( 'Get the CrazyLinks editing guide', 'crazylinks' ),
+			__( 'Call this before writing operations for a CrazyLinks link page: returns the block types and their props, the operations format with examples, the rules and the recommended workflow. Optional input id (a link page id) also returns that page\'s current content and modified time.', 'crazylinks' ),
+			[
+				'type'                 => 'object',
+				'properties'           => [ 'id' => $page_id ],
+				'additionalProperties' => false,
+				// Lets core's REST run route and MCP clients call it with no input at all.
+				'default'              => [],
+			],
+			[
+				'type'       => 'object',
+				'properties' => [
+					'guide'       => [ 'type' => 'string' ],
+					'block_types' => [ 'type' => 'array' ],
+					'operations'  => [ 'type' => 'array' ],
+					'page'        => [ 'type' => 'object' ],
+					'modified'    => [ 'type' => 'string' ],
+				],
+			],
+			[ $this, 'editing_guide' ],
+			static fn( $input = null ) => self::can_edit_or_missing( $input, false ),
+			$readonly
+		);
+		$this->register(
+			'crazylinks/preview-operations',
+			__( 'Preview operations on a link page', 'crazylinks' ),
+			__( 'Checks operations against a link page without saving anything. Input: id and operations (format in get-editing-guide). Returns valid, the errors to fix, warnings, a plain-English change_list and the resulting page; invalid operations come back as valid false, so fix them and preview again before apply-operations.', 'crazylinks' ),
+			[
+				'type'                 => 'object',
+				'properties'           => [
+					'id'         => $page_id,
+					'operations' => $operations,
+				],
+				'required'             => [ 'id', 'operations' ],
+				'additionalProperties' => false,
+			],
+			[
+				'type'       => 'object',
+				'properties' => [
+					'valid'            => [ 'type' => 'boolean' ],
+					'errors'           => $messages,
+					'warnings'         => $messages,
+					'summary'          => [ 'type' => 'string' ],
+					'change_list'      => [ 'type' => 'array' ],
+					'preview_document' => [ 'type' => 'object' ],
+					'modified'         => [ 'type' => 'string' ],
+				],
+			],
+			[ $this, 'preview_operations' ],
+			static fn( $input = null ) => self::can_edit_or_missing( $input, true ),
+			$readonly
+		);
+		$this->register(
+			'crazylinks/apply-operations',
+			__( 'Apply operations to a link page', 'crazylinks' ),
+			__( 'Validates operations like preview-operations and saves them to the link page, creating a revision shown as "AI (external)" in the page history. Input: id, operations, optional summary (for the history), expected_modified (modified from get-page; refused if the page changed since) and idempotency_key (a retry with the same key returns the first result). Use after a valid preview. If the page requires confirmation, nothing is saved and the change waits in the editor.', 'crazylinks' ),
+			[
+				'type'                 => 'object',
+				'properties'           => [
+					'id'                => $page_id,
+					'operations'        => $operations,
+					'summary'           => [
+						'type'        => 'string',
+						'maxLength'   => ExternalOps::MAX_SUMMARY,
+						'description' => __( 'One sentence describing the change, shown in the page history.', 'crazylinks' ),
+					],
+					'expected_modified' => [
+						'type'        => 'string',
+						'description' => __( 'The modified value returned by get-page. If the page changed since, nothing is saved and a conflict error is returned.', 'crazylinks' ),
+					],
+					'idempotency_key'   => [
+						'type'        => 'string',
+						'pattern'     => ExternalOps::KEY_PATTERN,
+						'description' => __( 'Any unique string for this change. Repeating a call with the same key within 30 minutes returns the first result without applying again.', 'crazylinks' ),
+					],
+				],
+				'required'             => [ 'id', 'operations' ],
+				'additionalProperties' => false,
+			],
+			[
+				'type'       => 'object',
+				'properties' => [
+					'applied'             => [ 'type' => 'boolean' ],
+					'revision_id'         => [ 'type' => [ 'integer', 'null' ] ],
+					'pending_proposal_id' => [ 'type' => [ 'string', 'null' ] ],
+					'change_list'         => [ 'type' => 'array' ],
+					'summary'             => [ 'type' => 'string' ],
+					'modified'            => [ 'type' => 'string' ],
+					'link'                => [ 'type' => 'string' ],
+					'source'              => [ 'type' => 'string' ],
+					'message'             => [ 'type' => 'string' ],
+					'replayed'            => [ 'type' => 'boolean' ],
+				],
+			],
+			[ $this, 'apply_operations' ],
+			static fn( $input = null ) => self::can_edit_or_missing( $input, true ),
+			[
+				'readonly'    => false,
+				'destructive' => true,
+				'idempotent'  => false,
+			]
 		);
 		$this->register(
 			'crazylinks/propose-changes',
@@ -300,6 +430,9 @@ final class Abilities {
 	 * @param array<string, bool>  $annotations Annotations.
 	 */
 	private function register( string $name, string $label, string $description, array $input, array $output, callable $execute, callable $permission, array $annotations ): void {
+		// Exposure to the MCP Adapter (SPEC §10.7). Settings are read per request and abilities are
+		// registered once per request, so switching an ability on or off takes effect on the next call.
+		$public = self::enabled( $name );
 		wp_register_ability(
 			$name,
 			[
@@ -318,6 +451,11 @@ final class Abilities {
 				'meta'                => [
 					'annotations'  => $annotations,
 					'show_in_rest' => true,
+					'public'       => $public,
+					'mcp'          => [
+						'public' => $public,
+						'type'   => 'tool',
+					],
 				],
 			]
 		);
@@ -331,6 +469,25 @@ final class Abilities {
 	private static function can_edit( $input ): bool {
 		$post = self::page( $input );
 		return $post instanceof \WP_Post && current_user_can( 'edit_post', $post->ID );
+	}
+
+	/**
+	 * For abilities that report a missing page as 404 (like the REST routes do): true when the user may
+	 * edit link pages and the named page either does not exist or is editable by them.
+	 *
+	 * @param mixed $input       Input.
+	 * @param bool  $requires_id Whether input.id is required.
+	 */
+	private static function can_edit_or_missing( $input, bool $requires_id ): bool {
+		if ( ! current_user_can( 'edit_crazylinks_pages' ) ) {
+			return false;
+		}
+		$id = is_array( $input ) ? (int) ( $input['id'] ?? 0 ) : 0;
+		if ( $id <= 0 ) {
+			return ! $requires_id;
+		}
+		$post = self::page( $input );
+		return null === $post || current_user_can( 'edit_post', $post->ID );
 	}
 
 	/**
@@ -401,6 +558,51 @@ final class Abilities {
 			'modified' => mysql_to_rfc3339( $post->post_modified_gmt ),
 			'page'     => Context::page( PageStore::get_document( $post ) ?? [] ),
 		];
+	}
+
+	/**
+	 * Execute: get-editing-guide.
+	 *
+	 * @param mixed $input Input.
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public function editing_guide( $input = null ) {
+		if ( is_array( $input ) && ! empty( $input['id'] ) ) {
+			$post = self::page( $input );
+			if ( null === $post ) {
+				return new WP_Error( 'crazylinks_not_found', __( 'Link page not found.', 'crazylinks' ), [ 'status' => 404 ] );
+			}
+			return EditingGuide::build( $post );
+		}
+		return EditingGuide::build();
+	}
+
+	/**
+	 * Execute: preview-operations.
+	 *
+	 * @param mixed $input Input.
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public function preview_operations( $input = null ) {
+		$post = self::page( $input );
+		if ( null === $post ) {
+			return new WP_Error( 'crazylinks_not_found', __( 'Link page not found.', 'crazylinks' ), [ 'status' => 404 ] );
+		}
+		return ExternalOps::preview( $post, ( (array) $input )['operations'] ?? null );
+	}
+
+	/**
+	 * Execute: apply-operations.
+	 *
+	 * @param mixed $input Input.
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public function apply_operations( $input = null ) {
+		$post = self::page( $input );
+		if ( null === $post ) {
+			return new WP_Error( 'crazylinks_not_found', __( 'Link page not found.', 'crazylinks' ), [ 'status' => 404 ] );
+		}
+		return ExternalOps::apply( $post, (array) $input );
 	}
 
 	/**

@@ -22,6 +22,7 @@ import ProposalView from '../ai/ProposalView';
 import History from '../ai/History';
 import Suggestions from '../ai/Suggestions';
 import Unavailable from '../ai/Unavailable';
+import ExternalProposals from '../ai/ExternalProposals';
 import type { AiBoot, AiState } from '../ai/types';
 import '../ai/style.scss';
 
@@ -33,13 +34,27 @@ export default function AiTab() {
 	const ai = boot().ai as AiBoot;
 	const ready = ai.ready ?? ai.available;
 	if ( ! ready ) {
-		return (
-			<div className="cl-ai-tab" data-cl-ai-slot>
-				<Unavailable ai={ ai } />
-			</div>
-		);
+		return <ExternalOnly ai={ ai } />;
 	}
 	return <AiTools ai={ ai } />;
+}
+
+/**
+ * Without a provider on the site, changes from external agents (MCP) can still be confirmed here.
+ *
+ * @param props    Props.
+ * @param props.ai Boot data.
+ */
+function ExternalOnly( { ai }: { ai: AiBoot } ) {
+	const state = useAi( selectState );
+	const current = aiSelectors.getCurrent( state );
+	return (
+		<div className="cl-ai-tab" data-cl-ai-slot>
+			<Unavailable ai={ ai } />
+			<ExternalProposals />
+			{ current?.external && <ProposalView entry={ current } /> }
+		</div>
+	);
 }
 
 function AiTools( { ai }: { ai: AiBoot } ) {
@@ -53,6 +68,7 @@ function AiTools( { ai }: { ai: AiBoot } ) {
 
 	return (
 		<div className="cl-ai-tab" data-cl-ai-slot>
+			<ExternalProposals />
 			<div>
 				<div
 					className="cl-ai-modes"
