@@ -90,6 +90,12 @@ final class Proposals {
 		}
 
 		if ( null !== $agent_ops ) {
+			// Counted like apply-operations: otherwise propose-changes + apply-changes would save without
+			// limit and every call would add a log row and a proposal transient (2026-11-06 review).
+			$limited = Limits::hit( $user_id );
+			if ( is_wp_error( $limited ) ) {
+				return $limited;
+			}
 			$result = ( new OpsValidator() )->validate(
 				[
 					'summary'    => (string) ( $args['summary'] ?? '' ),

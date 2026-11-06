@@ -107,7 +107,7 @@ final class McpStatus {
 	 * Advice on the account an agent should use.
 	 */
 	public static function user_advice(): string {
-		return __( 'Create a dedicated WordPress user for the assistant with the lowest role that can edit link pages (Editor by default), then create an Application Password for it under Users → Profile → Application Passwords. The assistant can do only what that user can, and you can revoke the password at any time. In the snippets, WP_API_USERNAME is the WordPress login name (the name typed on the login screen), not the name you gave the Application Password.', 'crazylinks' );
+		return __( 'Create a dedicated WordPress user for the assistant, not your own administrator account, and give it the "CrazyLinks agent" role (created by: wp crazylinks mcp agent-role --assign=<login>), which can edit link pages and nothing else on the site. Avoid Editor: it can also change every post and page and add scripts to them. Then create an Application Password for that user under Users → Profile → Application Passwords. The assistant can do only what that user can, and you can revoke the password at any time. In the snippets, WP_API_USERNAME is that user\'s login name (the name typed on the login screen), not the name you gave the Application Password.', 'crazylinks' );
 	}
 
 	/**

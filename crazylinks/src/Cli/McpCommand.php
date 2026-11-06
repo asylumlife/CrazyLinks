@@ -9,6 +9,7 @@ namespace CrazyLinks\Cli;
 
 use CrazyLinks\Ai\EditingGuide;
 use CrazyLinks\Ai\McpStatus;
+use CrazyLinks\Capabilities;
 use CrazyLinks\PostType;
 use WP_CLI;
 
@@ -80,5 +81,46 @@ final class McpCommand {
 			WP_CLI::line( '' );
 			WP_CLI::line( (string) wp_json_encode( $guide['page'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) );
 		}
+	}
+
+	/**
+	 * Creates (or resets) the "CrazyLinks agent" role for the account an AI agent connects with: it can
+	 * edit and publish link pages and use the CrazyLinks tools, nothing else on the site.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--assign=<login>]
+	 * : Also give this user the role (replacing their current roles). (`--user` is taken by WP-CLI itself.)
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp crazylinks mcp agent-role
+	 *     wp crazylinks mcp agent-role --assign=claude-agent
+	 *
+	 * @subcommand agent-role
+	 *
+	 * @param string[]              $args       Positional args.
+	 * @param array<string, string> $assoc_args Options.
+	 */
+	public function agent_role( $args, $assoc_args ): void {
+		unset( $args );
+		$role = Capabilities::ensure_agent_role();
+		if ( ! $role ) {
+			WP_CLI::error( 'The role could not be created.' );
+		}
+		WP_CLI::line( 'Role ' . Capabilities::AGENT_ROLE . ': ' . implode( ', ', array_keys( Capabilities::agent_caps() ) ) );
+		if ( ! empty( $assoc_args['assign'] ) ) {
+			$user = get_user_by( 'login', (string) $assoc_args['assign'] );
+			if ( ! $user instanceof \WP_User ) {
+				WP_CLI::error( 'User not found.' );
+			}
+			if ( user_can( $user, 'manage_options' ) ) {
+				WP_CLI::error( 'That user is an administrator. Create a separate user for the agent.' );
+			}
+			$user->set_role( Capabilities::AGENT_ROLE );
+			WP_CLI::success( $user->user_login . ' now has only the ' . Capabilities::AGENT_ROLE . ' role.' );
+			return;
+		}
+		WP_CLI::success( 'Done. Give the role to the agent\'s user: wp user set-role <login> ' . Capabilities::AGENT_ROLE );
 	}
 }
