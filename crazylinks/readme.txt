@@ -4,7 +4,7 @@ Tags: link in bio, linktree, links, bio link, landing page
 Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.1.6
+Stable tag: 0.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -116,6 +116,10 @@ Yes. Add an Email capture block. Sign-ups are stored on your site, confirmed by 
 
 It is off until you switch it on. Connect an AI provider in Settings → Connectors (WordPress 7.0 or newer), then enable AI under CrazyLinks → Settings. In the page editor's AI tab you describe a change in plain words; CrazyLinks shows a before/after preview and a list of the proposed changes, and nothing is saved until you press Apply. Every applied change is a normal revision you can undo. AI agents connected through the MCP Adapter plugin can use the same abilities if you enable them.
 
+= Can I edit pages from Claude Desktop? =
+
+Yes, and the site needs no AI provider key for it: the model runs on your own Claude account. Install and activate the MCP Adapter plugin (by WordPress.org), enable the CrazyLinks abilities you want under CrazyLinks → Settings → AI editing (List pages, Read a page, Editing guide, Preview changes, Save changes), create a dedicated WordPress user with an Application Password, and add the connection snippet shown in the "External agents (MCP)" box to Claude Desktop or Claude Code. Claude reads the editing guide, previews its changes and saves them through the same validation as the editor; each save is a revision marked "AI (external)". You can require that such changes wait for your confirmation in the page editor. Full steps: docs/mcp.md in the plugin folder.
+
 = Does it add a "Made with CrazyLinks" line? =
 
 Only if you switch it on. The footer credit is off by default; turning it on in the page's Settings tab adds one small line linking to the plugin's wordpress.org page with a nofollow link.
@@ -133,6 +137,13 @@ Simple Icons, released under CC0. See LICENSE-icons.txt. The logos remain tradem
 5. The page JSON in the editor screen.
 
 == Changelog ==
+
+= 0.2.0 =
+* New: edit link pages from Claude Desktop and Claude Code through the MCP Adapter plugin. Three new abilities for assistants that write the changes themselves: get-editing-guide, preview-operations and apply-operations (expected_modified conflict check, idempotency keys, rate limits shared with AI proposals, "AI (external)" revisions, AI history rows with source mcp).
+* New: when the MCP Adapter is active, CrazyLinks offers its own MCP server at /wp-json/crazylinks/mcp listing only the abilities you enabled (setting and `crazylinks_mcp_server` filter). Abilities also carry the MCP exposure flags, so the adapter's default server reaches exactly the enabled ones.
+* New: with "require confirmation", changes from external agents wait in the page editor's AI tab with a preview, Apply and Discard, also on sites without an AI provider.
+* New: "External agents (MCP)" box in Settings with the adapter status, endpoints and Claude Desktop / Claude Code snippets; `wp crazylinks mcp status` and `wp crazylinks mcp guide`.
+* Change: saves from external agents are refused (409) while another user has the page open in the editor.
 
 = 0.1.6 =
 * Change: AI requests no longer ask the provider for schema-constrained output (Anthropic rejects the operations grammar as too large). The model is asked for a bare JSON object, which the server validates against the full schema with one retry. The `crazylinks_ai_structured_output` filter turns provider-side schemas back on.

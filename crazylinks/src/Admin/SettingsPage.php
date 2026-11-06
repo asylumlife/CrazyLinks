@@ -9,6 +9,7 @@ namespace CrazyLinks\Admin;
 
 use CrazyLinks\Ai\Abilities;
 use CrazyLinks\Ai\Limits;
+use CrazyLinks\Ai\McpStatus;
 use CrazyLinks\Ai\Status;
 use CrazyLinks\PostType;
 use CrazyLinks\Settings;
@@ -94,6 +95,7 @@ final class SettingsPage {
 			'ai_monthly_tokens' => __( 'Monthly budget', 'crazylinks' ),
 			'ai_log'            => __( 'AI history', 'crazylinks' ),
 			'ai_abilities'      => __( 'External AI agents', 'crazylinks' ),
+			'ai_mcp'            => __( 'External agents (MCP)', 'crazylinks' ),
 		];
 		foreach ( $ai_fields as $key => $label ) {
 			add_settings_field(
@@ -187,6 +189,9 @@ final class SettingsPage {
 				$labels = [
 					'crazylinks/list-pages'            => __( 'List pages (read only)', 'crazylinks' ),
 					'crazylinks/get-page'              => __( 'Read a page (read only)', 'crazylinks' ),
+					'crazylinks/get-editing-guide'     => __( 'Editing guide for assistants (read only)', 'crazylinks' ),
+					'crazylinks/preview-operations'    => __( 'Preview changes written by the assistant (nothing saved)', 'crazylinks' ),
+					'crazylinks/apply-operations'      => __( 'Save changes written by the assistant (saves the page)', 'crazylinks' ),
 					'crazylinks/propose-changes'       => __( 'Propose changes (preview only, nothing saved)', 'crazylinks' ),
 					'crazylinks/apply-changes'         => __( 'Apply proposed changes (saves the page)', 'crazylinks' ),
 					'crazylinks/get-analytics-summary' => __( 'Read click totals (read only)', 'crazylinks' ),
@@ -196,8 +201,45 @@ final class SettingsPage {
 					printf( '<label><input type="checkbox"%s name="%s[ai_abilities][]" value="%s"%s> %s <code>%s</code></label><br>', 0 === $i ? ' id="' . esc_attr( $id ) . '"' : '', esc_attr( $opt ), esc_attr( $name ), checked( in_array( $name, (array) $s['ai_abilities'], true ), true, false ), esc_html( $labels[ $name ] ), esc_html( $name ) );
 				}
 				printf( '<p><label><input type="checkbox" name="%s[ai_mcp_confirm]" value="1"%s> %s</label></p>', esc_attr( $opt ), checked( ! empty( $s['ai_mcp_confirm'] ), true, false ), esc_html__( 'Require changes from external agents to be confirmed in the editor (each page can override this in its AI tab).', 'crazylinks' ) );
+				echo '<p class="description">' . esc_html__( 'For Claude Desktop or Claude Code, where the assistant writes the changes itself, enable at least "List pages", "Read a page", "Editing guide", "Preview changes" and "Save changes". No AI provider key is needed on this site for those.', 'crazylinks' ) . '</p>';
+				break;
+			case 'ai_mcp':
+				$this->mcp_box( $s, $id );
 				break;
 		}
+	}
+
+	/**
+	 * The "External agents (MCP)" box: adapter status, server switch, endpoints and connection snippets.
+	 *
+	 * @param array<string, mixed> $s  Settings.
+	 * @param string               $id Field id.
+	 */
+	private function mcp_box( array $s, string $id ): void {
+		$opt   = Settings::OPTION;
+		$state = McpStatus::state();
+		if ( McpStatus::adapter_active() ) {
+			$version = McpStatus::adapter_version();
+			/* translators: %s: MCP Adapter version. */
+			echo '<p><strong>' . esc_html( '' === $version ? __( 'MCP Adapter is active.', 'crazylinks' ) : sprintf( __( 'MCP Adapter %s is active.', 'crazylinks' ), $version ) ) . '</strong> ' . esc_html( McpStatus::message( $state ) ) . '</p>';
+		} else {
+			echo '<p><strong>' . esc_html( McpStatus::message( 'no_adapter' ) ) . '</strong></p>';
+		}
+		printf(
+			'<p><label><input type="checkbox" id="%s" name="%s[ai_mcp_server]" value="1"%s> %s</label></p>',
+			esc_attr( $id ),
+			esc_attr( $opt ),
+			checked( ! empty( $s['ai_mcp_server'] ), true, false ),
+			esc_html__( 'Offer a CrazyLinks MCP server that lists only the abilities enabled above as tools.', 'crazylinks' )
+		);
+		echo '<p>' . esc_html__( 'CrazyLinks server:', 'crazylinks' ) . ' <code>' . esc_html( McpStatus::endpoint() ) . '</code><br>';
+		echo esc_html__( 'MCP Adapter default server (enabled abilities through its discover and execute tools):', 'crazylinks' ) . ' <code>' . esc_html( McpStatus::default_endpoint() ) . '</code></p>';
+		echo '<p class="description">' . esc_html( McpStatus::user_advice() ) . '</p>';
+		echo '<p><label for="crazylinks_mcp_desktop">' . esc_html__( 'Claude Desktop: add this to claude_desktop_config.json (Settings → Developer → Edit Config), with your username and application password:', 'crazylinks' ) . '</label><br>';
+		printf( '<textarea id="crazylinks_mcp_desktop" class="large-text code" rows="13" readonly>%s</textarea></p>', esc_textarea( McpStatus::desktop_config() ) );
+		echo '<p><label for="crazylinks_mcp_code">' . esc_html__( 'Claude Code: run this in a terminal (base64 of "username:application password", for example with: echo -n \'username:xxxx xxxx xxxx xxxx xxxx xxxx\' | base64):', 'crazylinks' ) . '</label><br>';
+		printf( '<textarea id="crazylinks_mcp_code" class="large-text code" rows="3" readonly>%s</textarea></p>', esc_textarea( McpStatus::code_command() ) );
+		echo '<p class="description">' . esc_html__( 'Never paste a real password into a shared document. claude.ai on the web cannot connect yet because it needs OAuth.', 'crazylinks' ) . '</p>';
 	}
 
 	/**

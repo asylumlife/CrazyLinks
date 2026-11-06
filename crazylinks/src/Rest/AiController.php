@@ -17,7 +17,8 @@ use CrazyLinks\PostType;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * POST /pages/{id}/ai/propose, /ai/apply, /ai/suggest, /ai/settings and GET /ai/status (SPEC §10.2).
+ * POST /pages/{id}/ai/propose, /ai/apply, /ai/suggest, /ai/settings, /ai/discard, GET /pages/{id}/ai/pending
+ * and GET /ai/status (SPEC §10.2, §10.7).
  *
  * Permission: `use_crazylinks_ai` plus `edit_post` on the page (status: `use_crazylinks_ai`). Cookie
  * auth needs the REST nonce like every other route. Rate limits, budget and availability are
@@ -148,6 +149,37 @@ final class AiController {
 		);
 		register_rest_route(
 			RestRoutes::NS,
+			$page . '/pending',
+			[
+				'args' => $id,
+				[
+					'methods'             => \WP_REST_Server::READABLE,
+					'callback'            => [ $this, 'pending' ],
+					'permission_callback' => [ $this, 'page_permission' ],
+				],
+			]
+		);
+		register_rest_route(
+			RestRoutes::NS,
+			$page . '/discard',
+			[
+				'args' => $id,
+				[
+					'methods'             => \WP_REST_Server::CREATABLE,
+					'callback'            => [ $this, 'discard' ],
+					'permission_callback' => [ $this, 'page_permission' ],
+					'args'                => [
+						'proposal_id' => [
+							'type'     => 'string',
+							'required' => true,
+							'pattern'  => '^[A-Za-z0-9]{24}$',
+						],
+					],
+				],
+			]
+		);
+		register_rest_route(
+			RestRoutes::NS,
 			'/ai/status',
 			[
 				[
@@ -221,6 +253,26 @@ final class AiController {
 	public function suggest( $request ) {
 		$list = Proposals::suggest( (string) $request['kind'], (array) $request['context'], (int) $request['id'], 'admin' );
 		return is_wp_error( $list ) ? $list : rest_ensure_response( [ 'suggestions' => $list ] );
+	}
+
+	/**
+	 * GET /pages/{id}/ai/pending: changes from external agents waiting for confirmation.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response
+	 */
+	public function pending( $request ) {
+		return rest_ensure_response( Proposals::pending( get_post( (int) $request['id'] ) ) );
+	}
+
+	/**
+	 * POST /pages/{id}/ai/discard: drops a pending change from an external agent.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response
+	 */
+	public function discard( $request ) {
+		return rest_ensure_response( [ 'discarded' => Proposals::discard_pending( get_post( (int) $request['id'] ), (string) $request['proposal_id'] ) ] );
 	}
 
 	/**

@@ -36,6 +36,18 @@ final class Proposals {
 	public const MAX_INSTRUCTION = 2000;
 
 	/**
+	 * Post meta listing the ids of proposals from external agents that wait for confirmation.
+	 */
+	public const PENDING_META = '_crazylinks_ai_pending';
+
+	/**
+	 * Pending proposals live longer than interactive ones: a person has to open the editor.
+	 */
+	public const PENDING_TTL = 7 * DAY_IN_SECONDS;
+
+	public const MAX_PENDING = 10;
+
+	/**
 	 * The AI driver (filterable so sites and tests can swap it).
 	 */
 	public static function driver(): AiDriver {
@@ -203,13 +215,17 @@ final class Proposals {
 	public static function apply( \WP_Post $post, string $proposal_id, ?array $operations = null, ?array $page = null, string $source = 'admin' ) {
 		$user_id  = get_current_user_id();
 		$proposal = self::load( $proposal_id );
-		if ( null === $proposal || (int) $proposal['user_id'] !== $user_id || (int) $proposal['page_id'] !== (int) $post->ID ) {
+		// A change from an external agent waiting for confirmation (SPEC §10.7) belongs to the page, not
+		// to the agent's account: anyone who may edit the page can confirm it in the editor.
+		$pending = null !== $proposal && ! empty( $proposal['pending'] );
+		$owner   = null !== $proposal && ( (int) $proposal['user_id'] === $user_id || ( $pending && 'admin' === $source ) );
+		if ( null === $proposal || ! $owner || (int) $proposal['page_id'] !== (int) $post->ID ) {
 			return new WP_Error( 'crazylinks_ai_proposal_expired', __( 'This proposal has expired or does not belong to this page. Ask again to get a fresh one.', 'crazylinks' ), [ 'status' => 410 ] );
 		}
 		if ( is_array( $proposal['applied'] ) ) {
 			return $proposal['applied'] + [ 'already_applied' => true ];
 		}
-		if ( 'mcp' === $source && self::requires_confirmation( (int) $post->ID ) ) {
+		if ( 'mcp' === $source && ( $pending || self::requires_confirmation( (int) $post->ID ) ) ) {
 			return new WP_Error( 'crazylinks_ai_confirmation_required', __( 'This page requires changes from external AI agents to be confirmed in the CrazyLinks editor.', 'crazylinks' ), [ 'status' => 409 ] );
 		}
 
@@ -248,32 +264,29 @@ final class Proposals {
 			return self::invalid( $result->errors() );
 		}
 
-		$before = self::latest_revision( (int) $post->ID );
-		$req    = new \WP_REST_Request( 'PATCH', '/crazylinks/v1/pages/' . $post->ID );
-		$req->set_header( 'Content-Type', 'application/json' );
-		$req->set_body( (string) wp_json_encode( [ 'page' => PageValidator::to_json_shape( (array) $result->document() ) ] ) );
-		$res = rest_do_request( $req );
-		if ( $res->is_error() ) {
-			return $res->as_error();
+		// Written by an external agent: badged and logged as such even when a person confirmed it.
+		$badge = 'mcp' === $source || $pending ? 'mcp' : 'admin';
+		$saved = self::save_document( $post, (array) $result->document(), $badge );
+		if ( is_wp_error( $saved ) ) {
+			return $saved;
 		}
-		$after       = self::latest_revision( (int) $post->ID );
-		$revision_id = $after > $before ? $after : null;
-		if ( null !== $revision_id ) {
-			update_metadata( 'post', $revision_id, self::REVISION_META, 'mcp' === $source ? 'mcp' : 'admin' );
-		}
-		AiLog::mark_applied( (int) $proposal['log_id'], $revision_id, $source, $ops );
+		$revision_id = $saved['revision_id'];
+		AiLog::mark_applied( (int) $proposal['log_id'], $revision_id, $badge, $ops );
 
 		$out                 = [
 			'applied'     => true,
 			'revision_id' => $revision_id,
-			'source'      => 'mcp' === $source ? 'mcp' : 'admin',
+			'source'      => $badge,
 			'rebased'     => $stale,
 			'edited'      => $edited,
 			'change_list' => ChangeList::build( $ops, $base, $result->added() ),
-			'page'        => $res->get_data(),
+			'page'        => $saved['page'],
 		];
 		$proposal['applied'] = $out;
 		set_transient( self::TRANSIENT . $proposal_id, $proposal, max( 60, (int) $proposal['expires'] - time() ) );
+		if ( $pending ) {
+			self::forget_pending( (int) $post->ID, $proposal_id );
+		}
 
 		/**
 		 * Fires after an AI proposal was applied to a link page.
@@ -285,6 +298,189 @@ final class Proposals {
 		 */
 		do_action( 'crazylinks_ai_applied', (int) $post->ID, $revision_id, $out['source'], $ops );
 		return $out;
+	}
+
+	/**
+	 * Saves a validated document through PATCH /crazylinks/v1/pages/{id}, the same path as a human save
+	 * (permission check, PageValidator, core revision), and badges the revision it created.
+	 *
+	 * @param \WP_Post             $post   Page.
+	 * @param array<string, mixed> $doc    Document (already validated by OpsValidator).
+	 * @param string               $source admin | mcp (revision badge).
+	 * @return array{revision_id:int|null, page:mixed}|WP_Error
+	 */
+	public static function save_document( \WP_Post $post, array $doc, string $source ) {
+		$before = self::latest_revision( (int) $post->ID );
+		$req    = new \WP_REST_Request( 'PATCH', '/crazylinks/v1/pages/' . $post->ID );
+		$req->set_header( 'Content-Type', 'application/json' );
+		$req->set_body( (string) wp_json_encode( [ 'page' => PageValidator::to_json_shape( $doc ) ] ) );
+		$res = rest_do_request( $req );
+		if ( $res->is_error() ) {
+			return $res->as_error();
+		}
+		$after       = self::latest_revision( (int) $post->ID );
+		$revision_id = $after > $before ? $after : null;
+		if ( null !== $revision_id ) {
+			update_metadata( 'post', $revision_id, self::REVISION_META, 'mcp' === $source ? 'mcp' : 'admin' );
+		}
+		return [
+			'revision_id' => $revision_id,
+			'page'        => $res->get_data(),
+		];
+	}
+
+	/**
+	 * Stores validated operations from an external agent as a proposal that waits for a person to
+	 * confirm it in the editor's AI tab (per-page "require confirmation", SPEC §10.7).
+	 *
+	 * @param \WP_Post                         $post       Page.
+	 * @param array<int, array<string, mixed>> $operations Operations (valid against $base).
+	 * @param string                           $summary    Agent's summary.
+	 * @param string[]                         $added      Ids the validator gave added blocks.
+	 * @param array<string, mixed>             $base       Document the operations were validated on.
+	 * @param int                              $log_id     crazylinks_ai_log row.
+	 * @return string Proposal id.
+	 */
+	public static function store_pending( \WP_Post $post, array $operations, string $summary, array $added, array $base, int $log_id ): string {
+		$id = wp_generate_password( 24, false );
+		set_transient(
+			self::TRANSIENT . $id,
+			[
+				'user_id'    => get_current_user_id(),
+				'page_id'    => (int) $post->ID,
+				'mode'       => 'edit',
+				'source'     => 'mcp',
+				'summary'    => $summary,
+				'operations' => array_values( $operations ),
+				'added'      => $added,
+				'base_hash'  => self::hash( $base ),
+				'modified'   => (string) $post->post_modified_gmt,
+				'log_id'     => $log_id,
+				'created'    => time(),
+				'expires'    => time() + self::PENDING_TTL,
+				'applied'    => null,
+				'pending'    => true,
+			],
+			self::PENDING_TTL
+		);
+		$ids   = self::pending_ids( (int) $post->ID );
+		$ids[] = $id;
+		foreach ( array_slice( $ids, 0, max( 0, count( $ids ) - self::MAX_PENDING ) ) as $old ) {
+			delete_transient( self::TRANSIENT . $old );
+		}
+		$ids = array_slice( $ids, -self::MAX_PENDING );
+		update_post_meta( $post->ID, self::PENDING_META, $ids );
+		return $id;
+	}
+
+	/**
+	 * Pending proposals of a page, re-validated on the stored page for the current user and shaped like
+	 * a proposal for the editor. Proposals that expired, were applied or no longer fit the page are
+	 * dropped.
+	 *
+	 * @param \WP_Post $post Page.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function pending( \WP_Post $post ): array {
+		$user_id = get_current_user_id();
+		$ids     = self::pending_ids( (int) $post->ID );
+		$stored  = PageStore::get_document( $post, false );
+		$base    = self::base_document( null, $user_id, $stored );
+		$keep    = [];
+		$out     = [];
+		foreach ( $ids as $id ) {
+			$p = self::load( $id );
+			if ( null === $p || empty( $p['pending'] ) || is_array( $p['applied'] ) || (int) $p['page_id'] !== (int) $post->ID || is_wp_error( $base ) ) {
+				continue;
+			}
+			$ops    = array_values( (array) $p['operations'] );
+			$added  = array_map( 'strval', (array) $p['added'] );
+			$result = ( new OpsValidator( new OpsApplier( OpsApplier::sequence( $added ) ) ) )->validate(
+				[
+					'summary'    => (string) $p['summary'],
+					'operations' => $ops,
+					'questions'  => [],
+				],
+				$base,
+				$user_id,
+				'edit',
+				$stored
+			);
+			if ( ! $result->is_valid() ) {
+				delete_transient( self::TRANSIENT . $id );
+				continue;
+			}
+			$keep[] = $id;
+			$author = get_userdata( (int) $p['user_id'] );
+			$out[]  = [
+				'proposal_id'      => $id,
+				'summary'          => (string) $p['summary'],
+				'operations'       => $ops,
+				'questions'        => [],
+				'preview_document' => PageValidator::to_json_shape( (array) $result->document() ),
+				'change_list'      => ChangeList::build( $ops, $base, $result->added() ),
+				'mode'             => 'edit',
+				'expires_at'       => gmdate( 'c', (int) $p['expires'] ),
+				'model'            => 'external',
+				'external'         => true,
+				'created_at'       => gmdate( 'c', (int) ( $p['created'] ?? time() ) ),
+				'author'           => $author instanceof \WP_User ? $author->display_name : '',
+			];
+		}
+		if ( $keep !== $ids ) {
+			self::save_pending_ids( (int) $post->ID, $keep );
+		}
+		return $out;
+	}
+
+	/**
+	 * Discards a pending proposal (the person pressed Discard in the editor).
+	 *
+	 * @param \WP_Post $post        Page.
+	 * @param string   $proposal_id Proposal id.
+	 */
+	public static function discard_pending( \WP_Post $post, string $proposal_id ): bool {
+		if ( ! in_array( $proposal_id, self::pending_ids( (int) $post->ID ), true ) ) {
+			return false;
+		}
+		delete_transient( self::TRANSIENT . $proposal_id );
+		self::forget_pending( (int) $post->ID, $proposal_id );
+		return true;
+	}
+
+	/**
+	 * Ids in the pending index.
+	 *
+	 * @param int $page_id Page.
+	 * @return string[]
+	 */
+	private static function pending_ids( int $page_id ): array {
+		$ids = get_post_meta( $page_id, self::PENDING_META, true );
+		return is_array( $ids ) ? array_values( array_filter( array_map( 'strval', $ids ), static fn( $id ) => (bool) preg_match( '/^[A-Za-z0-9]{24}$/', $id ) ) ) : [];
+	}
+
+	/**
+	 * Writes the pending index (deletes the meta when empty).
+	 *
+	 * @param int      $page_id Page.
+	 * @param string[] $ids     Ids.
+	 */
+	private static function save_pending_ids( int $page_id, array $ids ): void {
+		if ( $ids ) {
+			update_post_meta( $page_id, self::PENDING_META, array_values( $ids ) );
+		} else {
+			delete_post_meta( $page_id, self::PENDING_META );
+		}
+	}
+
+	/**
+	 * Removes one id from the pending index.
+	 *
+	 * @param int    $page_id     Page.
+	 * @param string $proposal_id Proposal id.
+	 */
+	private static function forget_pending( int $page_id, string $proposal_id ): void {
+		self::save_pending_ids( $page_id, array_values( array_diff( self::pending_ids( $page_id ), [ $proposal_id ] ) ) );
 	}
 
 	/**
@@ -392,7 +588,7 @@ final class Proposals {
 	 * @param array<string, mixed>|null $stored  Stored document.
 	 * @return array<string, mixed>|WP_Error
 	 */
-	private static function base_document( $page, int $user_id, ?array $stored ) {
+	public static function base_document( $page, int $user_id, ?array $stored ) {
 		if ( null === $page ) {
 			$result = ( new PageValidator() )->validate( $stored ?? PageValidator::empty_document(), $user_id, $stored );
 			return $result->is_valid() ? $result->document() : ( $stored ?? PageValidator::empty_document() );

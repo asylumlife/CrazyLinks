@@ -82,6 +82,58 @@ RULES:
 TXT;
 
 	/**
+	 * Tag references in the prompt paragraphs, rewritten for a reader that is not inside a proposal
+	 * prompt (the editing guide for external agents, SPEC §10.7).
+	 */
+	private const GUIDE_REWRITES = [
+		' and it is not in <page_json> or <site_facts>, ask in "questions" instead.' => ' and it is not already on the page, ask the user instead.',
+		'must come from <page_json> or <media>; you cannot upload images.' => 'must already be used on the page or be given by the user; you cannot upload images.',
+		'the site timezone is given in <site>' => 'the site timezone is listed under "This site" below',
+		'Use only ids that appear in <page_json> or refs you created.' => 'Use only ids returned by get-page (or get-editing-guide with an id) and refs you created.',
+		'- Return at most 60 operations.'      => '- Send at most 60 operations per call.',
+	];
+
+	/**
+	 * The operations and rules of the proposal prompt as bullet lines, for the editing guide. Lines
+	 * about the reply envelope ("questions", "summary", bare JSON) are left out because an external
+	 * agent sends operations as tool arguments; tag references are rewritten (GUIDE_REWRITES).
+	 *
+	 * @return array{operations: string[], rules: string[]}
+	 */
+	public static function guide_lines(): array {
+		$operations = [];
+		$rules      = [];
+		foreach ( explode( "\n", self::OPS ) as $line ) {
+			$line = self::guide_rewrite( $line );
+			if ( str_starts_with( $line, '- ' ) ) {
+				$operations[] = $line;
+			} elseif ( '' !== $line && ! str_ends_with( $line, ':' ) && ! str_starts_with( $line, 'Reply with' ) ) {
+				$rules[] = '- ' . $line;
+			}
+		}
+		foreach ( explode( "\n", self::RULES ) as $line ) {
+			$line = self::guide_rewrite( $line );
+			if ( str_starts_with( $line, '- ' ) && ! preg_match( '/"questions"|"summary"/', $line ) ) {
+				$rules[] = $line;
+			}
+		}
+		$keep = static fn( string $line ): bool => ! preg_match( '/<[a-z_]+>/', $line );
+		return [
+			'operations' => array_values( array_filter( $operations, $keep ) ),
+			'rules'      => array_values( array_filter( $rules, $keep ) ),
+		];
+	}
+
+	/**
+	 * Applies GUIDE_REWRITES to one line.
+	 *
+	 * @param string $line Line.
+	 */
+	private static function guide_rewrite( string $line ): string {
+		return trim( str_replace( array_keys( self::GUIDE_REWRITES ), array_values( self::GUIDE_REWRITES ), $line ) );
+	}
+
+	/**
 	 * Mode guidance.
 	 *
 	 * @param string $mode Mode.

@@ -175,3 +175,42 @@ describe( 'ai reducer', () => {
 		expect( aiReducer( s, { type: 'NOPE' } as never ) ).toBe( s );
 	} );
 } );
+
+describe( 'changes from external agents', () => {
+	const ext = ( id: string ) =>
+		proposal( {
+			proposal_id: id.padEnd( 24, 'x' ),
+			summary: `External ${ id }`,
+			model: 'external',
+			external: true,
+			author: 'Claude agent',
+		} );
+
+	it( 'adds pending changes once, keeps the current entry, and lists them as open', () => {
+		let s = aiReducer(
+			initialAiState(),
+			A.proposed( 'k1', 'Mine', 'edit', proposal() )
+		);
+		s = aiReducer( s, A.external( [ ext( 'a' ), ext( 'b' ) ] ) );
+		expect( s.current ).toBe( 'k1' );
+		expect( S.getExternalOpen( s ).map( ( e ) => e.instruction ) ).toEqual(
+			[ 'External a', 'External b' ]
+		);
+		const again = aiReducer( s, A.external( [ ext( 'a' ) ] ) );
+		expect( again ).toBe( s );
+	} );
+
+	it( 'selects the first pending change when nothing is selected', () => {
+		const s = aiReducer( initialAiState(), A.external( [ ext( 'a' ) ] ) );
+		expect( S.getCurrent( s )?.external ).toBe( true );
+		expect( S.canApply( s ) ).toBe( true );
+	} );
+
+	it( 'a new proposal does not discard pending external changes', () => {
+		let s = aiReducer( initialAiState(), A.external( [ ext( 'a' ) ] ) );
+		s = aiReducer( s, A.proposed( 'k2', 'Mine', 'edit', proposal() ) );
+		expect( S.getExternalOpen( s ) ).toHaveLength( 1 );
+		s = aiReducer( s, A.discard( S.getExternalOpen( s )[ 0 ].key ) );
+		expect( S.getExternalOpen( s ) ).toHaveLength( 0 );
+	} );
+} );

@@ -39,6 +39,11 @@ export interface Proposal {
 	model: string;
 	usage?: { tokens: number; estimated: boolean; attempts: number };
 	budget?: BudgetState;
+	/** Written by an external agent (MCP) and waiting for confirmation (GET /ai/pending). */
+	external?: boolean;
+	created_at?: string;
+	/** Display name of the WordPress account the agent used. */
+	author?: string;
 }
 
 export interface ApplyResult {
@@ -77,6 +82,8 @@ export interface HistoryEntry {
 	state: EntryState;
 	createdAt: number;
 	revisionId?: number | null;
+	/** A pending change from an external agent (stays open when new proposals arrive). */
+	external?: boolean;
 }
 
 export interface Suggestions {
