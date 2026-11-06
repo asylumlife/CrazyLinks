@@ -61,7 +61,7 @@ OPERATIONS (applied in order to the page):
 - remove_block {id}: removes the block (a group is removed with its children).
 - set_design {design}: merged into the design. Setting "theme" resets background, text, button, accent and radius to that theme first, so set the theme before any overrides in the same operation.
 - set_profile {profile}: merged into the profile (name, bio up to 280 characters, location, pronouns, avatar_style, header_layout, ...).
-In add_block.block.props and update_block.props, give the props as a JSON object encoded in a string (for example "{\"title\":\"Merch\",\"url\":\"https://example.com/shop\"}").
+Reply with that single JSON object and nothing else: no prose before or after it and no code fences. Props are plain JSON objects.
 Use only ids that appear in <page_json> or refs you created. Keep ids unchanged. Change only what the user asked for; leave other blocks, their order and their wording alone.
 TXT;
 
