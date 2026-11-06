@@ -20,6 +20,7 @@ use CrazyLinks\Ai\OpsSchema;
 use CrazyLinks\Ai\OpsValidator;
 use CrazyLinks\Ai\Proposals;
 use CrazyLinks\PageStore;
+use CrazyLinks\Capabilities;
 use CrazyLinks\Settings;
 use CrazyLinks\Tests\Fixtures\AiHelpers;
 use WP\MCP\Core\McpAdapter;
@@ -628,5 +629,80 @@ class AiMcpTest extends TestCase {
 
 		wp_set_current_user( 0 );
 		$this->assertSame( 'YOUR-WORDPRESS-USERNAME', json_decode( McpStatus::desktop_config(), true )['mcpServers']['crazylinks']['env']['WP_API_USERNAME'], 'Logged out (WP-CLI without --user) falls back to a placeholder' );
+	}
+
+	// ---------------------------------------------------------------------------------------------
+	// 2026-11-06 security review.
+
+	/**
+	 * propose-changes with agent-written operations counts against the request limit, so
+	 * propose-changes + apply-changes cannot save more often than apply-operations, and cannot add log
+	 * rows and proposal transients without bound.
+	 */
+	public function test_review_propose_with_operations_counts_against_the_limit(): void {
+		$this->ai_settings( [ 'ai_user_hourly' => 1 ] );
+		$ops   = [
+			[
+				'op'      => 'update_block',
+				'id'      => self::A3,
+				'visible' => false,
+			],
+		];
+		$first = $this->ability(
+			'crazylinks/propose-changes',
+			[
+				'id'         => $this->post->ID,
+				'operations' => $ops,
+			]
+		);
+		$this->assertSame( 200, $first->get_status(), wp_json_encode( $first->get_data() ) );
+		$rows       = $this->log_rows();
+		$transients = $this->proposal_transients();
+
+		$second = $this->ability(
+			'crazylinks/propose-changes',
+			[
+				'id'         => $this->post->ID,
+				'operations' => $ops,
+			]
+		);
+		$this->assertSame( 429, $second->get_status() );
+		$this->assertSame( 'crazylinks_ai_rate_limited', $second->get_data()['code'] );
+		$this->assertSame( $rows, $this->log_rows() );
+		$this->assertSame( $transients, $this->proposal_transients() );
+
+		$over = $this->ability( 'crazylinks/apply-operations', [ 'id' => $this->post->ID, 'operations' => $this->rename() ], 'POST' );
+		$this->assertSame( 429, $over->get_status(), 'The proposal used the shared hourly request' );
+	}
+
+	/**
+	 * The agent role edits link pages through MCP and can do nothing else on the site.
+	 */
+	public function test_review_agent_role_is_limited_to_link_pages(): void {
+		$role = Capabilities::ensure_agent_role();
+		$this->assertInstanceOf( \WP_Role::class, $role );
+		$this->assertEqualsCanonicalizing( array_keys( Capabilities::agent_caps() ), array_keys( array_filter( $role->capabilities ) ) );
+
+		// Re-running resets extra capabilities someone added.
+		$role->add_cap( 'edit_posts' );
+		Capabilities::ensure_agent_role();
+		$this->assertArrayNotHasKey( 'edit_posts', get_role( Capabilities::AGENT_ROLE )->capabilities );
+
+		$agent = self::factory()->user->create( [ 'role' => Capabilities::AGENT_ROLE ] );
+		wp_set_current_user( $agent );
+		foreach ( [ 'edit_posts', 'edit_pages', 'unfiltered_html', 'upload_files', 'list_users', 'manage_crazylinks', 'delete_crazylinks_pages' ] as $cap ) {
+			$this->assertFalse( current_user_can( $cap ), $cap );
+		}
+		$this->assertTrue( current_user_can( 'edit_post', $this->post->ID ) );
+		$this->assertTrue( true === \CrazyLinks\Ai\McpServer::transport_permission() );
+
+		$res = $this->ability( 'crazylinks/apply-operations', [ 'id' => $this->post->ID, 'operations' => $this->rename( 'By the agent' ) ], 'POST' );
+		$this->assertSame( 200, $res->get_status(), wp_json_encode( $res->get_data() ) );
+		$this->assertSame( 'By the agent', $this->title() );
+
+		$post = rest_do_request( new \WP_REST_Request( 'POST', '/wp/v2/posts' ) );
+		$this->assertSame( 403, $post->get_status() );
+		$this->assertStringNotContainsString( 'Editor by default', \CrazyLinks\Ai\McpStatus::user_advice() );
+		remove_role( Capabilities::AGENT_ROLE );
 	}
 }

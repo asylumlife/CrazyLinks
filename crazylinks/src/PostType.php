@@ -28,6 +28,7 @@ final class PostType {
 		add_action( 'save_post_' . self::NAME, [ $this, 'after_save' ], 10, 2 );
 		add_action( 'transition_post_status', [ Render\Cache::class, 'on_transition' ], 10, 3 );
 		add_filter( 'post_type_link', [ $this, 'permalink' ], 10, 2 );
+		add_action( 'pre_get_posts', [ $this, 'no_listings' ] );
 		add_filter( 'et_builder_post_types', [ $this, 'exclude_from_builders' ] );
 		add_filter( 'et_builder_third_party_post_types', [ $this, 'exclude_from_builders' ] );
 		( new PostLock() )->register_hooks();
@@ -75,6 +76,31 @@ final class PostType {
 				'delete_with_user'    => false,
 			]
 		);
+	}
+
+	/**
+	 * Link pages are reachable only one at a time, through their own URL. Because the type is publicly
+	 * queryable, WordPress would otherwise list every published page, stored JSON included, in
+	 * `?post_type=crazylinks_page` archives, searches and feeds, which shows hidden and not-yet-scheduled
+	 * blocks to anyone (2026-11-06 review). Front-end main queries that are not for a single page drop
+	 * the type; when it was the only type asked for, they match nothing.
+	 *
+	 * @param mixed $query The query (WP_Query).
+	 */
+	public function no_listings( $query ): void {
+		if ( ! $query instanceof \WP_Query || is_admin() || ! $query->is_main_query() || $query->is_singular() ) {
+			return;
+		}
+		$types = array_map( 'strval', (array) $query->get( 'post_type' ) );
+		if ( ! in_array( self::NAME, $types, true ) ) {
+			return;
+		}
+		$others = array_values( array_diff( $types, [ self::NAME ] ) );
+		if ( $others ) {
+			$query->set( 'post_type', $others );
+			return;
+		}
+		$query->set( 'post__in', [ 0 ] );
 	}
 
 	/**

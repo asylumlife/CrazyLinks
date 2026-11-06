@@ -69,6 +69,7 @@ if ( ! function_exists( 'crazylinks_uninstall_site' ) ) {
 				$role->remove_cap( $cap );
 			}
 		}
+		remove_role( 'crazylinks_agent' );
 	}
 }
 

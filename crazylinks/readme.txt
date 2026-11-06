@@ -4,7 +4,7 @@ Tags: link in bio, linktree, links, bio link, landing page
 Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.2.1
+Stable tag: 0.2.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -137,6 +137,11 @@ Simple Icons, released under CC0. See LICENSE-icons.txt. The logos remain tradem
 5. The page JSON in the editor screen.
 
 == Changelog ==
+
+= 0.2.2 =
+* Security: link pages no longer appear in WordPress's own archive, search and feed URLs for the post type (for example `/?post_type=crazylinks_page&feed=rss2`), which listed every published page's stored content to anyone, hidden and scheduled blocks included. Pages are still served only at their own address.
+* Security: "Propose changes" with operations written by the agent now counts against the AI request limit, like "Save changes" already did.
+* New: `wp crazylinks mcp agent-role [--assign=<login>]` creates a "CrazyLinks agent" role that can edit link pages and nothing else; the settings box and docs now recommend it instead of Editor for the account an AI agent connects with.
 
 = 0.2.1 =
 * Fix: in a Section set to the two-column grid, links with an icon, emoji or thumbnail kept the single-column badge strip beside their text, so titles sat about 20px left of center and wrapped early; badges in those tiles now sit in the corner like the page-wide grid.

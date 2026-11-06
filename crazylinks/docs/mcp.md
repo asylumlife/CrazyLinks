@@ -26,9 +26,11 @@ In the same section, **External agents (MCP)** shows whether the MCP Adapter is 
 
 ## 2. Create a dedicated account and an Application Password
 
-1. Users → Add New: a user just for the assistant (for example `claude-agent`) with the lowest role that can edit link pages. By default that is **Editor**; an administrator can grant CrazyLinks capabilities to other roles with the `crazylinks_role_caps` filter. The assistant can do only what this user can.
+1. Users → Add New: a user just for the assistant (for example `claude-agent`), never your own administrator account. Give it the **CrazyLinks agent** role: run `wp crazylinks mcp agent-role --assign=claude-agent` (it creates the role, which can edit and publish link pages and use the CrazyLinks tools, and nothing else), or build the same role in a role editor such as Members with `read`, `edit_crazylinks_pages`, `edit_others_crazylinks_pages`, `edit_published_crazylinks_pages`, `publish_crazylinks_pages` and `use_crazylinks_ai` (add `view_crazylinks_analytics` if you enable the analytics tool). Avoid **Editor**: an Application Password works for the whole WordPress REST API, not only for MCP, and an Editor can change every post and page on the site and put scripts in them. The assistant can do only what this user can.
 2. Log in as that user (or edit it as an administrator), Users → Profile → **Application Passwords**, name it "Claude", press **Add New Application Password** and copy the password. It is shown once.
 3. To cut the assistant off later, revoke that password (or delete the user). Its earlier changes stay in the page history.
+
+What the password allows: anyone who has it can do everything that user can do through the REST API, without the MCP tools' extra rules (for example the "require confirmation" switch below only applies to the MCP tools). Keep it only in your Claude configuration, revoke it if the computer is lost or the config is shared, and create a fresh one now and then (Users → Profile → Application Passwords lists when each was last used and from which IP).
 
 Application Passwords need HTTPS, except on sites whose environment type is `local`.
 
@@ -80,9 +82,9 @@ The server already tells Claude, on connection, to read the editing guide first,
 | Endpoint | What the client sees |
 |---|---|
 | `/wp-json/crazylinks/mcp` (CrazyLinks server) | One tool per enabled CrazyLinks ability. Recommended. |
-| `/wp-json/mcp/mcp-adapter-default-server` (adapter default) | Three meta-tools (`mcp-adapter-discover-abilities`, `-get-ability-info`, `-execute-ability`) through which the client finds and runs every enabled ability on the site, CrazyLinks included. |
+| `/wp-json/mcp/mcp-adapter-default-server` (adapter default) | Three meta-tools (`mcp-adapter-discover-abilities`, `-get-ability-info`, `-execute-ability`) through which the client finds and runs every public ability on the site from every plugin, CrazyLinks included (for example a role editor's abilities). |
 
-Both use the same permission checks. `wp crazylinks mcp status` prints both URLs for your site.
+Both use the same permission checks. The CrazyLinks endpoint offers only the CrazyLinks tools, so prefer it. If nothing else on the site needs the adapter's default server, turn it off with `add_filter( 'mcp_adapter_create_default_server', '__return_false' );` in a small must-use plugin. `wp crazylinks mcp status` prints both URLs for your site.
 
 ## How an edit works
 
