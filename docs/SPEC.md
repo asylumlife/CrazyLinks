@@ -672,6 +672,12 @@ Suggested cadence: Phase 1 produces an installable plugin that renders a page an
 
 ---
 
+## 16a. Considered and set aside
+
+| Date | Idea | Outcome |
+|---|---|---|
+| 2026-11-06 | **Live-show block that appears only while the owner is live on a platform.** Plan discussed: check on visit only (no background polling), two-minute server-side memory, visitor-side swap so full-page caches need no purging; Twitch free, YouTube 100 quota units per check, no API for Facebook/Instagram/TikTok. | Owner declined: too many moving parts (platform keys, per-platform behaviour). Decision: use the existing weekly visibility windows (blocks and Sections, site time) to show the show's links on schedule. Revisit only if asked. |
+
 ## 17. Open questions and verification list
 
 **For the owner (D1-D7 are decided; these remain):**
