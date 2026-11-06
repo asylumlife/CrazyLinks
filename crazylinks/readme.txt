@@ -4,7 +4,7 @@ Tags: link in bio, linktree, links, bio link, landing page
 Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.1.4
+Stable tag: 0.1.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -133,6 +133,9 @@ Simple Icons, released under CC0. See LICENSE-icons.txt. The logos remain tradem
 5. The page JSON in the editor screen.
 
 == Changelog ==
+
+= 0.1.5 =
+* Fix: Anthropic's strict structured output rejects open objects, so block props now travel as a JSON string inside the response and are decoded before validation.
 
 = 0.1.4 =
 * Fix: Anthropic rejected the full operations schema as too large a grammar ("compiled grammar is too large"). The provider now receives a compact envelope (about 7 KB instead of 90 KB) and the full validation runs on the server as before.
