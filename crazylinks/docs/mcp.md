@@ -84,7 +84,7 @@ The server already tells Claude, on connection, to read the editing guide first,
 | `/wp-json/crazylinks/mcp` (CrazyLinks server) | One tool per enabled CrazyLinks ability. Recommended. |
 | `/wp-json/mcp/mcp-adapter-default-server` (adapter default) | Three meta-tools (`mcp-adapter-discover-abilities`, `-get-ability-info`, `-execute-ability`) through which the client finds and runs every public ability on the site from every plugin, CrazyLinks included (for example a role editor's abilities). |
 
-Both use the same permission checks. The CrazyLinks endpoint offers only the CrazyLinks tools, so prefer it. If nothing else on the site needs the adapter's default server, turn it off with `add_filter( 'mcp_adapter_create_default_server', '__return_false' );` in a small must-use plugin. `wp crazylinks mcp status` prints both URLs for your site.
+Both use the same permission checks. The CrazyLinks endpoint offers only the CrazyLinks tools, so prefer it. If nothing else on the site needs the adapter's default server, tick **Turn off the MCP Adapter's default server** in the External agents (MCP) box (setting `ai_mcp_default_server_off`, off by default). The box lists what the default server also exposes today, for example "members (20 abilities), core (3 abilities)", so you can see what you would be closing. With it ticked only the CrazyLinks endpoint exists; if the CrazyLinks server is off too, no server is reachable and the box and `wp crazylinks mcp status` say so. Without the setting you can do the same with `add_filter( 'mcp_adapter_create_default_server', '__return_false' );` in a must-use plugin. `wp crazylinks mcp status` prints both URLs for your site.
 
 ## How an edit works
 

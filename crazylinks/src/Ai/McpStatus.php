@@ -49,6 +49,66 @@ final class McpStatus {
 	}
 
 	/**
+	 * Whether the adapter's default server is switched off by CrazyLinks.
+	 */
+	public static function default_server_off(): bool {
+		/**
+		 * Filters whether CrazyLinks turns off the MCP Adapter's default server
+		 * (`mcp_adapter_create_default_server`), so only the CrazyLinks server stays reachable.
+		 *
+		 * @param bool $off Setting value (default false).
+		 */
+		return (bool) apply_filters( 'crazylinks_mcp_default_server_off', (bool) Settings::get( 'ai_mcp_default_server_off' ) );
+	}
+
+	/**
+	 * Public (MCP-exposed) abilities from other plugins, which the default server also offers.
+	 *
+	 * Same rule as the adapter: `meta.mcp.public` when set, else `meta.public === true`. CrazyLinks and
+	 * adapter abilities are left out.
+	 *
+	 * @return array<string, int> Prefix before the slash => number of abilities.
+	 */
+	public static function other_public_abilities(): array {
+		if ( ! function_exists( 'wp_get_abilities' ) ) {
+			return [];
+		}
+		$counts = [];
+		foreach ( wp_get_abilities() as $ability ) {
+			$name = (string) $ability->get_name();
+			if ( str_starts_with( $name, 'crazylinks/' ) || str_starts_with( $name, 'mcp-adapter/' ) ) {
+				continue;
+			}
+			$mcp    = $ability->get_meta_item( 'mcp' );
+			$public = is_array( $mcp ) && isset( $mcp['public'] ) ? (bool) $mcp['public'] : true === $ability->get_meta_item( 'public' );
+			if ( ! $public ) {
+				continue;
+			}
+			$prefix            = (string) strstr( $name, '/', true );
+			$prefix            = '' === $prefix ? $name : $prefix;
+			$counts[ $prefix ] = ( $counts[ $prefix ] ?? 0 ) + 1;
+		}
+		arsort( $counts );
+		return $counts;
+	}
+
+	/**
+	 * "Today it also exposes: members (20 abilities), core (3 abilities)." or the nothing-else sentence.
+	 */
+	public static function other_public_sentence(): string {
+		$parts = [];
+		foreach ( self::other_public_abilities() as $prefix => $count ) {
+			/* translators: 1: ability prefix (plugin), 2: number of abilities. */
+			$parts[] = sprintf( _n( '%1$s (%2$d ability)', '%1$s (%2$d abilities)', $count, 'crazylinks' ), $prefix, $count );
+		}
+		if ( ! $parts ) {
+			return __( 'Today it exposes nothing besides CrazyLinks.', 'crazylinks' );
+		}
+		/* translators: %s: list such as "members (20 abilities), core (3 abilities)". */
+		return sprintf( __( 'Today it also exposes: %s.', 'crazylinks' ), implode( ', ', $parts ) );
+	}
+
+	/**
 	 * Endpoint of the CrazyLinks server.
 	 */
 	public static function endpoint(): string {
@@ -73,9 +133,19 @@ final class McpStatus {
 
 	/**
 	 * The endpoint clients should use: the CrazyLinks server when it is on, else the default server.
+	 *
+	 * With the default server off the CrazyLinks endpoint is the only one there is, even when our own
+	 * server is also off (then nothing answers; see reachable()).
 	 */
 	public static function preferred_endpoint(): string {
-		return self::server_enabled() ? self::endpoint() : self::default_endpoint();
+		return self::server_enabled() || self::default_server_off() ? self::endpoint() : self::default_endpoint();
+	}
+
+	/**
+	 * Whether any MCP server is reachable: ours, or the adapter's default one.
+	 */
+	public static function reachable(): bool {
+		return self::server_enabled() || ! self::default_server_off();
 	}
 
 	/**

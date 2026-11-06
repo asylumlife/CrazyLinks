@@ -232,8 +232,21 @@ final class SettingsPage {
 			checked( ! empty( $s['ai_mcp_server'] ), true, false ),
 			esc_html__( 'Offer a CrazyLinks MCP server that lists only the abilities enabled above as tools.', 'crazylinks' )
 		);
-		echo '<p>' . esc_html__( 'CrazyLinks server:', 'crazylinks' ) . ' <code>' . esc_html( McpStatus::endpoint() ) . '</code><br>';
-		echo esc_html__( 'MCP Adapter default server (enabled abilities through its discover and execute tools):', 'crazylinks' ) . ' <code>' . esc_html( McpStatus::default_endpoint() ) . '</code></p>';
+		printf(
+			'<p><label><input type="checkbox" name="%s[ai_mcp_default_server_off]" value="1"%s> %s</label><br><span class="description">%s</span></p>',
+			esc_attr( $opt ),
+			checked( ! empty( $s['ai_mcp_default_server_off'] ), true, false ),
+			esc_html__( "Turn off the MCP Adapter's default server. Only the CrazyLinks server stays reachable.", 'crazylinks' ),
+			esc_html( McpStatus::other_public_sentence() )
+		);
+		if ( ! McpStatus::reachable() ) {
+			echo '<p><strong>' . esc_html__( 'No MCP server is reachable: the CrazyLinks server and the default server are both off.', 'crazylinks' ) . '</strong></p>';
+		}
+		echo '<p>' . esc_html__( 'CrazyLinks server:', 'crazylinks' ) . ' <code>' . esc_html( McpStatus::endpoint() ) . '</code>';
+		if ( ! McpStatus::default_server_off() ) {
+			echo '<br>' . esc_html__( 'MCP Adapter default server (enabled abilities through its discover and execute tools):', 'crazylinks' ) . ' <code>' . esc_html( McpStatus::default_endpoint() ) . '</code>';
+		}
+		echo '</p>';
 		echo '<p class="description">' . esc_html( McpStatus::user_advice() ) . '</p>';
 		echo '<p><label for="crazylinks_mcp_desktop">' . esc_html__( 'Claude Desktop: add this to claude_desktop_config.json (Settings → Developer → Edit Config). Your WordPress login name is already filled in; replace only the password placeholder with the application password itself, not its name:', 'crazylinks' ) . '</label><br>';
 		printf( '<textarea id="crazylinks_mcp_desktop" class="large-text code" rows="13" readonly>%s</textarea></p>', esc_textarea( McpStatus::desktop_config() ) );
