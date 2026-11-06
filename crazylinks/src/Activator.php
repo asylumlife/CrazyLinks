@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Activator {
 
-	public const DB_VERSION = '4';
+	public const DB_VERSION = '5';
 
 	/**
 	 * Activation hook.

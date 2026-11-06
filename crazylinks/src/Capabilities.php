@@ -76,6 +76,8 @@ final class Capabilities {
 				$role->add_cap( (string) $cap );
 			}
 		}
+		// The agent role (SPEC §10.7, 2026-11-06 review) exists on every site without WP-CLI.
+		self::ensure_agent_role();
 	}
 
 	/**
