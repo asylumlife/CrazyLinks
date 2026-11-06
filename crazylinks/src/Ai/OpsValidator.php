@@ -260,6 +260,13 @@ final class OpsValidator {
 		if ( 'product' === $type && ! empty( $props['product_id'] ) && \CrazyLinks\Woo\Store::is_available() && null === \CrazyLinks\Woo\Store::product( (int) $props['product_id'] ) ) {
 			$errors[] = self::err( $path . '/product_id', __( 'Unknown product, or the store did not answer. Use the search-products ability to find a product id.', 'crazylinks' ) );
 		}
+		if ( 'email_capture' === $type && ! empty( $props['audience_id'] ) ) {
+			$known = array_column( \CrazyLinks\Subscribers\Integrations::cached_audiences(), 'id' );
+			$known = array_filter( array_merge( $known, [ \CrazyLinks\Subscribers\Integrations::default_audience() ] ) );
+			if ( ! in_array( (string) $props['audience_id'], $known, true ) ) {
+				$errors[] = self::err( $path . '/audience_id', __( 'Unknown Mailchimp audience. Use one of the audiences configured on this site, or leave audience_id out for the site default.', 'crazylinks' ) );
+			}
+		}
 		if ( in_array( $type, [ 'latest_posts', 'woo_products' ], true ) && ! empty( $props['category'] ) && ! term_exists( (int) $props['category'] ) ) {
 			$errors[] = self::err( $path . '/category', __( 'Unknown category.', 'crazylinks' ) );
 		}

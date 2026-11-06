@@ -51,6 +51,20 @@ final class Service {
 	}
 
 	/**
+	 * Messages for one block: a block routed to Mailchimp says Mailchimp sends the confirmation.
+	 *
+	 * @param array<string, mixed> $props Block props.
+	 * @return array<string, string>
+	 */
+	public static function messages_for( array $props ): array {
+		$out = self::messages();
+		if ( Adapters\Mailchimp::ID === ( $props['destination'] ?? '' ) ) {
+			$out['pending'] = __( 'Check your email to confirm your subscription.', 'crazylinks' );
+		}
+		return $out;
+	}
+
+	/**
 	 * Where to send the visitor back: the page (or the home page when it is gone), with a
 	 * status in the query and a fragment that reveals the message next to the form.
 	 *
@@ -103,7 +117,18 @@ final class Service {
 			return $status;
 		}
 
-		$consent  = mb_substr( (string) ( $block['props']['consent_text'] ?? '' ), 0, 500 );
+		$consent = mb_substr( (string) ( $block['props']['consent_text'] ?? '' ), 0, 500 );
+		$skip    = '';
+		if ( Sync::is_mailchimp_block( $block ) ) {
+			if ( Integrations::mailchimp_connected() && '' !== Sync::audience_for( $block ) ) {
+				return self::subscribe_mailchimp( $page, $block, $email, $consent );
+			}
+			// Not connected (yet): keep the sign-up on the local list with this site's own double
+			// opt-in, so nobody is lost; backfill sends it once Mailchimp is set up.
+			$skip = Integrations::mailchimp_connected()
+				? __( 'No Mailchimp audience is chosen; kept on the local list.', 'crazylinks' )
+				: __( 'Mailchimp is not connected; kept on the local list.', 'crazylinks' );
+		}
 		$existing = Store::find( $page->ID, $email );
 		$response = $doi ? 'pending' : 'confirmed';
 
@@ -117,6 +142,8 @@ final class Service {
 					'status'       => $response,
 					'consent_text' => $consent,
 					'token'        => $token,
+					'sync_status'  => '' !== $skip ? 'skipped' : '',
+					'sync_error'   => $skip,
 				]
 			);
 			$row   = $id > 0 ? Store::get( $id ) : null;
@@ -154,6 +181,88 @@ final class Service {
 	}
 
 	/**
+	 * A sign-up on a block routed to Mailchimp: stored locally as pending (Mailchimp owns the
+	 * confirmation and its webhook confirms the row), pushed at once, no email from this site.
+	 * Always answers `pending`, so the response never reveals whether the address was known.
+	 *
+	 * @param \WP_Post             $page    Page.
+	 * @param array<string, mixed> $block   Block.
+	 * @param string               $email   Normalized email.
+	 * @param string               $consent Consent text snapshot.
+	 */
+	private static function subscribe_mailchimp( \WP_Post $page, array $block, string $email, string $consent ): string {
+		$block_id = (string) $block['id'];
+		$audience = Sync::audience_for( $block );
+		$existing = Store::find( $page->ID, $email );
+		if ( null === $existing ) {
+			$id  = Store::insert(
+				[
+					'page_id'      => $page->ID,
+					'block_id'     => $block_id,
+					'email'        => $email,
+					'status'       => 'pending',
+					'consent_text' => $consent,
+					'token'        => Store::new_token(),
+					'destination'  => Adapters\Mailchimp::ID,
+					'audience_id'  => $audience,
+					'sync_status'  => 'queued',
+				]
+			);
+			$row = $id > 0 ? Store::get( $id ) : null;
+			if ( $row ) {
+				self::announce( 'crazylinks_subscriber_added', $row );
+				self::announce( 'crazylinks_subscriber_pending', $row );
+				Sync::push( $id, 'signup' );
+			}
+			return 'pending';
+		}
+		$id = (int) $existing['id'];
+		if ( 'confirmed' === $existing['status'] ) {
+			// Already confirmed here: make sure Mailchimp has them (as subscribed), nothing else.
+			if ( 'sent' !== $existing['sync_status'] || $audience !== $existing['audience_id'] ) {
+				Store::update(
+					$id,
+					[
+						'destination'   => Adapters\Mailchimp::ID,
+						'audience_id'   => $audience,
+						'sync_status'   => 'queued',
+						'sync_attempts' => 0,
+						'sync_error'    => '',
+					]
+				);
+				Sync::push( $id, 'signup' );
+			}
+			return 'pending';
+		}
+		if ( 'pending' === $existing['status'] && Adapters\Mailchimp::ID === $existing['destination'] && time() - (int) strtotime( (string) $existing['updated_at'] . ' UTC' ) < 5 * MINUTE_IN_SECONDS ) {
+			return 'pending'; // Pushed moments ago; Mailchimp's confirmation is on its way.
+		}
+		Store::update(
+			$id,
+			[
+				'status'        => 'pending',
+				'block_id'      => $block_id,
+				'consent_text'  => $consent,
+				'consent_at'    => Store::now(),
+				'confirmed_at'  => null,
+				'token'         => Store::new_token(),
+				'destination'   => Adapters\Mailchimp::ID,
+				'audience_id'   => $audience,
+				'sync_status'   => 'queued',
+				'sync_attempts' => 0,
+				'sync_error'    => '',
+			]
+		);
+		wp_clear_scheduled_hook( Sync::HOOK_PUSH, [ $id ] );
+		$row = Store::get( $id );
+		if ( $row ) {
+			self::announce( 'crazylinks_subscriber_pending', $row );
+			Sync::push( $id, 'signup' );
+		}
+		return 'pending';
+	}
+
+	/**
 	 * Hooks and email after a row became pending or confirmed. At most 3 emails per address per hour.
 	 *
 	 * @param array<string, mixed> $row   Row.
@@ -179,7 +288,7 @@ final class Service {
 	 * @param string               $hook Hook name.
 	 * @param array<string, mixed> $row  Row (no token hash).
 	 */
-	private static function announce( string $hook, array $row ): void {
+	public static function announce( string $hook, array $row ): void {
 		/**
 		 * Fires for subscriber lifecycle changes: `crazylinks_subscriber_added` (new row),
 		 * `crazylinks_subscriber_pending`, `crazylinks_subscriber_confirmed`,

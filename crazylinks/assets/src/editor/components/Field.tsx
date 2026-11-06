@@ -18,6 +18,7 @@ import MediaField from './MediaField';
 import ItemsField from './ItemsField';
 import FocalPicker from './FocalPicker';
 import ProductField from './ProductField';
+import AudienceField from './AudienceField';
 import { isoToLocalInput, localInputToIso } from '../lib/datetime';
 
 export interface FieldProps {
@@ -341,6 +342,15 @@ export default function Field( {
 					value={ typeof value === 'number' ? value : undefined }
 					onChange={ ( next ) => onChange( next ) }
 					help={ def.help }
+					error={ error }
+				/>
+			);
+		case 'audience':
+			return (
+				<AudienceField
+					label={ label }
+					value={ asString( value ) }
+					onChange={ ( next ) => onChange( next ) }
 					error={ error }
 				/>
 			);

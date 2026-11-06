@@ -12,6 +12,7 @@ use CrazyLinks\PostType;
 use CrazyLinks\Subscribers\ListTable;
 use CrazyLinks\Subscribers\Service;
 use CrazyLinks\Subscribers\Store;
+use CrazyLinks\Subscribers\Sync;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -79,7 +80,21 @@ final class SubscribersPage {
 		if ( '-1' === $action || '' === $action ) {
 			$action = isset( $_REQUEST['action2'] ) ? sanitize_key( wp_unslash( $_REQUEST['action2'] ) ) : '';
 		}
-		if ( ! in_array( $action, [ 'delete', 'resend' ], true ) ) {
+		if ( 'backfill' === $action ) {
+			check_admin_referer( 'crazylinks_subscribers_backfill' );
+			$started = Sync::backfill_start();
+			wp_safe_redirect(
+				add_query_arg(
+					[
+						'cl_done' => 'backfill',
+						'cl_n'    => is_wp_error( $started ) ? 0 : 1,
+					],
+					admin_url( 'edit.php?post_type=' . PostType::NAME . '&page=' . self::SLUG )
+				)
+			);
+			exit;
+		}
+		if ( ! in_array( $action, [ 'delete', 'resend', 'retry_sync' ], true ) ) {
 			return;
 		}
 		if ( isset( $_GET['subscriber'] ) && ! is_array( $_GET['subscriber'] ) ) {
@@ -94,6 +109,8 @@ final class SubscribersPage {
 		$n   = 0;
 		if ( 'delete' === $action ) {
 			$n = Store::delete( $ids );
+		} elseif ( 'retry_sync' === $action ) {
+			$n = Sync::retry( $ids );
 		} else {
 			foreach ( $ids as $id ) {
 				$n += Service::resend( $id ) ? 1 : 0;
@@ -124,12 +141,31 @@ final class SubscribersPage {
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Result notice only.
 		if ( isset( $_GET['cl_done'], $_GET['cl_n'] ) ) {
 			$n    = absint( $_GET['cl_n'] );
-			$text = 'delete' === $_GET['cl_done']
+			$done = sanitize_key( wp_unslash( $_GET['cl_done'] ) );
+			$ok   = true;
+			if ( 'delete' === $done ) {
 				/* translators: %d: number of subscribers. */
-				? _n( '%d subscriber deleted.', '%d subscribers deleted.', $n, 'crazylinks' )
+				$text = _n( '%d subscriber deleted.', '%d subscribers deleted.', $n, 'crazylinks' );
+			} elseif ( 'retry_sync' === $done ) {
+				/* translators: %d: number of subscribers. */
+				$text = _n( '%d subscriber sent to Mailchimp.', '%d subscribers sent to Mailchimp.', $n, 'crazylinks' );
+			} elseif ( 'backfill' === $done ) {
+				$ok   = $n > 0;
+				$text = $ok ? __( 'Backfill started. Confirmed subscribers are sent to Mailchimp in batches in the background.', 'crazylinks' ) : __( 'Backfill could not start: connect Mailchimp and choose a default audience under Settings → Integrations first.', 'crazylinks' );
+			} else {
 				/* translators: %d: number of emails. */
-				: _n( '%d confirmation email sent.', '%d confirmation emails sent.', $n, 'crazylinks' );
-			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( $text, $n ) ) . '</p></div>';
+				$text = _n( '%d confirmation email sent.', '%d confirmation emails sent.', $n, 'crazylinks' );
+			}
+			echo '<div class="notice notice-' . ( $ok ? 'success' : 'error' ) . ' is-dismissible"><p>' . esc_html( sprintf( $text, $n ) ) . '</p></div>';
+		}
+		$state = Sync::backfill_state();
+		if ( $state && ( $state['running'] || $state['finished'] > time() - DAY_IN_SECONDS ) ) {
+			$text = $state['running']
+				/* translators: 1: rows handled, 2: total rows, 3: rows that failed. */
+				? sprintf( __( 'Backfill to Mailchimp in progress: %1$s of %2$s handled (%3$s failed). Reload to update.', 'crazylinks' ), number_format_i18n( $state['sent'] + $state['failed'] ), number_format_i18n( $state['total'] ), number_format_i18n( $state['failed'] ) )
+				/* translators: 1: rows sent, 2: rows that failed. */
+				: sprintf( __( 'Backfill to Mailchimp finished: %1$s sent, %2$s failed (see the Sync column).', 'crazylinks' ), number_format_i18n( $state['sent'] ), number_format_i18n( $state['failed'] ) );
+			echo '<div class="notice notice-info"><p>' . esc_html( $text ) . '</p></div>';
 		}
 		// phpcs:enable
 		$table->views();
@@ -145,9 +181,16 @@ final class SubscribersPage {
 	}
 
 	/**
+	 * Nonce-protected link that starts a backfill.
+	 */
+	public static function backfill_url(): string {
+		return wp_nonce_url( admin_url( 'edit.php?post_type=' . PostType::NAME . '&page=' . self::SLUG . '&action=backfill' ), 'crazylinks_subscribers_backfill' );
+	}
+
+	/**
 	 * Nonce-protected CSV link honouring the current filters.
 	 *
-	 * @param array{page_id:int, status:string, search:string} $f Filters.
+	 * @param array{page_id:int, status:string, search:string, sync?:string} $f Filters.
 	 */
 	public static function export_url( array $f ): string {
 		return wp_nonce_url(
@@ -158,6 +201,7 @@ final class SubscribersPage {
 						'page_id' => $f['page_id'],
 						'status'  => $f['status'],
 						's'       => $f['search'],
+						'sync'    => $f['sync'] ?? '',
 					]
 				),
 				admin_url( 'admin-post.php' )

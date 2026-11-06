@@ -37,15 +37,17 @@ final class ListTable extends \WP_List_Table {
 	/**
 	 * Current filters from the query string.
 	 *
-	 * @return array{page_id:int, status:string, search:string}
+	 * @return array{page_id:int, status:string, search:string, sync:string}
 	 */
 	public static function filters(): array {
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only filters.
 		$status = isset( $_GET['status'] ) ? sanitize_key( wp_unslash( $_GET['status'] ) ) : '';
+		$sync   = isset( $_GET['sync'] ) ? sanitize_key( wp_unslash( $_GET['sync'] ) ) : '';
 		return [
 			'page_id' => isset( $_GET['page_id'] ) ? absint( $_GET['page_id'] ) : 0,
 			'status'  => in_array( $status, Store::STATUSES, true ) ? $status : '',
 			'search'  => isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '',
+			'sync'    => in_array( $sync, Store::SYNC_STATUSES, true ) ? $sync : '',
 		];
 		// phpcs:enable
 	}
@@ -62,6 +64,7 @@ final class ListTable extends \WP_List_Table {
 			'page'       => __( 'Page', 'crazylinks' ),
 			'status'     => __( 'Status', 'crazylinks' ),
 			'consent_at' => __( 'Consent date', 'crazylinks' ),
+			'sync'       => __( 'Sync', 'crazylinks' ),
 		];
 	}
 
@@ -85,8 +88,9 @@ final class ListTable extends \WP_List_Table {
 	 */
 	protected function get_bulk_actions(): array {
 		return [
-			'resend' => __( 'Resend confirmation', 'crazylinks' ),
-			'delete' => __( 'Delete', 'crazylinks' ),
+			'resend'     => __( 'Resend confirmation', 'crazylinks' ),
+			'retry_sync' => __( 'Retry sync', 'crazylinks' ),
+			'delete'     => __( 'Delete', 'crazylinks' ),
 		];
 	}
 
@@ -133,7 +137,10 @@ final class ListTable extends \WP_List_Table {
 	 */
 	protected function column_email( $item ): string {
 		$actions = [];
-		if ( 'pending' === $item['status'] ) {
+		if ( in_array( (string) $item['sync_status'], [ 'queued', 'failed', 'skipped' ], true ) ) {
+			$actions['retry_sync'] = '<a href="' . esc_url( $this->action_url( 'retry_sync', (int) $item['id'] ) ) . '">' . esc_html__( 'Retry sync', 'crazylinks' ) . '</a>';
+		}
+		if ( 'pending' === $item['status'] && 'mailchimp' !== $item['destination'] ) {
 			$actions['resend'] = '<a href="' . esc_url( $this->action_url( 'resend', (int) $item['id'] ) ) . '">' . esc_html__( 'Resend confirmation', 'crazylinks' ) . '</a>';
 		}
 		$actions['delete'] = '<a href="' . esc_url( $this->action_url( 'delete', (int) $item['id'] ) ) . '" class="submitdelete">' . esc_html__( 'Delete', 'crazylinks' ) . '</a>';
@@ -156,7 +163,48 @@ final class ListTable extends \WP_List_Table {
 	 * @param array<string, mixed> $item Row.
 	 */
 	protected function column_status( $item ): string {
-		return esc_html( self::status_label( (string) $item['status'] ) );
+		$label = self::status_label( (string) $item['status'] );
+		if ( 'pending' === $item['status'] && 'mailchimp' === $item['destination'] ) {
+			/* translators: %s: status label ("Pending"). */
+			$label = sprintf( __( '%s (Mailchimp confirms)', 'crazylinks' ), $label );
+		}
+		return esc_html( $label );
+	}
+
+	/**
+	 * Sync cell: Queued / Sent / Failed (error on hover) / Skipped, or a dash.
+	 *
+	 * @param array<string, mixed> $item Row.
+	 */
+	protected function column_sync( $item ): string {
+		$state = (string) $item['sync_status'];
+		if ( '' === $state ) {
+			return '&mdash;';
+		}
+		$label = self::sync_label( $state );
+		$error = (string) $item['sync_error'];
+		if ( 'failed' === $state ) {
+			/* translators: 1: number of attempts. */
+			$label .= ' ' . sprintf( _n( '(%d attempt)', '(%d attempts)', (int) $item['sync_attempts'], 'crazylinks' ), (int) $item['sync_attempts'] );
+		}
+		if ( 'sent' === $state && ! empty( $item['synced_at'] ) ) {
+			$error = wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), (int) strtotime( (string) $item['synced_at'] . ' UTC' ) );
+		}
+		return '' !== $error ? '<span title="' . esc_attr( $error ) . '">' . esc_html( $label ) . '</span>' . ( 'sent' !== $state ? '<br><span class="description">' . esc_html( $error ) . '</span>' : '' ) : esc_html( $label );
+	}
+
+	/**
+	 * Translated sync state.
+	 *
+	 * @param string $state Sync state.
+	 */
+	public static function sync_label( string $state ): string {
+		return [
+			'queued'  => __( 'Queued', 'crazylinks' ),
+			'sent'    => __( 'Sent', 'crazylinks' ),
+			'failed'  => __( 'Failed', 'crazylinks' ),
+			'skipped' => __( 'Skipped', 'crazylinks' ),
+		][ $state ] ?? $state;
 	}
 
 	/**
@@ -253,8 +301,17 @@ final class ListTable extends \WP_List_Table {
 			printf( '<option value="%d"%s>%s</option>', (int) $p->ID, selected( $f['page_id'], $p->ID, false ), esc_html( '' !== $p->post_title ? $p->post_title : $p->post_name ) );
 		}
 		echo '</select>';
+		echo '<label class="screen-reader-text" for="cl-sub-sync">' . esc_html__( 'Filter by sync', 'crazylinks' ) . '</label><select name="sync" id="cl-sub-sync"><option value="">' . esc_html__( 'Any sync state', 'crazylinks' ) . '</option>';
+		foreach ( Store::SYNC_STATUSES as $state ) {
+			printf( '<option value="%s"%s>%s</option>', esc_attr( $state ), selected( $f['sync'], $state, false ), esc_html( self::sync_label( $state ) ) );
+		}
+		echo '</select>';
 		submit_button( __( 'Filter', 'crazylinks' ), '', 'filter_action', false );
-		echo ' <a class="button" href="' . esc_url( SubscribersPage::export_url( $f ) ) . '">' . esc_html__( 'Export CSV', 'crazylinks' ) . '</a></div>';
+		echo ' <a class="button" href="' . esc_url( SubscribersPage::export_url( $f ) ) . '">' . esc_html__( 'Export CSV', 'crazylinks' ) . '</a>';
+		if ( Adapters::active() ) {
+			echo ' <a class="button" href="' . esc_url( SubscribersPage::backfill_url() ) . '">' . esc_html__( 'Backfill to Mailchimp', 'crazylinks' ) . '</a>';
+		}
+		echo '</div>';
 	}
 
 	/**
@@ -273,7 +330,7 @@ final class ListTable extends \WP_List_Table {
 	/**
 	 * Nonce-protected single-row action link.
 	 *
-	 * @param string $action resend | delete.
+	 * @param string $action resend | retry_sync | delete.
 	 * @param int    $id     Subscriber id.
 	 */
 	private function action_url( string $action, int $id ): string {

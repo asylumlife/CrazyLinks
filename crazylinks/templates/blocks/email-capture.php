@@ -15,6 +15,7 @@ defined( 'ABSPATH' ) || exit;
 $crazylinks_uid     = 'cl-ec-' . (string) $block['id'];
 $crazylinks_consent = (string) ( $props['consent_text'] ?? '' );
 // The block's own wording replaces the site defaults for the pending (double opt-in) and success messages.
+// A block routed to Mailchimp defaults to "Check your email to confirm your subscription." (Mailchimp sends it).
 $crazylinks_custom = [
 	'pending'   => trim( (string) ( $props['pending_text'] ?? '' ) ),
 	'confirmed' => trim( (string) ( $props['success_text'] ?? '' ) ),
@@ -25,7 +26,7 @@ $crazylinks_custom = [
 	<?php if ( ! empty( $props['heading'] ) ) : ?>
 		<p class="cl-capture__heading" id="<?php echo esc_attr( $crazylinks_uid ); ?>-h"><?php echo esc_html( (string) $props['heading'] ); ?></p>
 	<?php endif; ?>
-	<?php foreach ( \CrazyLinks\Subscribers\Service::messages() as $crazylinks_key => $crazylinks_msg ) : ?>
+	<?php foreach ( \CrazyLinks\Subscribers\Service::messages_for( $props ) as $crazylinks_key => $crazylinks_msg ) : ?>
 		<p class="cl-capture__msg" id="<?php echo esc_attr( $crazylinks_uid . '-m-' . $crazylinks_key ); ?>" role="status" tabindex="-1"><?php echo esc_html( '' !== ( $crazylinks_custom[ $crazylinks_key ] ?? '' ) ? $crazylinks_custom[ $crazylinks_key ] : $crazylinks_msg ); ?></p>
 	<?php endforeach; ?>
 	<input type="hidden" name="page_id" value="<?php echo esc_attr( (string) $ctx->post_id ); ?>">

@@ -10,7 +10,8 @@ namespace CrazyLinks\Subscribers;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Registers the privacy exporter and eraser and the WP-CLI subscribers command. Safe to call twice.
+ * Registers the privacy exporter and eraser, the email-service sync cron callbacks and the WP-CLI
+ * subscribers command. Safe to call twice.
  */
 final class Bootstrap {
 
@@ -30,6 +31,7 @@ final class Bootstrap {
 		}
 		self::$registered = true;
 		( new PersonalData() )->register_hooks();
+		Sync::register_hooks(); // Cron retries and backfill batches run without the admin.
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			// After Plugin::boot() added the parent `crazylinks` command.
 			add_action(

@@ -22,7 +22,8 @@ export type FieldKind =
 	| 'multicheck'
 	| 'focal'
 	| 'items'
-	| 'product';
+	| 'product'
+	| 'audience';
 
 export interface Option {
 	value: string;
@@ -59,6 +60,10 @@ export interface FieldDef {
 	/** For a nested key (`background/type`): clearing this field removes the whole parent object. */
 	clearsParent?: boolean;
 }
+
+/** Email sign-up blocks routed to Mailchimp. */
+export const isMailchimp = ( p: JsonObject ): boolean =>
+	p.destination === 'mailchimp';
 
 export type BlockCategory =
 	'links' | 'content' | 'media' | 'commerce' | 'layout' | 'advanced';
@@ -914,6 +919,38 @@ export function blockDefs(): Record< string, BlockDef > {
 					maxLength: 500,
 				},
 				{
+					key: 'destination',
+					label: __( 'Send sign-ups to', 'crazylinks' ),
+					kind: 'select',
+					options: [
+						{
+							value: 'local',
+							label: __( "This site's list", 'crazylinks' ),
+						},
+						{ value: 'mailchimp', label: 'Mailchimp' },
+					],
+					help: __(
+						'Mailchimp sends its own confirmation email; connect it under CrazyLinks → Settings → Integrations.',
+						'crazylinks'
+					),
+				},
+				{
+					key: 'audience_id',
+					label: __( 'Mailchimp audience', 'crazylinks' ),
+					kind: 'audience',
+					showIf: isMailchimp,
+				},
+				{
+					key: 'tags',
+					label: __( 'Mailchimp tags', 'crazylinks' ),
+					kind: 'tags',
+					help: __(
+						'Comma-separated, up to 10. Added to everyone who signs up here.',
+						'crazylinks'
+					),
+					showIf: isMailchimp,
+				},
+				{
 					key: 'pending_text',
 					label: __(
 						'Message after sign-up (check your inbox)',
@@ -925,6 +962,19 @@ export function blockDefs(): Record< string, BlockDef > {
 						'Check your inbox and click the link we sent to confirm your email.',
 						'crazylinks'
 					),
+					showIf: ( p ) => ! isMailchimp( p ),
+				},
+				{
+					key: 'pending_text',
+					label: __( 'Message after sign-up', 'crazylinks' ),
+					kind: 'text',
+					maxLength: 200,
+					// The default a Mailchimp block shows (Mailchimp sends the confirmation email).
+					placeholder: __(
+						'Check your email to confirm your subscription.',
+						'crazylinks'
+					),
+					showIf: isMailchimp,
 				},
 				{
 					key: 'success_text',
@@ -935,13 +985,6 @@ export function blockDefs(): Record< string, BlockDef > {
 						'You are in. Thanks for subscribing!',
 						'crazylinks'
 					),
-				},
-				{
-					key: 'tags',
-					label: __( 'Tags', 'crazylinks' ),
-					kind: 'tags',
-					help: __( 'Comma-separated.', 'crazylinks' ),
-					advanced: true,
 				},
 			],
 		},

@@ -13,6 +13,9 @@ use CrazyLinks\Ai\McpStatus;
 use CrazyLinks\Ai\Status;
 use CrazyLinks\PostType;
 use CrazyLinks\Settings;
+use CrazyLinks\Subscribers\Adapters;
+use CrazyLinks\Subscribers\Adapters\Mailchimp;
+use CrazyLinks\Subscribers\Integrations;
 use CrazyLinks\Woo\Store;
 
 defined( 'ABSPATH' ) || exit;
@@ -31,6 +34,8 @@ final class SettingsPage {
 		add_action( 'admin_menu', [ $this, 'menu' ] );
 		add_action( 'admin_init', [ $this, 'register' ] );
 		add_action( 'admin_post_crazylinks_flush', [ $this, 'flush' ] );
+		add_action( 'admin_post_crazylinks_mailchimp_test', [ $this, 'mailchimp_test' ] );
+		add_action( 'admin_post_crazylinks_mailchimp_webhook', [ $this, 'mailchimp_webhook' ] );
 		add_filter( 'option_page_capability_crazylinks', static fn() => 'manage_crazylinks' );
 	}
 
@@ -101,6 +106,27 @@ final class SettingsPage {
 			]
 		);
 
+		add_settings_section( 'crazylinks_integrations', __( 'Integrations', 'crazylinks' ), [ $this, 'integrations_intro' ], self::SLUG );
+		$int_fields = [
+			'subscriber_adapter' => __( 'Email service', 'crazylinks' ),
+			'mailchimp_api_key'  => __( 'Mailchimp API key', 'crazylinks' ),
+			'mailchimp_audience' => __( 'Default audience', 'crazylinks' ),
+			'mailchimp_webhook'  => __( 'Mailchimp webhook', 'crazylinks' ),
+		];
+		foreach ( $int_fields as $key => $label ) {
+			add_settings_field(
+				'crazylinks_' . $key,
+				$label,
+				[ $this, 'integration_field' ],
+				self::SLUG,
+				'crazylinks_integrations',
+				[
+					'key'       => $key,
+					'label_for' => 'crazylinks_' . $key,
+				]
+			);
+		}
+
 		add_settings_section( 'crazylinks_ai', __( 'AI editing', 'crazylinks' ), [ $this, 'ai_intro' ], self::SLUG );
 		$ai_fields = [
 			'ai_enabled'        => __( 'AI editing', 'crazylinks' ),
@@ -156,6 +182,163 @@ final class SettingsPage {
 		} else {
 			echo '<p class="description"><strong>' . esc_html__( 'The store did not answer.', 'crazylinks' ) . '</strong> ' . esc_html__( 'Check the address and that WooCommerce is installed there. Products already fetched keep showing.', 'crazylinks' ) . '</p>';
 		}
+	}
+
+	/**
+	 * Integrations section intro.
+	 */
+	public function integrations_intro(): void {
+		// Pressing Enter in any field submits the first submit button in the form: make that "Save"
+		// rather than the Test connection button below.
+		echo '<div id="crazylinks-integrations"></div><input type="submit" name="submit" value="' . esc_attr__( 'Save Changes', 'crazylinks' ) . '" class="screen-reader-text" tabindex="-1" aria-hidden="true">';
+		echo '<p>' . esc_html__( 'Send sign-ups from Email sign-up blocks to an email service. Each block chooses "This site\'s list" or the service in its settings; blocks that keep this site\'s list are not affected. Nothing is sent to Mailchimp until you save a key here and route a block to it.', 'crazylinks' ) . '</p>';
+		$notice = get_transient( self::notice_key() );
+		if ( is_array( $notice ) && isset( $notice['message'] ) ) {
+			delete_transient( self::notice_key() );
+			printf( '<div class="notice notice-%s inline"><p>%s</p></div>', ! empty( $notice['ok'] ) ? 'success' : 'error', esc_html( (string) $notice['message'] ) );
+		}
+	}
+
+	/**
+	 * Renders one Integrations field.
+	 *
+	 * @param array{key:string} $args Field args.
+	 */
+	public function integration_field( array $args ): void {
+		$s   = Settings::all();
+		$opt = Settings::OPTION;
+		$id  = 'crazylinks_' . $args['key'];
+		switch ( $args['key'] ) {
+			case 'subscriber_adapter':
+				printf( '<select id="%s" name="%s[subscriber_adapter]">', esc_attr( $id ), esc_attr( $opt ) );
+				printf( '<option value=""%s>%s</option>', selected( (string) $s['subscriber_adapter'], '', false ), esc_html__( 'Local list only', 'crazylinks' ) );
+				foreach ( Adapters::all() as $adapter_id => $adapter ) {
+					printf( '<option value="%s"%s>%s</option>', esc_attr( $adapter_id ), selected( (string) $s['subscriber_adapter'], $adapter_id, false ), esc_html( $adapter->label() ) );
+				}
+				echo '</select>';
+				break;
+			case 'mailchimp_api_key':
+				$key = Integrations::api_key();
+				printf( '<input type="text" id="%s" name="%s[mailchimp_api_key]" value="%s" class="regular-text code" autocomplete="off" spellcheck="false" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-us6">', esc_attr( $id ), esc_attr( $opt ), esc_attr( Integrations::mask( $key ) ) );
+				echo '<p class="description">' . esc_html__( 'In Mailchimp: Profile → Extras → API keys → Create A Key. Only the last four characters are shown after saving; leave the field as it is to keep the key, or clear it to remove the key.', 'crazylinks' ) . '</p>';
+				$test = Integrations::last_test();
+				if ( $test ) {
+					printf(
+						'<p class="description"><strong>%s</strong> %s</p>',
+						esc_html( $test['ok'] ? __( 'Connection OK.', 'crazylinks' ) : __( 'Connection failed.', 'crazylinks' ) ),
+						esc_html(
+							$test['message'] . ' ' . sprintf(
+								/* translators: %s: time since the test, for example "5 mins". */
+								__( '(tested %s ago)', 'crazylinks' ),
+								human_time_diff( $test['at'] )
+							)
+						)
+					);
+				}
+				printf( '<p><button type="submit" class="button" name="action" value="crazylinks_mailchimp_test" formaction="%s" formnovalidate>%s</button></p>', esc_url( self::action_url( 'crazylinks_mailchimp_test' ) ), esc_html__( 'Test connection', 'crazylinks' ) );
+				break;
+			case 'mailchimp_audience':
+				$current = Integrations::default_audience();
+				$list    = '' !== Integrations::api_key() ? Integrations::audiences() : new \WP_Error( 'none', __( 'Save an API key to choose from your audiences.', 'crazylinks' ) );
+				if ( is_wp_error( $list ) ) {
+					printf( '<input type="text" id="%s" name="%s[mailchimp_audience]" value="%s" class="regular-text code" pattern="[0-9a-z]{6,20}" autocomplete="off">', esc_attr( $id ), esc_attr( $opt ), esc_attr( $current ) );
+					echo '<p class="description">' . esc_html( $list->get_error_message() ) . ' ' . esc_html__( 'You can also paste the Audience ID (Mailchimp: Audience → Settings → Audience name and defaults).', 'crazylinks' ) . '</p>';
+					break;
+				}
+				printf( '<select id="%s" name="%s[mailchimp_audience]"><option value="">%s</option>', esc_attr( $id ), esc_attr( $opt ), esc_html__( 'Choose an audience', 'crazylinks' ) );
+				$known = false;
+				foreach ( $list as $aud ) {
+					$known = $known || $aud['id'] === $current;
+					/* translators: 1: audience name, 2: member count. */
+					printf( '<option value="%s"%s>%s</option>', esc_attr( $aud['id'] ), selected( $current, $aud['id'], false ), esc_html( sprintf( _n( '%1$s (%2$s member)', '%1$s (%2$s members)', $aud['member_count'], 'crazylinks' ), $aud['name'], number_format_i18n( $aud['member_count'] ) ) ) );
+				}
+				if ( '' !== $current && ! $known ) {
+					/* translators: %s: audience id. */
+					printf( '<option value="%1$s" selected>%2$s</option>', esc_attr( $current ), esc_html( sprintf( __( '%s (not found in this account)', 'crazylinks' ), $current ) ) );
+				}
+				echo '</select><p class="description">' . esc_html__( 'Used by sign-up blocks routed to Mailchimp that do not pick their own audience. The list is refreshed every 10 minutes.', 'crazylinks' ) . '</p>';
+				break;
+			case 'mailchimp_webhook':
+				printf( '<input type="text" id="%s" value="%s" class="large-text code" readonly onfocus="this.select()">', esc_attr( $id ), esc_attr( Integrations::webhook_url() ) );
+				echo '<p class="description">' . esc_html__( 'Mailchimp sends confirmations and unsubscribes here, so the Subscribers screen stays up to date. Register it with the button (for the default audience), or paste it in Mailchimp under Audience → Settings → Webhooks with the events subscribes, unsubscribes and cleaned address, for every audience a block uses. Keep the address private: the key in it is the password.', 'crazylinks' ) . '</p>';
+				printf( '<p><button type="submit" class="button" name="action" value="crazylinks_mailchimp_webhook" formaction="%s" formnovalidate>%s</button></p>', esc_url( self::action_url( 'crazylinks_mailchimp_webhook' ) ), esc_html__( 'Register webhook in Mailchimp', 'crazylinks' ) );
+				break;
+		}
+	}
+
+	/**
+	 * The admin-post URL for a button inside the settings form. The button also carries name="action"
+	 * (after the form's hidden action=update, so it wins) and the nonce uses its own field name, so
+	 * the settings form's _wpnonce cannot collide.
+	 *
+	 * @param string $action Action.
+	 */
+	private static function action_url( string $action ): string {
+		return wp_nonce_url( add_query_arg( 'action', $action, admin_url( 'admin-post.php' ) ), $action, 'cl_nonce' );
+	}
+
+	/**
+	 * Per-user transient for the result of a button.
+	 */
+	private static function notice_key(): string {
+		return 'crazylinks_int_notice_' . get_current_user_id();
+	}
+
+	/**
+	 * Remembers a result and returns to the Integrations section.
+	 *
+	 * @param bool   $ok      Success.
+	 * @param string $message Message.
+	 */
+	private static function back( bool $ok, string $message ): void {
+		set_transient(
+			self::notice_key(),
+			[
+				'ok'      => $ok,
+				'message' => $message,
+			],
+			5 * MINUTE_IN_SECONDS
+		);
+		wp_safe_redirect( admin_url( 'edit.php?post_type=' . PostType::NAME . '&page=' . self::SLUG . '#crazylinks-integrations' ) );
+		exit;
+	}
+
+	/**
+	 * "Test connection": tests the key typed in the field when it is new (without saving it), else
+	 * the saved key.
+	 */
+	public function mailchimp_test(): void {
+		if ( ! current_user_can( 'manage_crazylinks' ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to do that.', 'crazylinks' ), 403 );
+		}
+		check_admin_referer( 'crazylinks_mailchimp_test', 'cl_nonce' );
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Verified above with the cl_nonce field.
+		$posted = isset( $_POST[ Settings::OPTION ]['mailchimp_api_key'] ) ? trim( sanitize_text_field( wp_unslash( $_POST[ Settings::OPTION ]['mailchimp_api_key'] ) ) ) : '';
+		$typed  = '' !== $posted && ! Integrations::is_mask( $posted ) && Integrations::api_key() !== $posted;
+		$result = Integrations::test( $typed ? $posted : null );
+		if ( true === $result ) {
+			self::back( true, $typed ? __( 'Connected to Mailchimp with the key you typed. Save the settings to keep it.', 'crazylinks' ) : __( 'Connected to Mailchimp.', 'crazylinks' ) );
+		}
+		self::back( false, $result->get_error_message() );
+	}
+
+	/**
+	 * "Register webhook in Mailchimp" for the default audience.
+	 */
+	public function mailchimp_webhook(): void {
+		if ( ! current_user_can( 'manage_crazylinks' ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to do that.', 'crazylinks' ), 403 );
+		}
+		check_admin_referer( 'crazylinks_mailchimp_webhook', 'cl_nonce' );
+		$audience = Integrations::default_audience();
+		if ( '' === $audience ) {
+			self::back( false, __( 'Choose a default audience and save the settings first.', 'crazylinks' ) );
+		}
+		$result = ( new Mailchimp() )->register_webhook( $audience, Integrations::webhook_url() );
+		if ( is_wp_error( $result ) ) {
+			self::back( false, $result->get_error_message() );
+		}
+		self::back( true, 'exists' === $result ? __( 'The webhook was already registered in Mailchimp for the default audience.', 'crazylinks' ) : __( 'Webhook registered in Mailchimp for the default audience (subscribes, unsubscribes and cleaned addresses).', 'crazylinks' ) );
 	}
 
 	/**
@@ -344,7 +527,7 @@ final class SettingsPage {
 				break;
 			case 'fetch_oembed':
 				printf( '<label><input type="checkbox" id="%s" name="%s" value="1"%s> %s</label>', esc_attr( $id ), esc_attr( $name ), checked( ! empty( $s['fetch_oembed'] ), true, false ), esc_html__( 'Fetch embed details from the provider when a page with an Embed or Video block is saved.', 'crazylinks' ) );
-				echo '<p class="description">' . esc_html__( 'This is the only outbound request CrazyLinks makes: when you save, WordPress asks the provider (YouTube, Vimeo, Spotify and similar) for the title, thumbnail and player of the URL you entered. Visitors never trigger it. Turn it off to make no requests; embeds then show a plain link.', 'crazylinks' ) . '</p>';
+				echo '<p class="description">' . esc_html__( 'Apart from a store or Mailchimp you connect below, this is the only outbound request CrazyLinks makes: when you save, WordPress asks the provider (YouTube, Vimeo, Spotify and similar) for the title, thumbnail and player of the URL you entered. Visitors never trigger it. Turn it off to make no requests; embeds then show a plain link.', 'crazylinks' ) . '</p>';
 				break;
 			case 'store_url':
 				printf( '<input type="url" id="%s" name="%s" value="%s" class="regular-text code" placeholder="https://store.example.com" maxlength="200" autocomplete="off">', esc_attr( $id ), esc_attr( $name ), esc_attr( (string) $s['store_url'] ) );

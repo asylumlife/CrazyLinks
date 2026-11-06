@@ -17,6 +17,8 @@ if ( ! function_exists( 'crazylinks_uninstall_site' ) ) {
 		global $wpdb;
 
 		wp_clear_scheduled_hook( 'crazylinks_daily_rollup' );
+		wp_unschedule_hook( 'crazylinks_subscriber_sync' );
+		wp_unschedule_hook( 'crazylinks_subscriber_backfill' );
 
 		$settings = get_option( 'crazylinks_settings', array() );
 		if ( empty( $settings['delete_on_uninstall'] ) ) {
@@ -45,7 +47,7 @@ if ( ! function_exists( 'crazylinks_uninstall_site' ) ) {
 		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '\_transient\_crazylinks\_%' OR option_name LIKE '\_transient\_timeout\_crazylinks\_%'" );
 		// phpcs:enable
 
-		foreach ( array( 'crazylinks_settings', 'crazylinks_db_version', 'crazylinks_salt', 'crazylinks_rollup_through', 'crazylinks_flush_rewrite', 'crazylinks_cache_salt', 'crazylinks_ai_usage', 'crazylinks_store_last', 'crazylinks_store_gen' ) as $option ) {
+		foreach ( array( 'crazylinks_settings', 'crazylinks_db_version', 'crazylinks_salt', 'crazylinks_rollup_through', 'crazylinks_flush_rewrite', 'crazylinks_cache_salt', 'crazylinks_ai_usage', 'crazylinks_store_last', 'crazylinks_store_gen', 'crazylinks_mailchimp_webhook_secret', 'crazylinks_sync_backfill' ) as $option ) {
 			delete_option( $option );
 		}
 

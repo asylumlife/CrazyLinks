@@ -1471,8 +1471,15 @@
         "destination": {
           "type": "string",
           "enum": [
-            "local"
-          ]
+            "local",
+            "mailchimp"
+          ],
+          "description": "Where sign-ups go: local (this site's list, default) or mailchimp (the site's connected Mailchimp account)."
+        },
+        "audience_id": {
+          "type": "string",
+          "pattern": "^[0-9a-z]{6,20}$",
+          "description": "Mailchimp audience (list) id for this form; must be one of the site's configured audiences. Omit to use the site default."
         },
         "tags": {
           "type": "array",
@@ -1480,7 +1487,8 @@
           "items": {
             "type": "string",
             "maxLength": 40
-          }
+          },
+          "description": "Mailchimp tags added to everyone who signs up through this form."
         },
         "success_text": {
           "type": "string",

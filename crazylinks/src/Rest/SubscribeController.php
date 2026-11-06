@@ -138,7 +138,7 @@ final class SubscribeController extends \WP_REST_Controller {
 			[
 				'ok'      => true,
 				'status'  => $status,
-				'message' => Service::messages()[ $status ],
+				'message' => Service::messages_for( (array) ( $block['props'] ?? [] ) )[ $status ],
 			]
 		);
 	}
