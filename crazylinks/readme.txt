@@ -140,6 +140,8 @@ Simple Icons, released under CC0. See LICENSE-icons.txt. The logos remain tradem
 
 = 0.2.1 =
 * Fix: in a Section set to the two-column grid, links with an icon, emoji or thumbnail kept the single-column badge strip beside their text, so titles sat about 20px left of center and wrapped early; badges in those tiles now sit in the corner like the page-wide grid.
+* Fix: buttons with an icon, emoji or thumbnail are now the same 56px height as plain buttons (they were 68px), and an emoji sits in the same 44px box as a brand icon, so emoji and icon buttons line up, in lists and in grid tiles alike.
+* Change: in a grid Section that holds only links, all tiles share one height across rows; a collapsible Section's title is centered like the other Section titles.
 * Change: the Claude Desktop and Claude Code snippets in Settings carry your WordPress login name, and the docs name the usual mistake (using the Application Password's name as the username), which only produced a bare 401.
 
 = 0.2.0 =

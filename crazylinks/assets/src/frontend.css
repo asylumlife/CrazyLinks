@@ -37,11 +37,11 @@
 .cl-page .cl-link__body{display:flex;flex-direction:column;min-width:0;flex:1}
 .cl-page .cl-link__title{font-weight:600;overflow-wrap:anywhere}
 .cl-page .cl-link__subtitle{font-size:.85em;opacity:.8}
-.cl-page .cl-link--thumb{padding-left:8px;justify-content:flex-start;text-align:left}
+.cl-page .cl-link--thumb{padding:5px 20px 5px 8px;justify-content:flex-start;text-align:left}
 .cl-page .cl-link--thumb .cl-link__body{padding-right:40px;text-align:center}
 .cl-page .cl-link__thumb{flex:none;width:44px;height:44px;object-fit:cover;border-radius:calc(var(--cl-radius) * .6)}
 .cl-page.cl-shape-pill .cl-link__thumb{border-radius:50%}
-.cl-page .cl-link__emoji{flex:none;width:44px;font-size:1.6em;line-height:1}
+.cl-page .cl-link__emoji{flex:none;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;font-size:1.6em;line-height:1}
 .cl-page .cl-link--featured{flex-direction:column;padding:0;align-items:stretch;border-radius:var(--cl-radius)}
 .cl-page.cl-shape-pill .cl-link--featured{border-radius:24px}
 .cl-page .cl-link__cover{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover}
@@ -50,7 +50,7 @@
 .cl-page .cl-badge[style]{color:#fff}
 .cl-page .cl-link--classic .cl-badge{top:50%;transform:translateY(-50%)}
 /* Link presentation: thumbnail sides, icon, pinned marker, featured card, hover and focus */
-.cl-page .cl-link--thumb-right{flex-direction:row-reverse;padding-left:20px;padding-right:8px}
+.cl-page .cl-link--thumb-right{flex-direction:row-reverse;padding:5px 8px 5px 20px}
 .cl-page .cl-link--thumb-right .cl-link__body{padding-right:0;padding-left:40px}
 .cl-page .cl-link__icon{flex:none;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px}
 .cl-page .cl-link__icon .cl-icon{width:28px;height:28px}
@@ -132,7 +132,9 @@
 .cl-page .cl-section--bg{background-clip:padding-box}
 .cl-page section.cl-section>.cl-section__title{margin:0 0 4px;font-size:1.1em;font-weight:700;color:inherit;text-align:center}
 .cl-page .cl-section__desc{margin:0 0 10px;color:var(--cl-muted);text-align:center}
+.cl-page details.cl-section>summary.cl-section__title{margin:0 0 4px;font-size:1.1em;text-align:center}
 .cl-page .cl-section--grid .cl-section__body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.cl-page .cl-section--grid .cl-section__body:not(:has(> .cl-block:not(.cl-block--link))){grid-auto-rows:1fr}
 .cl-page .cl-section--grid .cl-section__body>.cl-block:not(.cl-block--link),.cl-page .cl-section--grid .cl-section__body>.cl-block--featured,.cl-page .cl-section--grid .cl-section__body>.cl-tile-2x1,.cl-page .cl-section--grid .cl-section__body>.cl-tile-2x2{grid-column:1/-1}
 .cl-page .cl-section--grid .cl-block--link .cl-link:not(.cl-link--featured){height:100%;flex-direction:column;justify-content:center;padding:14px 12px;text-align:center}
 /* Grid sections inside a list page need the same balance as the page-wide grid: no badge strip beside the text, badges in the corner. */
