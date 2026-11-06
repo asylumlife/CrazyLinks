@@ -270,7 +270,8 @@ class AiMcpTest extends TestCase {
 		$data = $res->get_data();
 		$this->assertTrue( $data['valid'] );
 		$this->assertSame( [], $data['errors'] );
-		$this->assertSame( 'Via Claude', $data['preview_document']['blocks'][2]['props']['title'] );
+		$this->assertArrayNotHasKey( 'preview_document', $data );
+		$this->assertSame( 'Via Claude', $data['changed_blocks'][0]['props']['title'] );
 		$this->assertSame( 'update', $data['change_list'][0]['kind'] );
 		$this->assertNotSame( '', $data['summary'] );
 		$this->assertSame( 'New single: Harbor Lights', $this->title() );
@@ -303,7 +304,83 @@ class AiMcpTest extends TestCase {
 		$this->assertFalse( $data['valid'] );
 		$this->assertGreaterThanOrEqual( 2, count( $data['errors'] ) );
 		$this->assertSame( '/operations/0/props/url', $data['errors'][0]['path'] );
-		$this->assertSame( 'New single: Harbor Lights', $data['preview_document']['blocks'][2]['props']['title'], 'Unchanged page when invalid' );
+		$this->assertSame( [], $data['changed_blocks'] );
+		$this->assertSame( [], $data['removed_block_ids'] );
+		$this->assertArrayNotHasKey( 'preview_document', $data );
+		$full = $this->ability( 'crazylinks/preview-operations', [ 'id' => $this->post->ID, 'operations' => [ [ 'op' => 'remove_block', 'id' => '01JM0000000000000000000ZZZ' ] ], 'include_document' => true ] )->get_data();
+		$this->assertSame( 'New single: Harbor Lights', $full['preview_document']['blocks'][2]['props']['title'], 'Unchanged page when invalid' );
+	}
+
+	/**
+	 * One update, one add with a ref and one remove.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function mixed_ops(): array {
+		$blocks = PageStore::get_document( get_post( $this->post->ID ) )['blocks'];
+		return [
+			[
+				'op'    => 'update_block',
+				'id'    => self::A3,
+				'props' => [ 'title' => 'Via Claude' ],
+			],
+			[
+				'op'       => 'add_block',
+				'ref'      => 'new-1',
+				'after_id' => self::A3,
+				'block'    => [
+					'type'  => 'link',
+					'props' => [
+						'title' => 'Fresh link',
+						'url'   => 'https://example.com/fresh',
+					],
+				],
+			],
+			[
+				'op' => 'remove_block',
+				'id' => (string) end( $blocks )['id'],
+			],
+		];
+	}
+
+	public function test_preview_returns_only_the_touched_blocks(): void {
+		$before = PageStore::get_document( get_post( $this->post->ID ) )['blocks'];
+		$gone   = (string) end( $before )['id'];
+		$data   = $this->ability( 'crazylinks/preview-operations', [ 'id' => $this->post->ID, 'operations' => $this->mixed_ops() ] )->get_data();
+		$this->assertTrue( $data['valid'], wp_json_encode( $data['errors'] ) );
+		$this->assertArrayNotHasKey( 'preview_document', $data );
+		$this->assertCount( 2, $data['changed_blocks'] );
+		$this->assertSame( self::A3, $data['changed_blocks'][0]['id'] );
+		$this->assertSame( 'Via Claude', $data['changed_blocks'][0]['props']['title'] );
+		$this->assertSame( 'Fresh link', $data['changed_blocks'][1]['props']['title'] );
+		$this->assertNotSame( '', $data['changed_blocks'][1]['id'] );
+		$this->assertNotSame( 'new-1', $data['changed_blocks'][1]['id'] );
+		$this->assertSame( [ $gone ], $data['removed_block_ids'] );
+		$this->assertSame( count( $before ), $data['block_count'] );
+
+		$full = $this->ability( 'crazylinks/preview-operations', [ 'id' => $this->post->ID, 'operations' => $this->mixed_ops(), 'include_document' => true ] )->get_data();
+		$this->assertCount( count( $before ), $full['preview_document']['blocks'] );
+		foreach ( [ 'true', '1' ] as $flag ) {
+			$res = $this->ability( 'crazylinks/preview-operations', [ 'id' => $this->post->ID, 'operations' => $this->mixed_ops(), 'include_document' => $flag ] );
+			$this->assertSame( 200, $res->get_status(), $flag );
+			$this->assertArrayHasKey( 'preview_document', $res->get_data(), $flag );
+		}
+		$off = $this->ability( 'crazylinks/preview-operations', [ 'id' => $this->post->ID, 'operations' => $this->mixed_ops(), 'include_document' => 'false' ] );
+		$this->assertArrayNotHasKey( 'preview_document', $off->get_data() );
+	}
+
+	public function test_apply_carries_changed_and_removed_blocks(): void {
+		$before = PageStore::get_document( get_post( $this->post->ID ) )['blocks'];
+		$gone   = (string) end( $before )['id'];
+		$res    = $this->ability( 'crazylinks/apply-operations', [ 'id' => $this->post->ID, 'operations' => $this->mixed_ops() ], 'POST' );
+		$this->assertSame( 200, $res->get_status(), wp_json_encode( $res->get_data() ) );
+		$data = $res->get_data();
+		$this->assertTrue( $data['applied'] );
+		$this->assertCount( 2, $data['changed_blocks'] );
+		$this->assertSame( [ $gone ], $data['removed_block_ids'] );
+		$this->assertSame( count( $before ), $data['block_count'] );
+		$saved = array_column( PageStore::get_document( get_post( $this->post->ID ) )['blocks'], 'id' );
+		$this->assertContains( $data['changed_blocks'][1]['id'], $saved, 'Provisional ids are the saved ids' );
 	}
 
 	public function test_preview_permissions_and_missing_page(): void {

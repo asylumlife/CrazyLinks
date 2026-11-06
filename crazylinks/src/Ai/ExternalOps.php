@@ -38,39 +38,91 @@ final class ExternalOps {
 	 *
 	 * @param \WP_Post $post       Page.
 	 * @param mixed    $operations Operations.
-	 * @return array<string, mixed> valid, errors, warnings, summary, change_list, preview_document, modified.
+	 * @param mixed    $full_page  Whether to add the whole resulting page as preview_document (true, "true" or "1").
+	 * @return array<string, mixed> valid, errors, warnings, summary, change_list, changed_blocks, removed_block_ids, block_count, modified, and preview_document when asked for.
 	 */
-	public static function preview( \WP_Post $post, $operations ): array {
+	public static function preview( \WP_Post $post, $operations, $full_page = false ): array {
 		$user_id = get_current_user_id();
 		$stored  = PageStore::get_document( $post, false );
 		$base    = self::base( $user_id, $stored );
 		$ops     = is_array( $operations ) ? array_values( $operations ) : [];
 		$result  = ( new OpsValidator() )->validate( self::payload( $operations, '' ), $base, $user_id, 'edit', $stored );
+		$full    = rest_sanitize_boolean( is_scalar( $full_page ) ? $full_page : false );
 		$out     = [
-			'valid'            => false,
-			'errors'           => $result->errors(),
-			'warnings'         => [],
-			'summary'          => '',
-			'change_list'      => [],
-			'preview_document' => Context::page( $base ),
-			'modified'         => mysql_to_rfc3339( $post->post_modified_gmt ),
+			'valid'             => false,
+			'errors'            => $result->errors(),
+			'warnings'          => [],
+			'summary'           => '',
+			'change_list'       => [],
+			'changed_blocks'    => [],
+			'removed_block_ids' => [],
+			'block_count'       => count( (array) ( $base['blocks'] ?? [] ) ),
+			'modified'          => mysql_to_rfc3339( $post->post_modified_gmt ),
 		];
+		if ( $full ) {
+			$out['preview_document'] = Context::page( $base );
+		}
 		if ( ! $result->is_valid() ) {
 			return $out;
 		}
 		$doc     = (array) $result->document();
 		$changes = ChangeList::build( $ops, $base, $result->added() );
-		return array_merge(
+		$out     = array_merge(
 			$out,
 			[
-				'valid'            => true,
-				'errors'           => [],
-				'warnings'         => PageValidator::warnings_for( $doc ),
-				'summary'          => self::describe( $changes ),
-				'change_list'      => $changes,
-				'preview_document' => Context::page( $doc ),
-			]
+				'valid'       => true,
+				'errors'      => [],
+				'warnings'    => PageValidator::warnings_for( $doc ),
+				'summary'     => self::describe( $changes ),
+				'change_list' => $changes,
+			],
+			self::touched( $changes, $base, $doc )
 		);
+		if ( $full ) {
+			$out['preview_document'] = Context::page( $doc );
+		}
+		return $out;
+	}
+
+	/**
+	 * The blocks the operations touched, as Context::page() shows blocks, in document order after the
+	 * operations (added blocks carry their provisional ids), the ids of blocks that are gone, and the
+	 * total block count.
+	 *
+	 * @param array<int, array<string, mixed>> $changes Change list.
+	 * @param array<string, mixed>             $base    Document before.
+	 * @param array<string, mixed>             $doc     Document after.
+	 * @return array{changed_blocks: array<int, array<string, mixed>>, removed_block_ids: string[], block_count: int}
+	 */
+	private static function touched( array $changes, array $base, array $doc ): array {
+		$ids = [];
+		foreach ( $changes as $change ) {
+			if ( in_array( $change['kind'] ?? '', [ 'add', 'update', 'move' ], true ) && ! empty( $change['block_id'] ) ) {
+				$ids[ (string) $change['block_id'] ] = true;
+			}
+		}
+		$after   = [];
+		$changed = [];
+		foreach ( (array) ( $doc['blocks'] ?? [] ) as $block ) {
+			if ( is_array( $block ) ) {
+				$after[ (string) ( $block['id'] ?? '' ) ] = true;
+				if ( isset( $ids[ (string) ( $block['id'] ?? '' ) ] ) ) {
+					$changed[] = $block;
+				}
+			}
+		}
+		$removed = [];
+		foreach ( (array) ( $base['blocks'] ?? [] ) as $block ) {
+			$id = is_array( $block ) ? (string) ( $block['id'] ?? '' ) : '';
+			if ( '' !== $id && ! isset( $after[ $id ] ) ) {
+				$removed[] = $id;
+			}
+		}
+		return [
+			'changed_blocks'    => Context::page( [ 'blocks' => $changed ] )['blocks'],
+			'removed_block_ids' => $removed,
+			'block_count'       => count( $after ),
+		];
 	}
 
 	/**
@@ -126,6 +178,7 @@ final class ExternalOps {
 		}
 		$changes = ChangeList::build( $ops, $base, $result->added() );
 		$summary = '' === $summary ? self::describe( $changes ) : $summary;
+		$touched = self::touched( $changes, $base, (array) $result->document() );
 		$confirm = Proposals::requires_confirmation( (int) $post->ID );
 
 		if ( ! $confirm ) {
@@ -156,6 +209,9 @@ final class ExternalOps {
 			'revision_id'         => null,
 			'pending_proposal_id' => null,
 			'change_list'         => $changes,
+			'changed_blocks'      => $touched['changed_blocks'],
+			'removed_block_ids'   => $touched['removed_block_ids'],
+			'block_count'         => $touched['block_count'],
 			'summary'             => $summary,
 			'modified'            => $modified,
 			'link'                => (string) get_permalink( $post ),
