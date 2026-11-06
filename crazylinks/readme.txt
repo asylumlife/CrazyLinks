@@ -4,7 +4,7 @@ Tags: link in bio, linktree, links, bio link, landing page
 Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.1.3
+Stable tag: 0.1.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -133,6 +133,9 @@ Simple Icons, released under CC0. See LICENSE-icons.txt. The logos remain tradem
 5. The page JSON in the editor screen.
 
 == Changelog ==
+
+= 0.1.4 =
+* Fix: Anthropic rejected the full operations schema as too large a grammar ("compiled grammar is too large"). The provider now receives a compact envelope (about 7 KB instead of 90 KB) and the full validation runs on the server as before.
 
 = 0.1.3 =
 * Fix: on a site where settings had never been saved, the first save silently dropped the AI section (WordPress sanitizes twice when it creates the option). The option is now created on activation and the sanitizer is safe to run twice.
