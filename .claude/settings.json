@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "ClaudeInChromeDomain(www.asylumlife.com)",
-      "mcp__claude-in-chrome__browser_batch",
-      "mcp__claude-in-chrome__tabs_context_mcp"
-    ]
-  }
-}
