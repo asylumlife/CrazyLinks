@@ -4,7 +4,7 @@ Tags: link in bio, linktree, links, bio link, landing page
 Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.2.2
+Stable tag: 0.2.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -137,6 +137,9 @@ Simple Icons, released under CC0. See LICENSE-icons.txt. The logos remain tradem
 5. The page JSON in the editor screen.
 
 == Changelog ==
+
+= 0.2.3 =
+* Change: the "CrazyLinks agent" role is created automatically on activation and on update (sites without WP-CLI get it too), so it can be picked under Users → Add New.
 
 = 0.2.2 =
 * Security: link pages no longer appear in WordPress's own archive, search and feed URLs for the post type (for example `/?post_type=crazylinks_page&feed=rss2`), which listed every published page's stored content to anyone, hidden and scheduled blocks included. Pages are still served only at their own address.
