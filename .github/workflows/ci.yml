@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  php:
+    name: PHP (phpcs, phpstan, phpunit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: crazylinks
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: crazylinks_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@2.31.1
+        with:
+          php-version: '8.3'
+          tools: composer:v2, wp-cli
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: phpcs
+        run: vendor/bin/phpcs
+
+      - name: phpstan
+        run: vendor/bin/phpstan analyse --no-progress
+
+      # Best effort: downloads WordPress core with WP-CLI and the test library
+      # from wordpress-develop at the pinned tag (script default 7.1.4).
+      - name: Install WordPress test library
+        run: bin/install-wp-tests.sh crazylinks_test root root 127.0.0.1:3306 7.1.4 "$RUNNER_TEMP/crazylinks-tests"
+
+      - name: phpunit
+        env:
+          WP_TESTS_DIR: ${{ runner.temp }}/crazylinks-tests/develop/tests/phpunit
+        run: vendor/bin/phpunit
+
+  js:
+    name: JS (typecheck, lint, vitest, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: crazylinks
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - name: Set up Node
+        uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: crazylinks/package-lock.json
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint:js
+      - run: npm run lint:css
+      - run: npm run test:unit
+      - run: npm run build
+
+      - name: Committed build matches source
+        run: git diff --exit-code -- assets/build
