@@ -138,6 +138,9 @@ Simple Icons, released under CC0. See LICENSE-icons.txt. The logos remain tradem
 
 == Changelog ==
 
+= 0.2.4 =
+* Change: preview-operations and apply-operations return only the blocks the operations touched; pass include_document: true to get the whole page.
+
 = 0.2.3 =
 * Change: the "CrazyLinks agent" role is created automatically on activation and on update (sites without WP-CLI get it too), so it can be picked under Users → Add New.
 

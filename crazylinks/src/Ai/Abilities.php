@@ -206,12 +206,17 @@ final class Abilities {
 		$this->register(
 			'crazylinks/preview-operations',
 			__( 'Preview operations on a link page', 'crazylinks' ),
-			__( 'Checks operations against a link page without saving anything. Input: id and operations (format in get-editing-guide). Returns valid, the errors to fix, warnings, a plain-English change_list and the resulting page; invalid operations come back as valid false, so fix them and preview again before apply-operations.', 'crazylinks' ),
+			__( 'Checks operations against a link page without saving anything. Input: id and operations (format in get-editing-guide). Returns valid, the errors to fix, warnings, a plain-English change_list, changed_blocks (only the blocks the operations touched, as they will be, with provisional ids for added blocks), removed_block_ids and block_count; invalid operations come back as valid false, so fix them and preview again before apply-operations. The whole resulting page is returned only with include_document true, which you rarely need.', 'crazylinks' ),
 			[
 				'type'                 => 'object',
 				'properties'           => [
-					'id'         => $page_id,
-					'operations' => $operations,
+					'id'               => $page_id,
+					'operations'       => $operations,
+					'include_document' => [
+						'type'        => 'boolean',
+						'default'     => false,
+						'description' => __( 'Also return preview_document, the whole resulting page. Off by default: changed_blocks and change_list already show what the operations do.', 'crazylinks' ),
+					],
 				],
 				'required'             => [ 'id', 'operations' ],
 				'additionalProperties' => false,
@@ -219,13 +224,19 @@ final class Abilities {
 			[
 				'type'       => 'object',
 				'properties' => [
-					'valid'            => [ 'type' => 'boolean' ],
-					'errors'           => $messages,
-					'warnings'         => $messages,
-					'summary'          => [ 'type' => 'string' ],
-					'change_list'      => [ 'type' => 'array' ],
-					'preview_document' => [ 'type' => 'object' ],
-					'modified'         => [ 'type' => 'string' ],
+					'valid'             => [ 'type' => 'boolean' ],
+					'errors'            => $messages,
+					'warnings'          => $messages,
+					'summary'           => [ 'type' => 'string' ],
+					'change_list'       => [ 'type' => 'array' ],
+					'changed_blocks'    => [ 'type' => 'array' ],
+					'removed_block_ids' => [
+						'type'  => 'array',
+						'items' => [ 'type' => 'string' ],
+					],
+					'block_count'       => [ 'type' => 'integer' ],
+					'preview_document'  => [ 'type' => 'object' ],
+					'modified'          => [ 'type' => 'string' ],
 				],
 			],
 			[ $this, 'preview_operations' ],
@@ -235,7 +246,7 @@ final class Abilities {
 		$this->register(
 			'crazylinks/apply-operations',
 			__( 'Apply operations to a link page', 'crazylinks' ),
-			__( 'Validates operations like preview-operations and saves them to the link page, creating a revision shown as "AI (external)" in the page history. Input: id, operations, optional summary (for the history), expected_modified (modified from get-page; refused if the page changed since) and idempotency_key (a retry with the same key returns the first result). Use after a valid preview. If the page requires confirmation, nothing is saved and the change waits in the editor.', 'crazylinks' ),
+			__( 'Validates operations like preview-operations and saves them to the link page, creating a revision shown as "AI (external)" in the page history. Input: id, operations, optional summary (for the history), expected_modified (modified from get-page; refused if the page changed since) and idempotency_key (a retry with the same key returns the first result). Returns change_list, changed_blocks, removed_block_ids and block_count, so no second get-page is needed. Use after a valid preview. If the page requires confirmation, nothing is saved and the change waits in the editor.', 'crazylinks' ),
 			[
 				'type'                 => 'object',
 				'properties'           => [
@@ -266,6 +277,12 @@ final class Abilities {
 					'revision_id'         => [ 'type' => [ 'integer', 'null' ] ],
 					'pending_proposal_id' => [ 'type' => [ 'string', 'null' ] ],
 					'change_list'         => [ 'type' => 'array' ],
+					'changed_blocks'      => [ 'type' => 'array' ],
+					'removed_block_ids'   => [
+						'type'  => 'array',
+						'items' => [ 'type' => 'string' ],
+					],
+					'block_count'         => [ 'type' => 'integer' ],
 					'summary'             => [ 'type' => 'string' ],
 					'modified'            => [ 'type' => 'string' ],
 					'link'                => [ 'type' => 'string' ],
@@ -588,7 +605,8 @@ final class Abilities {
 		if ( null === $post ) {
 			return new WP_Error( 'crazylinks_not_found', __( 'Link page not found.', 'crazylinks' ), [ 'status' => 404 ] );
 		}
-		return ExternalOps::preview( $post, ( (array) $input )['operations'] ?? null );
+		$input = (array) $input;
+		return ExternalOps::preview( $post, $input['operations'] ?? null, $input['include_document'] ?? false );
 	}
 
 	/**

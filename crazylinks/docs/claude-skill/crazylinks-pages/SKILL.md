@@ -14,7 +14,7 @@ CrazyLinks is a WordPress plugin that renders a "link in bio" page (a link tree)
 | `crazylinks-get-editing-guide` | Learn the block types, their props, the operations format and the rules. Call it once per conversation, before the first edit. With `id` it also returns the page. |
 | `crazylinks-list-pages` | Find the page id when you do not know it. Most sites have one page: use it without asking. |
 | `crazylinks-get-page` | Read the current blocks (with their ids), profile, design and `modified`. |
-| `crazylinks-preview-operations` | Check operations without saving. Returns `valid`, `errors`, a plain-English `change_list` and the resulting page. |
+| `crazylinks-preview-operations` | Check operations without saving. Returns `valid`, `errors`, a plain-English `change_list`, `changed_blocks` (only the blocks you touched, as they will be), `removed_block_ids` and `block_count`. Add `include_document: true` only if you need the whole page. |
 | `crazylinks-apply-operations` | Save. Pass `summary`, `expected_modified` and an `idempotency_key`. |
 
 ## Workflow for an edit
@@ -23,7 +23,7 @@ CrazyLinks is a WordPress plugin that renders a "link in bio" page (a link tree)
 2. **Read the page** with `crazylinks-get-page` (skip when the guide call just returned it and nothing was changed since). Note the block ids and `modified`.
 3. **Write the operations.** Use only ids from the page you just read. Change only what was asked.
 4. **Preview** with `crazylinks-preview-operations`. If `valid` is false, fix the listed errors and preview again. After three failed attempts, show the user what you tried and ask.
-5. **Apply** with `crazylinks-apply-operations`: the same operations, a one-sentence `summary` for the page history, `expected_modified` = the `modified` value you read, and a fresh `idempotency_key` (any unique string, for example `claude-2026-11-06-1`). Reuse the same key only when retrying the very same call.
+5. **Apply** with `crazylinks-apply-operations` (it returns `changed_blocks` too, so no second `get-page` is needed): the same operations, a one-sentence `summary` for the page history, `expected_modified` = the `modified` value you read, and a fresh `idempotency_key` (any unique string, for example `claude-2026-11-06-1`). Reuse the same key only when retrying the very same call.
 6. **Report** in plain words from the `change_list`, give the page `link`, and mention that the change is in the page history and can be undone there.
 
 ## Reading the user's words

@@ -17,8 +17,8 @@ CrazyLinks → Settings → AI editing → **External AI agents**. Every ability
 | List pages | `crazylinks-list-pages` | Lists the link pages the account can edit (id, title, slug, status, URL, last change). |
 | Read a page | `crazylinks-get-page` | One page as JSON (profile, design, blocks with ids) plus `modified`. Custom HTML and CSS are summarized, not returned. |
 | Editing guide | `crazylinks-get-editing-guide` | Block types and their props, the operations format with examples, the rules and the workflow. With `id`, also the page. The assistant should call it first. |
-| Preview changes | `crazylinks-preview-operations` | Checks operations against a page without saving: `valid`, errors to fix, warnings, a plain-English change list and the resulting page. |
-| Save changes | `crazylinks-apply-operations` | Validates the operations again and saves them, creating a revision marked "AI (external)" in the page history. |
+| Preview changes | `crazylinks-preview-operations` | Checks operations against a page without saving: `valid`, errors to fix, warnings, a plain-English change list, `changed_blocks` (only the blocks the operations touched, as they will be), `removed_block_ids` and `block_count`. Pass `include_document: true` for the whole resulting page. |
+| Save changes | `crazylinks-apply-operations` | Validates the operations again and saves them, creating a revision marked "AI (external)" in the page history. Returns `change_list`, `changed_blocks` and `removed_block_ids` too, so you do not need to read the page again. |
 
 Optional: **Read click totals** (`crazylinks-get-analytics-summary`, aggregate clicks per block, no visitor data). **Propose changes**, **Apply proposed changes** and **Suggest link titles** use this site's own AI provider (Settings → Connectors); leave them off if you only use Claude through MCP.
 
