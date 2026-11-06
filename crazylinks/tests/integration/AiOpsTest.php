@@ -125,9 +125,19 @@ class AiOpsTest extends TestCase {
 		$this->assertSame( [ '$ref' => '#/$defs/background' ], $p['$defs']['design']['properties']['background'] );
 		$this->assertArrayHasKey( 'pattern', $p['$defs']['background']['properties'], 'A property named "pattern" survives' );
 		$this->assertArrayHasKey( 'weekly', $p['$defs']['schedule']['properties'], 'Weekly schedule windows are expressible' );
-		$this->assertArrayHasKey( 'background', $p['$defs']['props_group']['properties'], 'Sections can set a background' );
-		$this->assertArrayHasKey( 'title', $p['$defs']['props_link']['properties'] );
-		$this->assertSame( [ 'title', 'url' ], $p['$defs']['props_link']['required'] );
+		// Compact envelope (Anthropic rejects the full ~90 KB schema as too large a grammar).
+		$this->assertArrayNotHasKey( 'props_group', $p['$defs'] );
+		$this->assertArrayNotHasKey( 'new_link', $p['$defs'] );
+		$this->assertArrayNotHasKey( 'patch_link', $p['$defs'] );
+		$block = $p['$defs']['op_add_block']['properties']['block'];
+		$this->assertSame( OpsSchema::block_types(), $block['properties']['type']['enum'] );
+		$this->assertSame( 'object', $block['properties']['props']['type'] );
+		$this->assertSame( 'object', $p['$defs']['op_update_block']['properties']['props']['type'] );
+		$this->assertLessThan( 16000, strlen( $json ), 'Provider schema stays small enough to compile as a grammar' );
+		$this->assertLessThan( 20, count( $p['$defs'] ) );
+		// The full schema still carries every block type for server-side validation.
+		$this->assertArrayHasKey( 'background', OpsSchema::get()['$defs']['props_group']['properties'] );
+		$this->assertSame( [ 'title', 'url' ], OpsSchema::get()['$defs']['props_link']['required'] );
 	}
 
 	public function test_schema_validator_accepts_the_unionless_view(): void {

@@ -96,7 +96,7 @@ final class OpsSchema {
 	 * @return array<string, mixed>
 	 */
 	public static function for_provider(): array {
-		$schema = self::strip( self::get() );
+		$schema = self::strip( self::compact( self::get() ) );
 		/**
 		 * Filters the JSON schema CrazyLinks sends to the AI provider for structured output.
 		 * The response is validated against the full schemas/ai-ops.v1.json either way.
@@ -104,6 +104,44 @@ final class OpsSchema {
 		 * @param array<string, mixed> $schema Provider schema.
 		 */
 		return (array) apply_filters( 'crazylinks_ai_ops_schema', $schema );
+	}
+
+	/**
+	 * A compact envelope for constrained decoding. The full schema spells out every block type's props
+	 * twice (new and patch) in ~70 definitions, which Anthropic rejects as "compiled grammar is too
+	 * large" (first live call, AsylumLife.com, 2026-11-05). The provider gets the operation envelope with
+	 * typed ids, schedules, design and profile, but block props as a free object; OpsValidator then
+	 * checks the response against the full schema and the driver retries once with the errors.
+	 *
+	 * @param array<string, mixed> $schema Full schema.
+	 * @return array<string, mixed>
+	 */
+	public static function compact( array $schema ): array {
+		$defs                                        = $schema['$defs'];
+		$types                                       = self::block_types();
+		$first                                       = $defs[ 'new_' . $types[0] ];
+		$block                                       = $first;
+		$block['properties']['type']                 = [
+			'type' => 'string',
+			'enum' => $types,
+		];
+		$block['properties']['props']                = [
+			'type'        => 'object',
+			'description' => 'Props for this block type, exactly as listed in the instructions.',
+		];
+		$block['description']                        = 'A new block. The props object must contain the fields listed for its type.';
+		$defs['op_add_block']['properties']['block'] = $block;
+		$defs['op_update_block']['properties']['props'] = [
+			'type'        => 'object',
+			'description' => 'Props to merge into the block, using the field names listed for its type.',
+		];
+		foreach ( array_keys( $defs ) as $name ) {
+			if ( preg_match( '/^(new|patch|props)_/', $name ) ) {
+				unset( $defs[ $name ] );
+			}
+		}
+		$schema['$defs'] = $defs;
+		return $schema;
 	}
 
 	/**
