@@ -46,6 +46,20 @@ final class McpServer {
 	 */
 	public function register_hooks(): void {
 		add_action( 'mcp_adapter_init', [ $this, 'create' ] );
+		// The adapter reads this filter in McpAdapter::init() (rest_api_init 15, or init 20 under WP-CLI),
+		// long after plugins_loaded, so registering at boot is early enough. The setting is read when the
+		// filter runs, so changing it takes effect immediately.
+		add_filter( 'mcp_adapter_create_default_server', [ $this, 'filter_default_server' ] );
+	}
+
+	/**
+	 * Turns off the adapter's default server when the owner chose to (never turns it on).
+	 *
+	 * @param mixed $create Whether the default server is created.
+	 * @return mixed
+	 */
+	public function filter_default_server( $create ) {
+		return McpStatus::default_server_off() ? false : $create;
 	}
 
 	/**

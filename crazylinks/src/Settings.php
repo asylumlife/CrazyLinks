@@ -52,6 +52,8 @@ final class Settings {
 			'ai_mcp_confirm'            => false,
 			// SPEC §10.7: own MCP server when the MCP Adapter plugin is active (abilities stay off).
 			'ai_mcp_server'             => true,
+			// Opt-in: switch off the MCP Adapter's default server so only the CrazyLinks server is reachable.
+			'ai_mcp_default_server_off' => false,
 		];
 	}
 
@@ -173,11 +175,12 @@ final class Settings {
 				$out[ $key ] = min( $max, absint( $input[ $key ] ) );
 			}
 		}
-		$out['ai_timeout']     = max( 10, (int) $out['ai_timeout'] );
-		$out['ai_log']         = ! empty( $input['ai_log'] );
-		$out['ai_mcp_confirm'] = ! empty( $input['ai_mcp_confirm'] );
-		$out['ai_mcp_server']  = ! empty( $input['ai_mcp_server'] );
-		$out['ai_abilities']   = array_values( array_intersect( array_map( 'strval', (array) ( $input['ai_abilities'] ?? [] ) ), Ai\Abilities::NAMES ) );
+		$out['ai_timeout']                = max( 10, (int) $out['ai_timeout'] );
+		$out['ai_log']                    = ! empty( $input['ai_log'] );
+		$out['ai_mcp_confirm']            = ! empty( $input['ai_mcp_confirm'] );
+		$out['ai_mcp_server']             = ! empty( $input['ai_mcp_server'] );
+		$out['ai_mcp_default_server_off'] = ! empty( $input['ai_mcp_default_server_off'] );
+		$out['ai_abilities']              = array_values( array_intersect( array_map( 'strval', (array) ( $input['ai_abilities'] ?? [] ) ), Ai\Abilities::NAMES ) );
 		return $out;
 	}
 

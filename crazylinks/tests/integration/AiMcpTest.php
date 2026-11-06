@@ -189,6 +189,107 @@ class AiMcpTest extends TestCase {
 		$this->assertSame( $on, Settings::sanitize( $on ) );
 	}
 
+	public function test_default_server_off_setting_is_idempotent_and_off_by_default(): void {
+		$this->assertFalse( Settings::defaults()['ai_mcp_default_server_off'] );
+		$off = Settings::sanitize( [ 'ai_section' => '1' ] );
+		$this->assertFalse( $off['ai_mcp_default_server_off'] );
+		$this->assertSame( $off, Settings::sanitize( $off ) );
+		$on = Settings::sanitize(
+			[
+				'ai_section'                => '1',
+				'ai_mcp_default_server_off' => '1',
+			]
+		);
+		$this->assertTrue( $on['ai_mcp_default_server_off'] );
+		$this->assertSame( $on, Settings::sanitize( $on ) );
+	}
+
+	public function test_default_server_filter_follows_the_setting_and_the_crazylinks_filter(): void {
+		$this->ai_settings( [ 'ai_mcp_default_server_off' => false ] );
+		$this->assertTrue( apply_filters( 'mcp_adapter_create_default_server', true ) );
+		$this->ai_settings( [ 'ai_mcp_default_server_off' => true ] );
+		$this->assertFalse( apply_filters( 'mcp_adapter_create_default_server', true ) );
+		$this->assertSame( rest_url( 'crazylinks/mcp' ), McpStatus::preferred_endpoint() );
+
+		add_filter( 'crazylinks_mcp_default_server_off', '__return_false' );
+		$this->assertTrue( apply_filters( 'mcp_adapter_create_default_server', true ), 'The filter overrides the setting' );
+		remove_filter( 'crazylinks_mcp_default_server_off', '__return_false' );
+
+		$this->ai_settings( [ 'ai_mcp_default_server_off' => false ] );
+		add_filter( 'crazylinks_mcp_default_server_off', '__return_true' );
+		$this->assertFalse( apply_filters( 'mcp_adapter_create_default_server', true ) );
+		remove_filter( 'crazylinks_mcp_default_server_off', '__return_true' );
+	}
+
+	public function test_nothing_is_reachable_when_both_servers_are_off(): void {
+		$this->ai_settings(
+			[
+				'ai_mcp_server'             => false,
+				'ai_mcp_default_server_off' => true,
+			]
+		);
+		$this->assertFalse( McpStatus::reachable() );
+		ob_start();
+		( new SettingsPage() )->ai_field( [ 'key' => 'ai_mcp' ] );
+		$html = (string) ob_get_clean();
+		$this->assertStringContainsString( 'No MCP server is reachable', $html );
+		$this->assertStringNotContainsString( esc_html( rest_url( 'mcp/mcp-adapter-default-server' ) ), $html );
+		$this->ai_settings( [ 'ai_mcp_server' => true ] );
+	}
+
+	public function test_other_public_abilities_counts_foreign_public_abilities_only(): void {
+		if ( ! function_exists( 'wp_register_ability' ) ) {
+			$this->markTestSkipped( 'Abilities API missing.' );
+		}
+		global $wp_current_filter;
+		$names = [ 'zzfake/public-one', 'zzfake/public-two', 'zzfake/hidden', 'zzfake/mcp-wins' ];
+		$meta  = [
+			'zzfake/public-one' => [ 'public' => true ],
+			'zzfake/public-two' => [ 'mcp' => [ 'public' => true ] ],
+			'zzfake/hidden'     => [ 'public' => false ],
+			'zzfake/mcp-wins'   => [
+				'public' => true,
+				'mcp'    => [ 'public' => false ],
+			],
+		];
+		$wp_current_filter[] = 'wp_abilities_api_init';
+		foreach ( $names as $name ) {
+			wp_register_ability(
+				$name,
+				[
+					'label'               => $name,
+					'description'         => $name,
+					'category'            => 'crazylinks',
+					'execute_callback'    => '__return_true',
+					'permission_callback' => '__return_true',
+					'meta'                => $meta[ $name ],
+				]
+			);
+		}
+		array_pop( $wp_current_filter );
+		try {
+			$others = McpStatus::other_public_abilities();
+			$this->assertSame( 2, $others['zzfake'] ?? 0 );
+			$this->assertArrayNotHasKey( 'crazylinks', $others );
+			$this->assertArrayNotHasKey( 'mcp-adapter', $others );
+			$this->assertStringContainsString( 'zzfake (2 abilities)', McpStatus::other_public_sentence() );
+
+			ob_start();
+			( new SettingsPage() )->ai_field( [ 'key' => 'ai_mcp' ] );
+			$html = (string) ob_get_clean();
+			$this->assertStringContainsString( 'name="crazylinks_settings[ai_mcp_default_server_off]"', $html );
+			$this->assertStringContainsString( 'Today it also exposes:', $html );
+			$this->assertStringContainsString( 'zzfake (2 abilities)', $html );
+		} finally {
+			foreach ( $names as $name ) {
+				if ( wp_has_ability( $name ) ) {
+					wp_unregister_ability( $name );
+				}
+			}
+		}
+		$this->assertArrayNotHasKey( 'zzfake', McpStatus::other_public_abilities() );
+	}
+
 	// ---------------------------------------------------------------------------------------------
 	// get-editing-guide.
 

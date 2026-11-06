@@ -139,6 +139,7 @@ Simple Icons, released under CC0. See LICENSE-icons.txt. The logos remain tradem
 == Changelog ==
 
 = 0.2.4 =
+* New: a setting to turn off the MCP Adapter's default server, so only the CrazyLinks MCP server stays reachable; the settings box lists what the default server also exposes.
 * Change: preview-operations and apply-operations return only the blocks the operations touched; pass include_document: true to get the whole page.
 
 = 0.2.3 =

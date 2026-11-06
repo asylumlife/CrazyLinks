@@ -37,7 +37,18 @@ final class McpCommand {
 		WP_CLI::line( 'MCP Adapter:        ' . ( McpStatus::adapter_active() ? 'active' . ( '' === $version ? '' : ' (' . $version . ')' ) : 'not active' ) );
 		WP_CLI::line( 'CrazyLinks server:  ' . ( McpStatus::server_enabled() ? 'on' : 'off' ) );
 		WP_CLI::line( 'Endpoint:           ' . McpStatus::endpoint() );
-		WP_CLI::line( 'Default server:     ' . McpStatus::default_endpoint() );
+		WP_CLI::line( 'Default server:     ' . ( McpStatus::default_server_off() ? 'off (turned off by CrazyLinks)' : McpStatus::default_endpoint() ) );
+		if ( ! McpStatus::default_server_off() ) {
+			$others = McpStatus::other_public_abilities();
+			$parts  = [];
+			foreach ( $others as $prefix => $count ) {
+				$parts[] = $prefix . ' (' . $count . ')';
+			}
+			WP_CLI::line( 'Also exposes:       ' . ( $parts ? implode( ', ', $parts ) : '(nothing besides CrazyLinks)' ) );
+		}
+		if ( ! McpStatus::reachable() ) {
+			WP_CLI::warning( 'No MCP server is reachable: the CrazyLinks server and the default server are both off.' );
+		}
 		WP_CLI::line( 'Enabled abilities:  ' . ( $abilities ? implode( ', ', $abilities ) : '(none)' ) );
 		WP_CLI::line( 'Status:             ' . McpStatus::message( McpStatus::state() ) );
 		WP_CLI::line( '' );
