@@ -174,6 +174,24 @@
 .cl-page .cl-posts--featured .cl-post{flex-direction:column;align-items:stretch;padding:0;overflow:hidden}
 .cl-page .cl-posts--featured .cl-post__img{width:100%;height:auto;aspect-ratio:16/9;border-radius:0}
 .cl-page .cl-posts--featured .cl-post__body{padding:12px 16px}
+/* Product block: card (one product), rows (newest products) and link buttons. */
+.cl-page .cl-products{display:flex;flex-direction:column;gap:var(--cl-gap);margin:0;padding:0;list-style:none}
+.cl-page .cl-product{display:flex;flex-direction:column;overflow:hidden;border-radius:var(--cl-radius);background:color-mix(in srgb,var(--cl-text) 8%,transparent);color:var(--cl-text);text-align:center}
+.cl-page .cl-product__img{display:block;width:100%;max-width:100%;height:auto;aspect-ratio:1;object-fit:cover}
+.cl-page .cl-product__body{display:flex;flex-direction:column;gap:2px;min-width:0;padding:14px 16px 0}
+.cl-page .cl-product__name{margin:0;font-weight:700;font-size:1.05em;overflow-wrap:anywhere}
+.cl-page .cl-product__sub{margin:0;color:var(--cl-muted);overflow-wrap:anywhere}
+.cl-page .cl-product__price{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 8px;margin:4px 0 0;font-weight:600}
+.cl-page .cl-product__was{font-weight:400;color:var(--cl-muted)}
+.cl-page .cl-product__now{text-decoration:none}
+.cl-page .cl-product__sale{padding:1px 8px;border-radius:999px;font-size:.7em;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:var(--cl-accent);color:var(--cl-accent-ink,#fff)}
+.cl-page .cl-product__buy{margin:12px 16px 16px}
+.cl-page .cl-product--row{flex-direction:row;align-items:center;gap:12px;padding:8px;text-align:left}
+.cl-page .cl-product--row .cl-product__img{flex:none;width:72px;height:72px;aspect-ratio:auto;border-radius:calc(var(--cl-radius) * .6)}
+.cl-page .cl-product--row .cl-product__body{flex:1;padding:0}
+.cl-page .cl-product--row .cl-product__price{justify-content:flex-start;margin:2px 0 0}
+.cl-page .cl-product--row .cl-product__buy{flex:none;margin:0;min-height:44px;padding:8px 16px}
+.cl-page .cl-product__empty{margin:0;padding:12px;border:1px dashed color-mix(in srgb,var(--cl-text) 35%,transparent);border-radius:var(--cl-radius);font-size:.85em;color:var(--cl-muted)}
 .cl-page .cl-video{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#000;border-radius:var(--cl-radius)}
 /* Contact, countdown, map */
 .cl-page .cl-contact{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none;text-align:left}

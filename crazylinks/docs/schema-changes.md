@@ -77,3 +77,26 @@ new def into `schemas/ai-ops.v1.json`.
   the current weekly window, following back-to-back windows). `frontend.js` hides it after that.
   It only ever hides: a block outside its window is not in the HTML at all, so nothing can appear
   early; it reappears only when the server renders the page again.
+
+## 2026-11-06: `product` block
+
+New block type `product` (`props_product`, all optional): a store product, or the newest products, with a Buy button.
+
+| Prop | Values | Default |
+|---|---|---|
+| `mode` | `single` `latest` | `single` |
+| `product_id` | integer >= 0 (0 = none); the product in the connected store (single mode) | 0 |
+| `count` | 1 to 12 (latest mode) | 3 |
+| `category` | product category slug, `^[a-z0-9_-]*$`, 60 (latest mode) | all |
+| `display` | `card` `button` (a `cl-link cl-link--classic cl-link--thumb` button) | `card` |
+| `show_price` | bool | true |
+| `button_text` | string, 40 | "Buy" |
+| `title` | string, 120; replaces the product name (single mode) | product name |
+| `subtitle` | string, 160 (single mode) | none |
+
+- The store address is the `store_url` plugin setting, never page JSON. Without it, WooCommerce on the same site is used.
+- The Buy link goes to the product page on the store (never the cart), through `/go/{block_id}/` (single) or `/go/{block_id}/{product_id}/` (latest) so clicks count (`tracking`).
+- A cached page is valid for at most 15 minutes (the product data can change).
+- Sections accept it as a child like any other block. `ai-ops.v1.json` is regenerated with `php bin/build-ai-schema.php`.
+- The older `woo_products` placeholder type is unchanged and still renders nothing.
+

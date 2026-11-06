@@ -13,6 +13,7 @@ use CrazyLinks\Ai\McpStatus;
 use CrazyLinks\Ai\Status;
 use CrazyLinks\PostType;
 use CrazyLinks\Settings;
+use CrazyLinks\Woo\Store;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -87,6 +88,19 @@ final class SettingsPage {
 			);
 		}
 
+		add_settings_section( 'crazylinks_store', __( 'Store', 'crazylinks' ), [ $this, 'store_intro' ], self::SLUG );
+		add_settings_field(
+			'crazylinks_store_url',
+			__( 'Store address', 'crazylinks' ),
+			[ $this, 'field' ],
+			self::SLUG,
+			'crazylinks_store',
+			[
+				'key'       => 'store_url',
+				'label_for' => 'crazylinks_store_url',
+			]
+		);
+
 		add_settings_section( 'crazylinks_ai', __( 'AI editing', 'crazylinks' ), [ $this, 'ai_intro' ], self::SLUG );
 		$ai_fields = [
 			'ai_enabled'        => __( 'AI editing', 'crazylinks' ),
@@ -109,6 +123,38 @@ final class SettingsPage {
 					'label_for' => 'crazylinks_' . $key,
 				]
 			);
+		}
+	}
+
+	/**
+	 * Store section intro: what the Product block reads and where from.
+	 */
+	public function store_intro(): void {
+		echo '<p>' . esc_html__( 'The Product block shows products from a WooCommerce store. Leave the address empty to use WooCommerce on this site (when it is active), or enter a separate store: CrazyLinks reads its public product list and never contacts any other address for products.', 'crazylinks' ) . '</p>';
+	}
+
+	/**
+	 * Status line under the store address.
+	 */
+	private function store_status(): void {
+		$status = Store::status();
+		if ( 'local' === $status['mode'] ) {
+			echo '<p class="description"><strong>' . esc_html__( 'Using WooCommerce on this site.', 'crazylinks' ) . '</strong></p>';
+			return;
+		}
+		if ( 'remote' !== $status['mode'] ) {
+			echo '<p class="description">' . esc_html__( 'No store connected. The Product block shows nothing until you add an address or activate WooCommerce.', 'crazylinks' ) . '</p>';
+			return;
+		}
+		if ( $status['ok'] ) {
+			$name = '' !== $status['name'] ? ' ' . sprintf(
+				/* translators: %s: store name. */
+				__( 'Store name: %s.', 'crazylinks' ),
+				$status['name']
+			) : '';
+			echo '<p class="description"><strong>' . esc_html__( 'The store answered.', 'crazylinks' ) . '</strong>' . esc_html( $name ) . '</p>';
+		} else {
+			echo '<p class="description"><strong>' . esc_html__( 'The store did not answer.', 'crazylinks' ) . '</strong> ' . esc_html__( 'Check the address and that WooCommerce is installed there. Products already fetched keep showing.', 'crazylinks' ) . '</p>';
 		}
 	}
 
@@ -196,6 +242,7 @@ final class SettingsPage {
 					'crazylinks/apply-changes'         => __( 'Apply proposed changes (saves the page)', 'crazylinks' ),
 					'crazylinks/get-analytics-summary' => __( 'Read click totals (read only)', 'crazylinks' ),
 					'crazylinks/suggest-titles'        => __( 'Suggest link titles', 'crazylinks' ),
+					'crazylinks/search-products'       => __( 'Find store products (read only)', 'crazylinks' ),
 				];
 				foreach ( Abilities::NAMES as $i => $name ) {
 					printf( '<label><input type="checkbox"%s name="%s[ai_abilities][]" value="%s"%s> %s <code>%s</code></label><br>', 0 === $i ? ' id="' . esc_attr( $id ) . '"' : '', esc_attr( $opt ), esc_attr( $name ), checked( in_array( $name, (array) $s['ai_abilities'], true ), true, false ), esc_html( $labels[ $name ] ), esc_html( $name ) );
@@ -298,6 +345,11 @@ final class SettingsPage {
 			case 'fetch_oembed':
 				printf( '<label><input type="checkbox" id="%s" name="%s" value="1"%s> %s</label>', esc_attr( $id ), esc_attr( $name ), checked( ! empty( $s['fetch_oembed'] ), true, false ), esc_html__( 'Fetch embed details from the provider when a page with an Embed or Video block is saved.', 'crazylinks' ) );
 				echo '<p class="description">' . esc_html__( 'This is the only outbound request CrazyLinks makes: when you save, WordPress asks the provider (YouTube, Vimeo, Spotify and similar) for the title, thumbnail and player of the URL you entered. Visitors never trigger it. Turn it off to make no requests; embeds then show a plain link.', 'crazylinks' ) . '</p>';
+				break;
+			case 'store_url':
+				printf( '<input type="url" id="%s" name="%s" value="%s" class="regular-text code" placeholder="https://store.example.com" maxlength="200" autocomplete="off">', esc_attr( $id ), esc_attr( $name ), esc_attr( (string) $s['store_url'] ) );
+				echo '<p class="description">' . esc_html__( 'The home address of a WooCommerce site with the public Store API on (the default). Products are read from it; a visitor never sends anything to it from your page. Requests carry no personal data.', 'crazylinks' ) . '</p>';
+				$this->store_status();
 				break;
 			case 'delete_on_uninstall':
 				printf( '<label><input type="checkbox" id="%s" name="%s" value="1"%s> %s</label>', esc_attr( $id ), esc_attr( $name ), checked( ! empty( $s['delete_on_uninstall'] ), true, false ), esc_html__( 'Delete all link pages, analytics and settings when the plugin is deleted.', 'crazylinks' ) );

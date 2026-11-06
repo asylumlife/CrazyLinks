@@ -17,6 +17,7 @@ import ColorField from './ColorField';
 import MediaField from './MediaField';
 import ItemsField from './ItemsField';
 import FocalPicker from './FocalPicker';
+import ProductField from './ProductField';
 import { isoToLocalInput, localInputToIso } from '../lib/datetime';
 
 export interface FieldProps {
@@ -331,6 +332,16 @@ export default function Field( {
 					value={ value }
 					onChange={ onChange }
 					help={ def.help }
+				/>
+			);
+		case 'product':
+			return (
+				<ProductField
+					label={ label }
+					value={ typeof value === 'number' ? value : undefined }
+					onChange={ ( next ) => onChange( next ) }
+					help={ def.help }
+					error={ error }
 				/>
 			);
 		case 'items':

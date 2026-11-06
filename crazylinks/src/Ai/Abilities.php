@@ -11,12 +11,13 @@ use CrazyLinks\Analytics\Summary;
 use CrazyLinks\PageStore;
 use CrazyLinks\PostType;
 use CrazyLinks\Settings;
+use CrazyLinks\Woo\Store;
 use WP_Error;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * SPEC §10.5 and §10.7. Nine abilities in the `crazylinks` category, exposed in REST (`abilities/v1`)
+ * SPEC §10.5 and §10.7. Ten abilities in the `crazylinks` category, exposed in REST (`abilities/v1`)
  * and to the MCP Adapter so Claude, ChatGPT and other agents can use them. Each runs as the
  * authenticated user and checks that user's capabilities; each is private until an administrator
  * enables it under CrazyLinks → Settings → AI. The enable switch is applied twice: as the MCP exposure
@@ -43,6 +44,7 @@ final class Abilities {
 		'crazylinks/apply-changes',
 		'crazylinks/get-analytics-summary',
 		'crazylinks/suggest-titles',
+		'crazylinks/search-products',
 	];
 
 	/**
@@ -432,6 +434,42 @@ final class Abilities {
 			static fn() => current_user_can( 'use_crazylinks_ai' ),
 			$readonly
 		);
+		$this->register(
+			'crazylinks/search-products',
+			__( 'Search store products', 'crazylinks' ),
+			__( 'Finds products in the store connected under CrazyLinks → Settings → Store (or WooCommerce on this site). Returns id, name, price and product page URL. Use the id as product_id on a product block.', 'crazylinks' ),
+			[
+				'type'                 => 'object',
+				'properties'           => [
+					'search' => [
+						'type'      => 'string',
+						'maxLength' => 100,
+					],
+					'limit'  => [
+						'type'    => 'integer',
+						'minimum' => 1,
+						'maximum' => 50,
+						'default' => 10,
+					],
+				],
+				'additionalProperties' => false,
+			],
+			[
+				'type'  => 'array',
+				'items' => [
+					'type'       => 'object',
+					'properties' => [
+						'id'    => [ 'type' => 'integer' ],
+						'name'  => [ 'type' => 'string' ],
+						'price' => [ 'type' => 'string' ],
+						'url'   => [ 'type' => 'string' ],
+					],
+				],
+			],
+			[ $this, 'search_products' ],
+			static fn() => current_user_can( 'edit_crazylinks_pages' ),
+			$readonly
+		);
 	}
 
 	/**
@@ -679,5 +717,28 @@ final class Abilities {
 	public function suggest_titles( $input = null ) {
 		$list = Proposals::suggest( 'titles', (array) $input, 0, 'mcp' );
 		return is_wp_error( $list ) ? $list : [ 'suggestions' => $list ];
+	}
+
+	/**
+	 * Execute: search-products.
+	 *
+	 * @param mixed $input Input.
+	 * @return array<int, array{id:int, name:string, price:string, url:string}>
+	 */
+	public function search_products( $input = null ): array {
+		$input = is_array( $input ) ? $input : [];
+		$list  = Store::search( (string) ( $input['search'] ?? '' ), (int) ( $input['limit'] ?? 10 ) );
+		return array_map(
+			static function ( array $product ): array {
+				$brief = Store::brief( $product );
+				return [
+					'id'    => $brief['id'],
+					'name'  => $brief['name'],
+					'price' => $brief['price'],
+					'url'   => $brief['url'],
+				];
+			},
+			$list
+		);
 	}
 }

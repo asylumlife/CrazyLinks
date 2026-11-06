@@ -12,6 +12,7 @@ use CrazyLinks\Render\Payments;
 use CrazyLinks\Schema\Ulid;
 use CrazyLinks\Schema\UrlPolicy;
 use CrazyLinks\Settings;
+use CrazyLinks\Woo\Store;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -27,7 +28,7 @@ final class ClickRedirect {
 	/**
 	 * Block types whose URL can be followed through /go/.
 	 */
-	public const TYPES = [ 'link', 'image', 'payment', 'socials' ];
+	public const TYPES = [ 'link', 'image', 'payment', 'socials', 'product' ];
 
 	/**
 	 * Sends the response and exits.
@@ -76,7 +77,8 @@ final class ClickRedirect {
 			'location' => '',
 			'event'    => 'not-found',
 		];
-		if ( ! Ulid::is_valid( $block_id ) || ( '' !== $item_id && ! Ulid::is_valid( $item_id ) ) ) {
+		// Item ids are ULIDs (social icons) or, for the newest-products mode of a Product block, a product id.
+		if ( ! Ulid::is_valid( $block_id ) || ( '' !== $item_id && ! Ulid::is_valid( $item_id ) && ! ctype_digit( $item_id ) ) ) {
 			return $not_found;
 		}
 		$block = PageStore::reachable_block( $post, $block_id, self::TYPES );
@@ -87,6 +89,9 @@ final class ClickRedirect {
 		if ( 'socials' === $block['type'] ) {
 			// Icon clicks need the item id; the item's own URL is the only destination.
 			$url = '' === $item_id ? '' : self::social_url( $block, $item_id );
+		} elseif ( 'product' === $block['type'] ) {
+			// The target is the product page from the cached store data; nothing in the request names a URL.
+			$url = self::product_url( $block, $item_id );
 		} elseif ( '' !== $item_id ) {
 			return $not_found;
 		} else {
@@ -105,6 +110,24 @@ final class ClickRedirect {
 			'location' => $location,
 			'event'    => $this->maybe_log( $post, $block, $visitor, $item_id ),
 		];
+	}
+
+	/**
+	 * Product page URL for a Product block, from cached store data only (no request to the store):
+	 * the block's own product (single mode, no item), or one of the products currently listed for the
+	 * block (newest mode, item = product id). '' when there is none.
+	 *
+	 * @param array<string, mixed> $block   Product block.
+	 * @param string               $item_id Product id from the URL, or ''.
+	 */
+	private static function product_url( array $block, string $item_id ): string {
+		$props = (array) ( $block['props'] ?? [] );
+		if ( 'latest' === ( $props['mode'] ?? 'single' ) ) {
+			$product = '' !== $item_id && ctype_digit( $item_id ) ? Store::known_product( (int) $item_id, 'latest', (int) ( $props['count'] ?? 3 ), (string) ( $props['category'] ?? '' ) ) : null;
+		} else {
+			$product = '' === $item_id ? Store::known_product( (int) ( $props['product_id'] ?? 0 ) ) : null;
+		}
+		return $product ? (string) $product['url'] : '';
 	}
 
 	/**

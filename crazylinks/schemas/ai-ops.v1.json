@@ -1607,6 +1607,153 @@
                 }
             }
         },
+        "props_product": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "mode": {
+                    "type": "string",
+                    "enum": [
+                        "single",
+                        "latest"
+                    ],
+                    "description": "single shows the product with product_id; latest shows the newest count products (optionally one category)."
+                },
+                "product_id": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Product id in the connected store (single mode). 0 means none. Find ids with the search-products ability."
+                },
+                "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 12
+                },
+                "category": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "pattern": "^[a-z0-9_-]*$",
+                    "description": "Product category slug (latest mode); empty for all."
+                },
+                "display": {
+                    "type": "string",
+                    "enum": [
+                        "card",
+                        "button"
+                    ]
+                },
+                "show_price": {
+                    "type": "boolean"
+                },
+                "button_text": {
+                    "type": "string",
+                    "maxLength": 40
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "description": "Overrides the product name (single mode)."
+                },
+                "subtitle": {
+                    "type": "string",
+                    "maxLength": 160
+                }
+            }
+        },
+        "patch_product": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "mode": {
+                    "type": "string",
+                    "enum": [
+                        "single",
+                        "latest"
+                    ],
+                    "description": "single shows the product with product_id; latest shows the newest count products (optionally one category)."
+                },
+                "product_id": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Product id in the connected store (single mode). 0 means none. Find ids with the search-products ability."
+                },
+                "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 12
+                },
+                "category": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "pattern": "^[a-z0-9_-]*$",
+                    "description": "Product category slug (latest mode); empty for all."
+                },
+                "display": {
+                    "type": "string",
+                    "enum": [
+                        "card",
+                        "button"
+                    ]
+                },
+                "show_price": {
+                    "type": "boolean"
+                },
+                "button_text": {
+                    "type": "string",
+                    "maxLength": 40
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "description": "Overrides the product name (single mode)."
+                },
+                "subtitle": {
+                    "type": "string",
+                    "maxLength": 160
+                }
+            }
+        },
+        "new_product": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "props"
+            ],
+            "properties": {
+                "type": {
+                    "const": "product"
+                },
+                "parent_id": {
+                    "$ref": "#/$defs/block_ref_or_null"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "schedule": {
+                    "$ref": "#/$defs/schedule"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "animation": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "pulse",
+                        "shake",
+                        "wobble",
+                        "shimmer"
+                    ]
+                },
+                "tracking": {
+                    "type": "boolean"
+                },
+                "props": {
+                    "$ref": "#/$defs/props_product"
+                }
+            }
+        },
         "props_embed": {
             "type": "object",
             "additionalProperties": false,
@@ -2671,6 +2818,9 @@
                             "$ref": "#/$defs/new_latest_posts"
                         },
                         {
+                            "$ref": "#/$defs/new_product"
+                        },
+                        {
                             "$ref": "#/$defs/new_embed"
                         },
                         {
@@ -2744,6 +2894,9 @@
                         },
                         {
                             "$ref": "#/$defs/patch_latest_posts"
+                        },
+                        {
+                            "$ref": "#/$defs/patch_product"
                         },
                         {
                             "$ref": "#/$defs/patch_embed"

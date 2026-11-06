@@ -133,7 +133,7 @@ class AiMcpTest extends TestCase {
 
 	public function test_new_abilities_are_registered_in_order_with_annotations(): void {
 		$this->assertSame(
-			[ 'crazylinks/list-pages', 'crazylinks/get-page', 'crazylinks/get-editing-guide', 'crazylinks/preview-operations', 'crazylinks/apply-operations', 'crazylinks/propose-changes', 'crazylinks/apply-changes', 'crazylinks/get-analytics-summary', 'crazylinks/suggest-titles' ],
+			[ 'crazylinks/list-pages', 'crazylinks/get-page', 'crazylinks/get-editing-guide', 'crazylinks/preview-operations', 'crazylinks/apply-operations', 'crazylinks/propose-changes', 'crazylinks/apply-changes', 'crazylinks/get-analytics-summary', 'crazylinks/suggest-titles', 'crazylinks/search-products' ],
 			Abilities::NAMES
 		);
 		$expect = [

@@ -18,7 +18,7 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Renderer {
 
-	public const IMPLEMENTED = [ 'link', 'socials', 'heading', 'text', 'divider', 'image', 'spacer', 'group', 'email_capture', 'embed', 'html', 'gallery', 'latest_posts', 'video', 'contact', 'countdown', 'map', 'payment' ];
+	public const IMPLEMENTED = [ 'link', 'socials', 'heading', 'text', 'divider', 'image', 'spacer', 'group', 'email_capture', 'embed', 'html', 'gallery', 'latest_posts', 'product', 'video', 'contact', 'countdown', 'map', 'payment' ];
 
 	/**
 	 * Renders a saved page, using the transient cache.

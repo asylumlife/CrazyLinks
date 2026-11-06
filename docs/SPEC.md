@@ -516,6 +516,7 @@ Registered through the WordPress Abilities API so the official **MCP Adapter** p
 | `crazylinks/apply-changes` | destructive, idempotent (by proposal id) | can edit that page; honours a per-page "require confirmation" setting |
 | `crazylinks/get-analytics-summary` | readonly | `view_crazylinks_analytics` |
 | `crazylinks/suggest-titles` | readonly | `use_crazylinks_ai` |
+| `crazylinks/search-products` | readonly | `edit_crazylinks_pages` |
 
 Abilities are private by default and enabled by the admin per ability. Every MCP-sourced change is logged with `source = mcp` and shown in the page's history with an "AI (external)" badge, mirroring Linktree's Premium feature at no charge.
 
@@ -566,6 +567,8 @@ Test plan: Playwright is not applicable; test through the Abilities REST routes 
 | Short links | None needed (first-party `/go/` redirect) | Pretty Links / ThirstyAffiliates picker |
 | Media | Media Library, oEmbed | Canva import (later, if API allows) |
 | Hooks | `crazylinks_render_block`, `crazylinks_before_save`, `crazylinks_event_logged`, `crazylinks_subscriber_added`, `crazylinks_ai_proposal`, `crazylinks_register_block_type` for third-party blocks | |
+
+**Built (0.3.0): Product block.** Block type `product` shows one WooCommerce product or the newest N (optionally one category) from WooCommerce on the same site or from a separate store through its public Store API (`/wp-json/wc/store/v1/products`). The store address is the admin-only `store_url` setting (https; http only when `wp_get_environment_type()` is `local`) and the only host ever contacted for products; block props carry ids, counts and a category slug only. `CrazyLinks\Woo\Store` fetches with a 5-second timeout, follows no redirects, normalizes and sanitizes the answer (tags stripped, URLs validated and pinned to the store host, images https), prices from minor units with the store's own symbol, caches 15 minutes and keeps the last good result so a down store serves stale data. The Buy link goes to the product page through `/go/{block}/` or `/go/{block}/{product_id}/` (resolved from cached data only, 404 when none). Editor: async product picker (`GET /crazylinks/v1/store/products`); AI: `crazylinks/search-products` ability. See `crazylinks/docs/hooks.md` and `schema-changes.md`.
 
 ---
 

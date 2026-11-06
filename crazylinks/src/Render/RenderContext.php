@@ -148,6 +148,25 @@ final class RenderContext {
 	}
 
 	/**
+	 * The Buy link of a Product block: /go/{block}/ (single) or /go/{block}/{product_id}/ (newest
+	 * products) when clicks are counted, otherwise the store's product page itself.
+	 *
+	 * @param array<string, mixed> $block      Product block.
+	 * @param int                  $product_id Product id.
+	 * @param string               $url        Product page URL from the store.
+	 */
+	public function product_href( array $block, int $product_id, string $url ): string {
+		if ( '' === $url ) {
+			return '';
+		}
+		if ( $this->track && ! empty( $block['tracking'] ) && '' !== $this->slug ) {
+			$latest = 'latest' === ( $block['props']['mode'] ?? 'single' );
+			return Router::go_path( $this->slug, (string) $block['id'], $latest ? (string) $product_id : '' );
+		}
+		return Utm::apply( $url, $this->settings, $this->slug );
+	}
+
+	/**
 	 * Records a schedule boundary in the future.
 	 *
 	 * @param int $ts Unix time.

@@ -12,6 +12,7 @@ use CrazyLinks\PageStore;
 use CrazyLinks\PostType;
 use CrazyLinks\Schema\PageValidator;
 use CrazyLinks\Schema\Ulid;
+use CrazyLinks\Woo\Store;
 use WP_CLI;
 
 defined( 'ABSPATH' ) || exit;
@@ -375,6 +376,7 @@ final class Command {
 						'display' => 'classic',
 					],
 				],
+				...$this->demo_product_blocks(),
 				[
 					'type'  => 'heading',
 					'props' => [ 'text' => 'Support' ],
@@ -511,5 +513,37 @@ final class Command {
 	public function rollup(): void {
 		( new Rollup() )->run();
 		WP_CLI::success( 'Rollup complete through ' . get_option( 'crazylinks_rollup_through', '(nothing to roll up)' ) );
+	}
+
+	/**
+	 * A heading and a Product block with the first product the connected store returns. Empty when
+	 * no store is configured (or it has no products), so the demo never depends on a store.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function demo_product_blocks(): array {
+		if ( ! Store::is_available() ) {
+			return [];
+		}
+		$first = Store::search( '', 1 )[0] ?? null;
+		if ( ! $first ) {
+			return [];
+		}
+		return [
+			[
+				'type'  => 'heading',
+				'props' => [ 'text' => 'From the store' ],
+			],
+			[
+				'type'  => 'product',
+				'props' => [
+					'mode'        => 'single',
+					'product_id'  => (int) $first['id'],
+					'display'     => 'card',
+					'show_price'  => true,
+					'button_text' => 'Buy',
+				],
+			],
+		];
 	}
 }

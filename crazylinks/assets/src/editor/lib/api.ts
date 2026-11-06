@@ -56,6 +56,20 @@ export interface AnalyticsSummary {
 	country_available?: boolean;
 }
 
+export interface StoreProduct {
+	id: number;
+	name: string;
+	price: string;
+	url: string;
+	image: string;
+	on_sale: boolean;
+}
+
+export interface StoreProducts {
+	available: boolean;
+	products: StoreProduct[];
+}
+
 export const api = {
 	preview( page: PageDoc, id: number, signal?: AbortSignal ) {
 		return apiFetch< PreviewResponse >( {
@@ -101,6 +115,24 @@ export const api = {
 		return apiFetch< PagePayload >( {
 			path: `${ NS }/pages/${ id }/revisions/${ revId }/restore`,
 			method: 'POST',
+		} );
+	},
+	/** Store products for the Product block picker (`include` resolves one id). */
+	storeProducts(
+		params: { search?: string; perPage?: number; include?: number },
+		signal?: AbortSignal
+	) {
+		const q = new URLSearchParams();
+		if ( params.search ) {
+			q.set( 'search', params.search );
+		}
+		q.set( 'per_page', String( params.perPage ?? 10 ) );
+		if ( params.include ) {
+			q.set( 'include', String( params.include ) );
+		}
+		return apiFetch< StoreProducts >( {
+			path: `${ NS }/store/products?${ q.toString() }`,
+			signal,
 		} );
 	},
 	analytics( id: number, range: string ) {

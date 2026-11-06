@@ -257,6 +257,9 @@ final class OpsValidator {
 				}
 			}
 		}
+		if ( 'product' === $type && ! empty( $props['product_id'] ) && \CrazyLinks\Woo\Store::is_available() && null === \CrazyLinks\Woo\Store::product( (int) $props['product_id'] ) ) {
+			$errors[] = self::err( $path . '/product_id', __( 'Unknown product, or the store did not answer. Use the search-products ability to find a product id.', 'crazylinks' ) );
+		}
 		if ( in_array( $type, [ 'latest_posts', 'woo_products' ], true ) && ! empty( $props['category'] ) && ! term_exists( (int) $props['category'] ) ) {
 			$errors[] = self::err( $path . '/category', __( 'Unknown category.', 'crazylinks' ) );
 		}
