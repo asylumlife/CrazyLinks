@@ -120,9 +120,8 @@ final class PersonalData {
 	 */
 	private static function rows_for_email( string $email, int $page ): array {
 		global $wpdb;
-		$cols = 'id, page_id, block_id, email, status, consent_text, consent_at, confirmed_at, created_at, updated_at';
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT {$cols} FROM " . Store::table() . ' WHERE email = %s ORDER BY id ASC LIMIT %d OFFSET %d', $email, self::PER_PAGE, ( $page - 1 ) * self::PER_PAGE ), ARRAY_A );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table; privacy export must be live.
+		return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT id, page_id, block_id, email, status, consent_text, consent_at, confirmed_at, created_at, updated_at FROM %i WHERE email = %s ORDER BY id ASC LIMIT %d OFFSET %d', Store::table(), $email, self::PER_PAGE, ( $page - 1 ) * self::PER_PAGE ), ARRAY_A );
 	}
 
 	/**

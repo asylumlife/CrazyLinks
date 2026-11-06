@@ -93,9 +93,8 @@ final class AiLog {
 	 */
 	public static function get( int $id ): ?array {
 		global $wpdb;
-		$table = self::table();
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Plugin table.
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $id ), ARRAY_A );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin table.
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', self::table(), $id ), ARRAY_A );
 		return is_array( $row ) ? $row : null;
 	}
 
@@ -111,11 +110,10 @@ final class AiLog {
 		if ( ! $ids ) {
 			return [];
 		}
-		$table        = self::table();
 		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Plugin table; placeholders built above.
-		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT revision_id, source, model, user_id FROM {$table} WHERE applied = 1 AND revision_id IN ({$placeholders})", $ids ), ARRAY_A );
-		// phpcs:enable
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Plugin table bound with %i; the %d list is built from intval'd ids above.
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT revision_id, source, model, user_id FROM %i WHERE applied = 1 AND revision_id IN ({$placeholders})", array_merge( [ self::table() ], $ids ) ), ARRAY_A );
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, PluginCheck.Security.DirectDB.UnescapedDBParameter
 		$out = [];
 		foreach ( $rows as $row ) {
 			$out[ (int) $row['revision_id'] ] = [
@@ -135,15 +133,14 @@ final class AiLog {
 	 */
 	public static function count_since( int $since, ?int $user_id = null ): int {
 		global $wpdb;
-		$table = self::table();
-		$from  = gmdate( 'Y-m-d H:i:s', $since );
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Plugin table.
+		$from = gmdate( 'Y-m-d H:i:s', $since );
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin table; status counts must be live.
 		if ( null === $user_id ) {
-			$n = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE created_at >= %s AND kind IN ('propose','suggest')", $from ) );
+			$n = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE created_at >= %s AND kind IN ('propose','suggest')", self::table(), $from ) );
 		} else {
-			$n = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE created_at >= %s AND user_id = %d AND kind IN ('propose','suggest')", $from, $user_id ) );
+			$n = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE created_at >= %s AND user_id = %d AND kind IN ('propose','suggest')", self::table(), $from, $user_id ) );
 		}
-		// phpcs:enable
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		return (int) $n;
 	}
 
@@ -156,9 +153,8 @@ final class AiLog {
 		if ( $days <= 0 ) {
 			return;
 		}
-		$table = self::table();
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Plugin table.
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE created_at < %s", gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS ) ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin table write.
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE created_at < %s', self::table(), gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS ) ) );
 	}
 
 	/**
@@ -182,8 +178,7 @@ final class AiLog {
 	 */
 	public static function for_user( int $user_id, int $limit, int $offset ): array {
 		global $wpdb;
-		$table = self::table();
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Plugin table.
-		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT id, page_id, instruction, applied, created_at FROM {$table} WHERE user_id = %d ORDER BY id DESC LIMIT %d OFFSET %d", $user_id, $limit, $offset ), ARRAY_A );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin table; privacy export must be live.
+		return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT id, page_id, instruction, applied, created_at FROM %i WHERE user_id = %d ORDER BY id DESC LIMIT %d OFFSET %d', self::table(), $user_id, $limit, $offset ), ARRAY_A );
 	}
 }

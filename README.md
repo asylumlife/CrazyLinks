@@ -24,9 +24,9 @@ More screenshots are in [`docs/screenshots/`](docs/screenshots/).
 
 ## Requirements
 
-- WordPress 6.9 or newer
+- WordPress 7.0 or newer
 - PHP 8.1 or newer
-- For AI editing: WordPress 7.0 or newer and an AI provider plugin connected under Settings → Connectors
+- For AI editing: an AI provider plugin connected under Settings → Connectors
 - For editing from Claude Desktop or Claude Code: the MCP Adapter plugin
 
 ## Install
