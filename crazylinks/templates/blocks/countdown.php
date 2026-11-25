@@ -1,6 +1,6 @@
 <?php
 /**
- * Countdown to a date. The server renders the remaining time; the front-end script ticks it.
+ * Countdown to a date, once or every week. The server renders the remaining time; the front-end script ticks it.
  * Without JavaScript the numbers stay as rendered. Cached pages are rebuilt when the target passes.
  *
  * @package CrazyLinks
@@ -15,11 +15,24 @@ $crazylinks_target = strtotime( (string) ( $props['target'] ?? '' ) );
 if ( false === $crazylinks_target ) {
 	return;
 }
+$crazylinks_text   = (string) ( $props['expired_text'] ?? '' );
+$crazylinks_url    = $ctx->href( [ 'tracking' => false ], (string) ( $props['url'] ?? '' ) );
+$crazylinks_repeat = [];
+if ( 'weekly' === ( $props['repeat'] ?? 'none' ) ) {
+	// Weekly: count down to the next occurrence; during one, show the after-the-end text and link.
+	$crazylinks_repeat = \CrazyLinks\Render\Schedule::countdown_occurrences( $crazylinks_target, array_map( 'strval', (array) ( $props['repeat_days'] ?? [] ) ), (int) ( $props['live_minutes'] ?? 60 ), $ctx->now, $ctx->tz );
+	if ( ! $crazylinks_repeat ) {
+		return;
+	}
+	[ $crazylinks_target, $crazylinks_until ] = $crazylinks_repeat[0];
+	$ctx->note_boundary( $crazylinks_until );
+	if ( '' === $crazylinks_text ) {
+		$crazylinks_text = __( 'Happening now', 'crazylinks' );
+	}
+}
 $ctx->note_boundary( $crazylinks_target );
 $crazylinks_left  = max( 0, $crazylinks_target - $ctx->now );
 $crazylinks_done  = 0 === $crazylinks_left;
-$crazylinks_text  = (string) ( $props['expired_text'] ?? '' );
-$crazylinks_url   = $ctx->href( [ 'tracking' => false ], (string) ( $props['url'] ?? '' ) );
 $crazylinks_units = [
 	'd' => [ (int) floor( $crazylinks_left / DAY_IN_SECONDS ), __( 'Days', 'crazylinks' ) ],
 	'h' => [ (int) floor( ( $crazylinks_left % DAY_IN_SECONDS ) / HOUR_IN_SECONDS ), __( 'Hours', 'crazylinks' ) ],
@@ -29,8 +42,10 @@ $crazylinks_units = [
 if ( $crazylinks_done && '' === $crazylinks_text && '' === $crazylinks_url ) {
 	return;
 }
+// Upcoming occurrences as "start/end" Unix times, so a cached page rolls over without a reload.
+$crazylinks_list = implode( ',', array_map( static fn( $o ) => $o[0] . '/' . $o[1], $crazylinks_repeat ) );
 ?>
-<div class="cl-countdown" role="timer" data-cl-countdown="<?php echo esc_attr( gmdate( 'c', $crazylinks_target ) ); ?>">
+<div class="cl-countdown" role="timer" data-cl-countdown="<?php echo esc_attr( gmdate( 'c', $crazylinks_target ) ); ?>"<?php echo '' !== $crazylinks_list ? ' data-cl-repeat="' . esc_attr( $crazylinks_list ) . '"' : ''; ?>>
 	<?php if ( ! empty( $props['label'] ) ) : ?>
 		<p class="cl-countdown__label"><?php echo esc_html( (string) $props['label'] ); ?></p>
 	<?php endif; ?>

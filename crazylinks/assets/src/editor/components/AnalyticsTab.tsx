@@ -269,6 +269,61 @@ export default function AnalyticsTab() {
 							</tbody>
 						</table>
 					) }
+					{ ( data?.sources ?? [] ).length > 0 && (
+						<div className="cl-sources">
+							<h3>
+								{ __(
+									'What each source clicks',
+									'crazylinks'
+								) }
+							</h3>
+							<table className="widefat striped cl-block-table">
+								<thead>
+									<tr>
+										<th scope="col">
+											{ __( 'Source', 'crazylinks' ) }
+										</th>
+										<th scope="col" className="num">
+											{ __( 'Views', 'crazylinks' ) }
+										</th>
+										<th scope="col" className="num">
+											{ __( 'Clicks', 'crazylinks' ) }
+										</th>
+									</tr>
+								</thead>
+								<tbody>
+									{ ( data?.sources ?? [] ).map( ( s ) => (
+										<tr key={ s.source }>
+											<td>
+												{ s.label }
+												{ ( s.top ?? [] ).length >
+													0 && (
+													<span className="cl-sources__top">
+														{ ( s.top ?? [] )
+															.map(
+																( t ) =>
+																	`${
+																		t.title
+																	} (${ fmt(
+																		t.clicks
+																	) })`
+															)
+															.join( ', ' ) }
+													</span>
+												) }
+											</td>
+											<td className="num">
+												{ fmt( s.views ) }
+											</td>
+											<td className="num">
+												{ fmt( s.clicks ) }
+											</td>
+										</tr>
+									) ) }
+								</tbody>
+							</table>
+						</div>
+					) }
 					<Breakdown
 						title={ __( 'Devices', 'crazylinks' ) }
 						data={ data?.breakdowns?.device }

@@ -276,6 +276,68 @@ class BlockPartialsTest extends TestCase {
 		$this->assertFalse( $this->validate_block( 'countdown', [ 'target' => 'soon' ] )->is_valid() );
 	}
 
+	public function test_weekly_countdown_counts_to_the_next_occurrence_and_starts_over(): void {
+		// Target: Thursday 2026-01-01 20:00 UTC. Repeats on its own weekday, live for 90 minutes.
+		$target = strtotime( '2026-01-01T20:00:00Z' );
+		$doc    = fn( array $extra = [] ) => $this->doc(
+			[
+				[
+					'type'  => 'countdown',
+					'props' => [
+						'target'       => '2026-01-01T20:00:00+00:00',
+						'repeat'       => 'weekly',
+						'live_minutes' => 90,
+						'url'          => 'https://example.com/live',
+					] + $extra,
+				],
+			]
+		);
+		$week   = 7 * DAY_IN_SECONDS;
+
+		// Before the first one: counts to the target itself, with the following weeks listed.
+		$html = $this->render( $doc(), $target - 3 * HOUR_IN_SECONDS );
+		$this->assertStringContainsString( 'data-cl-countdown="' . gmdate( 'c', $target ) . '"', $html );
+		$this->assertStringContainsString( 'data-cl-repeat="' . $target . '/' . ( $target + 90 * 60 ) . ',' . ( $target + $week ) . '/', $html );
+		$this->assertMatchesRegularExpression( '/data-cl-unit="h">03</', $html );
+		$this->assertMatchesRegularExpression( '/cl-countdown__done" hidden/', $html );
+
+		// During it: the text and link show, with a default text.
+		$live = $this->render( $doc(), $target + 10 * MINUTE_IN_SECONDS );
+		$this->assertMatchesRegularExpression( '/cl-countdown__live" hidden/', $live );
+		$this->assertStringContainsString( 'Happening now', $live );
+		$this->assertStringContainsString( 'https://example.com/live', $live );
+
+		// After it: counting down to next week.
+		$next = $this->render( $doc(), $target + 2 * HOUR_IN_SECONDS );
+		$this->assertStringContainsString( 'data-cl-countdown="' . gmdate( 'c', $target + $week ) . '"', $next );
+		$this->assertMatchesRegularExpression( '/data-cl-unit="d">6</', $next );
+		$this->assertMatchesRegularExpression( '/cl-countdown__done" hidden/', $next );
+
+		// Chosen days: Saturday and Tuesday after a Thursday target.
+		$days = $this->render( $doc( [ 'repeat_days' => [ 'tue', 'sat' ] ] ), $target - HOUR_IN_SECONDS );
+		$this->assertStringContainsString( 'data-cl-repeat="' . ( $target + 2 * DAY_IN_SECONDS ) . '/' . ( $target + 2 * DAY_IN_SECONDS + 90 * 60 ) . ',' . ( $target + 5 * DAY_IN_SECONDS ) . '/', $days );
+
+		$this->assertTrue( $this->validate_block( 'countdown', [ 'target' => '2030-01-01T00:00:00Z', 'repeat' => 'weekly', 'repeat_days' => [ 'mon' ], 'live_minutes' => 30 ] )->is_valid() );
+		$this->assertFalse( $this->validate_block( 'countdown', [ 'target' => '2030-01-01T00:00:00Z', 'repeat' => 'hourly' ] )->is_valid() );
+		$this->assertFalse( $this->validate_block( 'countdown', [ 'target' => '2030-01-01T00:00:00Z', 'repeat_days' => [ 'someday' ] ] )->is_valid() );
+		$this->assertFalse( $this->validate_block( 'countdown', [ 'target' => '2030-01-01T00:00:00Z', 'live_minutes' => 0 ] )->is_valid() );
+	}
+
+	public function test_weekly_countdown_keeps_its_local_hour_across_a_clock_change(): void {
+		$tz     = new \DateTimeZone( 'America/Chicago' );
+		$target = ( new \DateTimeImmutable( '2026-03-01 19:00', $tz ) )->getTimestamp(); // A Sunday, a week before clocks go forward.
+		$list   = \CrazyLinks\Render\Schedule::countdown_occurrences( $target, [], 60, $target - 60, $tz, 3 );
+		$this->assertSame(
+			[ '2026-03-01 19:00', '2026-03-08 19:00', '2026-03-15 19:00' ],
+			array_map( static fn( $o ) => ( new \DateTimeImmutable( '@' . $o[0] ) )->setTimezone( $tz )->format( 'Y-m-d H:i' ), $list )
+		);
+		$this->assertSame( 7 * DAY_IN_SECONDS - HOUR_IN_SECONDS, $list[1][0] - $list[0][0], 'That week is an hour short' );
+		// A late show that runs past midnight is still in progress after midnight.
+		$late = ( new \DateTimeImmutable( '2026-06-05 23:30', $tz ) )->getTimestamp();
+		$now  = $late + 45 * MINUTE_IN_SECONDS;
+		$this->assertSame( [ $late, $late + 3600 ], \CrazyLinks\Render\Schedule::countdown_occurrences( $late, [], 60, $now, $tz, 1 )[0] );
+	}
+
 	public function test_map_links_out_with_encoded_address(): void {
 		$html = $this->render( $this->doc( [ [ 'type' => 'map', 'props' => [ 'address' => self::XSS, 'label' => self::SHORT ] ] ] ) );
 		$this->assert_no_injection( $html );

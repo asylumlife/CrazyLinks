@@ -1451,7 +1451,7 @@ export function blockDefs(): Record< string, BlockDef > {
 			type: 'countdown',
 			label: __( 'Countdown', 'crazylinks' ),
 			description: __(
-				'Counts down to a date, then shows a link.',
+				'Counts down to a date, once or every week, then shows a link.',
 				'crazylinks'
 			),
 			icon: 'clock',
@@ -1488,6 +1488,51 @@ export function blockDefs(): Record< string, BlockDef > {
 					label: __( 'Link label', 'crazylinks' ),
 					kind: 'text',
 					maxLength: 80,
+				},
+				{
+					key: 'repeat',
+					label: __( 'Repeat', 'crazylinks' ),
+					kind: 'select',
+					options: opts( [
+						[ 'none', __( 'Once', 'crazylinks' ) ],
+						[
+							'weekly',
+							__(
+								'Every week at this time (site timezone)',
+								'crazylinks'
+							),
+						],
+					] ),
+				},
+				{
+					key: 'repeat_days',
+					label: __(
+						'Days (none ticked: the same weekday as the date above)',
+						'crazylinks'
+					),
+					kind: 'multicheck',
+					options: opts( [
+						[ 'mon', __( 'Monday', 'crazylinks' ) ],
+						[ 'tue', __( 'Tuesday', 'crazylinks' ) ],
+						[ 'wed', __( 'Wednesday', 'crazylinks' ) ],
+						[ 'thu', __( 'Thursday', 'crazylinks' ) ],
+						[ 'fri', __( 'Friday', 'crazylinks' ) ],
+						[ 'sat', __( 'Saturday', 'crazylinks' ) ],
+						[ 'sun', __( 'Sunday', 'crazylinks' ) ],
+					] ),
+					showIf: ( p ) => p.repeat === 'weekly',
+				},
+				{
+					key: 'live_minutes',
+					label: __(
+						'Minutes to show the text and link before counting down again',
+						'crazylinks'
+					),
+					kind: 'number',
+					min: 1,
+					max: 720,
+					placeholder: '60',
+					showIf: ( p ) => p.repeat === 'weekly',
 				},
 			],
 		},

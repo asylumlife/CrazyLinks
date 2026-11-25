@@ -121,6 +121,52 @@ final class Schedule {
 	}
 
 	/**
+	 * Upcoming occurrences [start, end) of a weekly repeating countdown, soonest first: every chosen
+	 * weekday at the target's local time of day, from the target on, each lasting $live_minutes.
+	 * Includes the one in progress at $now. Wall-clock time, so the hour holds across DST changes.
+	 *
+	 * @param int           $target       Unix time of the first possible occurrence.
+	 * @param string[]      $days         mon..sun; empty = the target's weekday.
+	 * @param int           $live_minutes Length of each occurrence (1 to 720).
+	 * @param int           $now          Unix time.
+	 * @param \DateTimeZone $tz           Site zone.
+	 * @param int           $limit        How many to return.
+	 * @return array<int, array{0:int, 1:int}>
+	 */
+	public static function countdown_occurrences( int $target, array $days, int $live_minutes, int $now, \DateTimeZone $tz, int $limit = 6 ): array {
+		$local = ( new \DateTimeImmutable( '@' . $target ) )->setTimezone( $tz );
+		$names = [ 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun' ];
+		$nums  = [];
+		foreach ( $days as $day ) {
+			$i = array_search( $day, $names, true );
+			if ( false !== $i ) {
+				$nums[] = $i + 1;
+			}
+		}
+		$nums  = $nums ? array_values( array_unique( $nums ) ) : [ (int) $local->format( 'N' ) ];
+		$live  = max( 1, min( 720, $live_minutes ) );
+		$start = (int) $local->format( 'G' ) * 60 + (int) $local->format( 'i' );
+		$from  = max( $now, $target ) - DAY_IN_SECONDS;
+		$out   = [];
+		foreach ( self::occurrences(
+			[
+				'days'  => $nums,
+				'start' => $start,
+				'end'   => ( $start + $live ) % 1440,
+			],
+			$from,
+			$from + ( 7 * $limit + 9 ) * DAY_IN_SECONDS,
+			$tz
+		) as [ $begin, $end ] ) {
+			// Seconds of the target are dropped by the minute grid, so compare on the minute.
+			if ( $end > $now && $begin >= $target - 59 && count( $out ) < $limit ) {
+				$out[] = [ $begin, $end ];
+			}
+		}
+		return $out;
+	}
+
+	/**
 	 * Whether a schedule allows showing the block at $now.
 	 *
 	 * @param array<string, mixed> $schedule Schedule.

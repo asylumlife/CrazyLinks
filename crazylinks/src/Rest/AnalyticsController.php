@@ -145,6 +145,7 @@ final class AnalyticsController extends \WP_REST_Controller {
 				'totals'            => $obj,
 				'timeseries'        => $arr,
 				'blocks'            => $arr,
+				'sources'           => $arr,
 				'breakdowns'        => $obj,
 				'country_available' => [
 					'type'     => 'boolean',

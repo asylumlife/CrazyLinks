@@ -40,7 +40,24 @@
 	function tick() {
 		var now = Date.now();
 		timers.forEach( function ( box ) {
-			var left = Math.max( 0, Math.floor( ( Date.parse( box.getAttribute( 'data-cl-countdown' ) ) - now ) / 1000 ) );
+			var target = Date.parse( box.getAttribute( 'data-cl-countdown' ) );
+			// Weekly countdowns carry their next occurrences as "start/end" Unix times: use the first
+			// one that has not ended, so the block starts over after each one. Hide it when a very old
+			// cached copy has run out of them.
+			var repeat = box.getAttribute( 'data-cl-repeat' );
+			if ( repeat ) {
+				var next = repeat.split( ',' ).map( function ( pair ) {
+					return pair.split( '/' ).map( Number );
+				} ).filter( function ( pair ) {
+					return pair[ 1 ] * 1000 > now;
+				} )[ 0 ];
+				box.hidden = ! next;
+				if ( ! next ) {
+					return;
+				}
+				target = next[ 0 ] * 1000;
+			}
+			var left = Math.max( 0, Math.floor( ( target - now ) / 1000 ) );
 			var live = box.querySelector( '.cl-countdown__live' );
 			var done = box.querySelector( '.cl-countdown__done' );
 			if ( ! live || ! done ) {

@@ -283,4 +283,84 @@ class AnalyticsSummaryTest extends TestCase {
 		$this->assertSame( 100, Chart::nice_max( 81 ) );
 		$this->assertSame( 250, Chart::nice_max( 201 ) );
 	}
+
+	public function test_clicks_are_reported_per_traffic_source(): void {
+		global $wpdb;
+		$post  = $this->make_page( $this->doc() );
+		$id    = (int) $post->ID;
+		$event = function ( string $type, string $visitor, string $time, array $extra = [] ) use ( $wpdb, $id ): void {
+			$wpdb->insert(
+				$wpdb->prefix . 'crazylinks_events',
+				array_merge(
+					[
+						'page_id'      => $id,
+						'type'         => $type,
+						'ts'           => self::day( 1 ) . ' ' . $time,
+						'visitor_hash' => $visitor,
+						'device'       => 'mobile',
+					],
+					$extra
+				)
+			);
+		};
+		// Instagram app, no referrer: two visitors, three clicks.
+		$event( 'view', 'ig1', '10:00:00', [ 'in_app' => 'instagram' ] );
+		$event( 'click', 'ig1', '10:00:05', [ 'block_id' => self::A, 'in_app' => 'instagram' ] );
+		$event( 'click', 'ig1', '10:00:09', [ 'block_id' => self::B, 'in_app' => 'instagram' ] );
+		$event( 'view', 'ig2', '11:00:00', [ 'referrer_host' => 'l.instagram.com' ] );
+		$event( 'click', 'ig2', '11:00:05', [ 'block_id' => self::A ] );
+		// A campaign tag wins over the app it was opened in, and "ig" is Instagram.
+		$event( 'view', 'ig3', '11:30:00', [ 'utm_source' => 'IG', 'in_app' => 'facebook' ] );
+		// One visitor comes back from a different source: each click belongs to the visit before it.
+		$event( 'view', 'both', '12:00:00', [ 'referrer_host' => 'www.tiktok.com' ] );
+		$event( 'click', 'both', '12:00:05', [ 'block_id' => self::B ] );
+		$event( 'view', 'both', '13:00:00', [ 'utm_source' => 'newsletter' ] );
+		$event( 'click', 'both', '13:00:05', [ 'block_id' => self::A ] );
+		// Direct visit, an unknown site, and a click with no view at all.
+		$event( 'view', 'dir', '14:00:00' );
+		$event( 'view', 'blog', '14:30:00', [ 'referrer_host' => 'www.some-blog.example' ] );
+		$event( 'click', 'ghost', '15:00:00', [ 'block_id' => self::A ] );
+		// Another page's view must not lend its source.
+		$other = $this->make_page( $this->doc(), 'other' );
+		$wpdb->insert(
+			$wpdb->prefix . 'crazylinks_events',
+			[
+				'page_id'       => $other->ID,
+				'type'          => 'view',
+				'ts'            => self::day( 1 ) . ' 14:59:00',
+				'visitor_hash'  => 'ghost',
+				'referrer_host' => 'reddit.com',
+			]
+		);
+
+		$sources = array_column( Summary::report( $id, self::day( 2 ), self::day( 0 ) )['sources'], null, 'source' );
+		$this->assertSame( [ 'instagram', 'tiktok', 'utm:newsletter', 'unknown', 'direct', 'host:some-blog.example' ], array_keys( $sources ) );
+		$this->assertSame( [ 'Instagram', 3, 3, 1.0 ], [ $sources['instagram']['label'], $sources['instagram']['views'], $sources['instagram']['clicks'], $sources['instagram']['ctr'] ] );
+		$this->assertSame(
+			[
+				[ 'One', 2 ],
+				[ 'Two', 1 ],
+			],
+			array_map( static fn( $t ) => [ $t['title'], $t['clicks'] ], $sources['instagram']['top'] )
+		);
+		$this->assertSame( [ 'TikTok', 1, 1 ], [ $sources['tiktok']['label'], $sources['tiktok']['views'], $sources['tiktok']['clicks'] ] );
+		$this->assertSame( 'Two', $sources['tiktok']['top'][0]['title'] );
+		$this->assertSame( [ 'newsletter', 1, 1 ], [ $sources['utm:newsletter']['label'], $sources['utm:newsletter']['views'], $sources['utm:newsletter']['clicks'] ] );
+		$this->assertSame( [ 0, 1, null ], [ $sources['unknown']['views'], $sources['unknown']['clicks'], $sources['unknown']['ctr'] ] );
+		$this->assertSame( [ 1, 0, [] ], [ $sources['direct']['views'], $sources['direct']['clicks'], $sources['direct']['top'] ] );
+		$this->assertSame( 'some-blog.example', $sources['host:some-blog.example']['label'] );
+		$this->assertSame( 6, array_sum( array_column( $sources, 'clicks' ) ), 'Every click lands in exactly one source' );
+		$this->assertSame( 7, array_sum( array_column( $sources, 'views' ) ) );
+		$this->assertArrayHasKey( 'sources', $this->request( $id )->get_data() );
+	}
+
+	public function test_source_names(): void {
+		$this->assertSame( [ 'twitter', 'X (Twitter)' ], Summary::source_name( '', '', 't.co' ) );
+		$this->assertSame( [ 'twitter', 'X (Twitter)' ], Summary::source_name( 'x', '', '' ) );
+		$this->assertSame( [ 'facebook', 'Facebook' ], Summary::source_name( '', '', 'm.facebook.com' ) );
+		$this->assertSame( [ 'google', 'Google' ], Summary::source_name( '', '', 'www.google.co.uk' ) );
+		$this->assertSame( [ 'host:notfacebook.com', 'notfacebook.com' ], Summary::source_name( '', '', 'notfacebook.com' ) );
+		$this->assertSame( 'tiktok', Summary::source_name( '', 'tiktok', '', false )[0], 'An unmatched click still knows its app' );
+		$this->assertSame( 'direct', Summary::source_name( '', 'none', '' )[0] );
+	}
 }
