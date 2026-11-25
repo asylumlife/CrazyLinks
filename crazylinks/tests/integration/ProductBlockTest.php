@@ -526,6 +526,46 @@ class ProductBlockTest extends TestCase {
 		$this->assertSame( 404, $this->go( $post, '7' )['status'], 'A single block takes no product id.' );
 	}
 
+	public function test_newest_products_clicks_are_reported_per_product(): void {
+		global $wpdb;
+		$post = $this->page( [ 'mode' => 'latest', 'count' => 2 ] );
+		Store::latest( 2 ); // The render path caches the list.
+		$r = new ClickRedirect();
+		$r->resolve( $post, self::BLOCK, new Visitor( '203.0.113.31', 'Mozilla/5.0', '' ), '8' );
+		$r->resolve( $post, self::BLOCK, new Visitor( '203.0.113.32', 'Mozilla/5.0', '' ), '8' );
+		$r->resolve( $post, self::BLOCK, new Visitor( '203.0.113.33', 'Mozilla/5.0', '' ), '7' );
+		// A product that has since left the list, and a click from before product ids were stored.
+		foreach ( [ '99', null ] as $i => $item ) {
+			$wpdb->insert(
+				$wpdb->prefix . 'crazylinks_events',
+				[
+					'page_id'      => $post->ID,
+					'block_id'     => self::BLOCK,
+					'item_id'      => $item,
+					'type'         => 'click',
+					'ts'           => gmdate( 'Y-m-d H:i:s' ),
+					'visitor_hash' => 'old' . $i,
+				]
+			);
+		}
+		$this->requests = [];
+		$report         = \CrazyLinks\Analytics\Summary::report( (int) $post->ID, gmdate( 'Y-m-d', time() - DAY_IN_SECONDS ), gmdate( 'Y-m-d', time() + DAY_IN_SECONDS ) );
+		$row            = $report['blocks'][0];
+		$this->assertSame( [], $this->requests, 'The report never asks the store.' );
+		$this->assertSame( 5, $row['clicks'] );
+		$this->assertSame(
+			[
+				[ 'Second', 2 ],
+				[ 'Logo Tee', 1 ],
+				[ 'Product #99 (no longer listed)', 1 ],
+				[ 'Earlier clicks (product not recorded)', 1 ],
+			],
+			array_map( static fn( $i ) => [ $i['title'], $i['clicks'] ], $row['items'] )
+		);
+		$single = $this->make_page( $this->doc( [ [ 'id' => self::BLOCK, 'type' => 'product', 'tracking' => true, 'props' => [ 'product_id' => 7 ] ] ] ), 'single' );
+		$this->assertArrayNotHasKey( 'items', \CrazyLinks\Analytics\Summary::report( (int) $single->ID, gmdate( 'Y-m-d' ), gmdate( 'Y-m-d' ) )['blocks'][0] );
+	}
+
 	public function test_go_uses_cached_data_only_and_404s_without_it(): void {
 		$post = $this->page( [ 'product_id' => 7 ] );
 		$this->requests = [];

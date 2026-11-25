@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: CrazyLinks 0.3.2\n"
+"Project-Id-Version: CrazyLinks 0.3.3\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/crazylinks\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-25T21:19:24+00:00\n"
+"POT-Creation-Date: 2026-11-25T21:44:46+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: crazylinks\n"
@@ -84,67 +84,73 @@ msgstr ""
 msgid "Download links CSV"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:170
+#: src/Admin/AnalyticsPage.php:165
+msgid "Download sources CSV"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:171
 msgid "Views and clicks per day (UTC)"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:172
 #: src/Admin/AnalyticsPage.php:173
-#: src/Admin/AnalyticsPage.php:224
-#: src/Admin/AnalyticsPage.php:330
+#: src/Admin/AnalyticsPage.php:174
+#: src/Admin/AnalyticsPage.php:226
+#: src/Admin/AnalyticsPage.php:311
+#: src/Admin/AnalyticsPage.php:361
 #: assets/build/editor/index.js:15
 #: assets/build/editor/index.js:16
 msgid "Views"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:172
 #: src/Admin/AnalyticsPage.php:173
-#: src/Admin/AnalyticsPage.php:230
-#: src/Admin/AnalyticsPage.php:275
+#: src/Admin/AnalyticsPage.php:174
+#: src/Admin/AnalyticsPage.php:232
+#: src/Admin/AnalyticsPage.php:277
+#: src/Admin/AnalyticsPage.php:311
 #: assets/build/editor/index.js:15
 #: assets/build/editor/index.js:16
 msgid "Clicks"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:173
+#: src/Admin/AnalyticsPage.php:174
 msgid "Show data table"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:173
+#: src/Admin/AnalyticsPage.php:174
 #: src/Ai/Bootstrap.php:144
 msgid "Date"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:193
+#: src/Admin/AnalyticsPage.php:195
 #: src/Ai/Bootstrap.php:148
 #: assets/src/block-editor.js:37
 msgid "Link page"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:199
-msgid "Range"
-msgstr ""
-
 #: src/Admin/AnalyticsPage.php:201
-#: assets/build/editor/index.js:15
-msgid "Last 7 days"
-msgstr ""
-
-#: src/Admin/AnalyticsPage.php:202
-#: assets/build/editor/index.js:15
-msgid "Last 30 days"
+msgid "Range"
 msgstr ""
 
 #: src/Admin/AnalyticsPage.php:203
 #: assets/build/editor/index.js:15
-msgid "Last 90 days"
+msgid "Last 7 days"
 msgstr ""
 
 #: src/Admin/AnalyticsPage.php:204
+#: assets/build/editor/index.js:15
+msgid "Last 30 days"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:205
+#: assets/build/editor/index.js:15
+msgid "Last 90 days"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:206
 msgid "Custom"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:210
+#: src/Admin/AnalyticsPage.php:212
 #: templates/blocks/product.php:50
 #: templates/blocks/product.php:77
 #: assets/build/editor/index.js:12
@@ -152,93 +158,114 @@ msgstr ""
 msgid "From"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:211
+#: src/Admin/AnalyticsPage.php:213
 #: assets/build/editor/index.js:14
 msgid "To"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:212
+#: src/Admin/AnalyticsPage.php:214
 #: assets/build/editor/index.js:3
 msgid "Update"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:226
+#: src/Admin/AnalyticsPage.php:228
 #: assets/build/editor/index.js:15
 msgid "Unique visitors"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:228
+#: src/Admin/AnalyticsPage.php:230
 msgid "Counted per day, then added up. Visitor IDs change every day, so someone who visits on two days counts twice."
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:231
+#: src/Admin/AnalyticsPage.php:233
+#: src/Admin/AnalyticsPage.php:311
 msgid "Click rate"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:231
+#: src/Admin/AnalyticsPage.php:233
 msgid "Clicks divided by views."
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:274
+#: src/Admin/AnalyticsPage.php:276
 #: assets/build/editor/index.js:12
 #: assets/build/editor/index.js:28
 msgid "Links"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:275
+#: src/Admin/AnalyticsPage.php:277
 #: assets/build/editor/index.js:1
 msgid "Link"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:275
+#: src/Admin/AnalyticsPage.php:277
 #: assets/build/editor/index.js:14
 msgid "Type"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:275
+#: src/Admin/AnalyticsPage.php:277
 #: assets/build/editor/index.js:16
 msgid "Share"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:278
+#: src/Admin/AnalyticsPage.php:280
 msgid "This page has no trackable links yet."
 msgstr ""
 
 #: src/Admin/AnalyticsPage.php:309
+#: assets/build/editor/index.js:16
+msgid "What each source clicks"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:310
+msgid "A click is matched to the visit it came from, so you can see which links each audience prefers. Sources are named from your campaign tags (utm_source), the app the page was opened in, or the referring site. Covers the same period as the breakdowns below."
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:311
+#: assets/build/editor/index.js:14
+#: assets/build/editor/index.js:16
+msgid "Source"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:311
+msgid "Most clicked"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:313
+#: src/Admin/AnalyticsPage.php:363
+msgid "No data yet"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:340
 msgid "Where visitors come from"
 msgstr ""
 
 #. translators: %s: date.
-#: src/Admin/AnalyticsPage.php:314
+#: src/Admin/AnalyticsPage.php:345
 #, php-format
 msgid "Breakdowns come from raw visit records, which are only kept for a limited time. These start on %s."
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:325
+#: src/Admin/AnalyticsPage.php:356
 msgid "Device"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:326
+#: src/Admin/AnalyticsPage.php:357
 msgid "Operating system"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:327
+#: src/Admin/AnalyticsPage.php:358
 msgid "In-app browser"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:328
+#: src/Admin/AnalyticsPage.php:359
 msgid "Referrer"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:332
-msgid "No data yet"
-msgstr ""
-
-#: src/Admin/AnalyticsPage.php:344
+#: src/Admin/AnalyticsPage.php:375
 msgid "Country: not collected."
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:378
+#: src/Admin/AnalyticsPage.php:409
 msgid "Sorry, you are not allowed to export analytics for this page."
 msgstr ""
 
@@ -1696,28 +1723,47 @@ msgstr ""
 msgid "No views yet"
 msgstr ""
 
-#: src/Analytics/Summary.php:54
+#: src/Analytics/Summary.php:59
 msgid "Dates must look like 2026-01-31."
 msgstr ""
 
-#: src/Analytics/Summary.php:59
+#: src/Analytics/Summary.php:64
 msgid "The start date must not be after the end date."
 msgstr ""
 
-#: src/Analytics/Summary.php:73
+#: src/Analytics/Summary.php:78
 msgid "That range is too long."
 msgstr ""
 
-#: src/Analytics/Summary.php:233
+#: src/Analytics/Summary.php:243
+#: src/Analytics/Summary.php:510
 msgid "(removed block)"
 msgstr ""
 
-#: src/Analytics/Summary.php:300
+#: src/Analytics/Summary.php:310
 msgid "(removed icons)"
 msgstr ""
 
-#: src/Analytics/Summary.php:307
+#: src/Analytics/Summary.php:317
 msgid "Earlier clicks (platform not recorded)"
+msgstr ""
+
+#. translators: %s: product id.
+#: src/Analytics/Summary.php:350
+#, php-format
+msgid "Product #%s (no longer listed)"
+msgstr ""
+
+#: src/Analytics/Summary.php:353
+msgid "Earlier clicks (product not recorded)"
+msgstr ""
+
+#: src/Analytics/Summary.php:415
+msgid "Direct or not shared by the app"
+msgstr ""
+
+#: src/Analytics/Summary.php:415
+msgid "Unknown (no matching visit)"
 msgstr ""
 
 #: src/Capabilities.php:107
@@ -2487,28 +2533,32 @@ msgstr ""
 msgid "Contact"
 msgstr ""
 
-#: templates/blocks/countdown.php:24
+#: templates/blocks/countdown.php:30
+msgid "Happening now"
+msgstr ""
+
+#: templates/blocks/countdown.php:37
 #: assets/build/editor/index.js:12
 msgid "Days"
 msgstr ""
 
-#: templates/blocks/countdown.php:25
+#: templates/blocks/countdown.php:38
 msgid "Hours"
 msgstr ""
 
-#: templates/blocks/countdown.php:26
+#: templates/blocks/countdown.php:39
 msgid "Min"
 msgstr ""
 
-#: templates/blocks/countdown.php:27
+#: templates/blocks/countdown.php:40
 msgid "Sec"
 msgstr ""
 
-#: templates/blocks/countdown.php:46
+#: templates/blocks/countdown.php:61
 msgid "This countdown has ended."
 msgstr ""
 
-#: templates/blocks/countdown.php:48
+#: templates/blocks/countdown.php:63
 msgid "Continue"
 msgstr ""
 
@@ -3479,7 +3529,7 @@ msgid "Countdown"
 msgstr ""
 
 #: assets/build/editor/index.js:1
-msgid "Counts down to a date, then shows a link."
+msgid "Counts down to a date, once or every week, then shows a link."
 msgstr ""
 
 #: assets/build/editor/index.js:1
@@ -3500,6 +3550,61 @@ msgstr ""
 
 #: assets/build/editor/index.js:1
 msgid "Link label"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Repeat"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Once"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Every week at this time (site timezone)"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Days (none ticked: the same weekday as the date above)"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:12
+msgid "Monday"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:12
+msgid "Tuesday"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:12
+msgid "Wednesday"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:12
+msgid "Thursday"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:12
+msgid "Friday"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:12
+msgid "Saturday"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+#: assets/build/editor/index.js:12
+msgid "Sunday"
+msgstr ""
+
+#: assets/build/editor/index.js:1
+msgid "Minutes to show the text and link before counting down again"
 msgstr ""
 
 #: assets/build/editor/index.js:1
@@ -4008,34 +4113,6 @@ msgid "Show only on some days, between two times (site timezone)."
 msgstr ""
 
 #: assets/build/editor/index.js:12
-msgid "Monday"
-msgstr ""
-
-#: assets/build/editor/index.js:12
-msgid "Tuesday"
-msgstr ""
-
-#: assets/build/editor/index.js:12
-msgid "Wednesday"
-msgstr ""
-
-#: assets/build/editor/index.js:12
-msgid "Thursday"
-msgstr ""
-
-#: assets/build/editor/index.js:12
-msgid "Friday"
-msgstr ""
-
-#: assets/build/editor/index.js:12
-msgid "Saturday"
-msgstr ""
-
-#: assets/build/editor/index.js:12
-msgid "Sunday"
-msgstr ""
-
-#: assets/build/editor/index.js:12
 msgid "Until"
 msgstr ""
 
@@ -4536,10 +4613,6 @@ msgstr ""
 
 #: assets/build/editor/index.js:14
 msgid "Add UTM parameters to tracked links"
-msgstr ""
-
-#: assets/build/editor/index.js:14
-msgid "Source"
 msgstr ""
 
 #: assets/build/editor/index.js:14

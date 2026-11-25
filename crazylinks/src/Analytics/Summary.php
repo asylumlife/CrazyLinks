@@ -10,6 +10,7 @@ namespace CrazyLinks\Analytics;
 use CrazyLinks\PageStore;
 use CrazyLinks\Render\Icons;
 use CrazyLinks\Schema\UrlPolicy;
+use CrazyLinks\Woo\Store;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -23,7 +24,11 @@ defined( 'ABSPATH' ) || exit;
  *   person who visits on two days is counted twice; this holds with or without raw events.
  * - Clicks on a social icon carry the icon's item id, so a Socials block row lists clicks per
  *   platform under `items`. Clicks logged before DB 7 have no item id and show as one extra row.
+ *   A newest-products Product block lists clicks per product the same way.
  * - Device, OS, in-app and referrer breakdowns need raw events and cover only the retention window.
+ * - `sources` (views and clicks per traffic source) also needs raw events. A click has no source of
+ *   its own (its referrer is the link page), so it takes the source of the same visitor's latest
+ *   view of the page that day, matched on the daily visitor hash. See sources().
  */
 final class Summary {
 
@@ -172,6 +177,8 @@ final class Summary {
 			}
 		}
 
+		$block_rows = self::block_rows( $page_id, $per_block, $clicks, $views, $per_item );
+
 		return [
 			'totals'                => [
 				'views'   => $views,
@@ -180,7 +187,8 @@ final class Summary {
 				'ctr'     => $views > 0 ? round( $clicks / $views, 4 ) : 0.0,
 			],
 			'timeseries'            => array_values( $series ),
-			'blocks'                => self::block_rows( $page_id, $per_block, $clicks, $views, $per_item ),
+			'blocks'                => $block_rows,
+			'sources'               => self::sources( $page_id, $from, $to, $block_rows ),
 			'breakdowns'            => self::breakdowns( $page_id, $from, $to ),
 			/**
 			 * Filters whether country data is available (v1.0 never collects it).
@@ -223,6 +231,8 @@ final class Summary {
 			$row         = self::block_row( $id, self::block_title( $block ), (string) $block['type'], $n, $clicks, $views );
 			if ( 'socials' === $block['type'] ) {
 				$row['items'] = self::social_items( $block, $per_item[ $id ] ?? [], $clicks );
+			} elseif ( 'product' === $block['type'] && 'latest' === ( $block['props']['mode'] ?? 'single' ) ) {
+				$row['items'] = self::product_items( $block, $per_item[ $id ] ?? [], $clicks );
 			}
 			$rows[] = $row;
 		}
@@ -307,6 +317,207 @@ final class Summary {
 			$rows[] = $row( '', '', __( 'Earlier clicks (platform not recorded)', 'crazylinks' ), $unknown );
 		}
 		return $rows;
+	}
+
+	/**
+	 * Per-product rows of a newest-products Product block, most clicked first: only products that
+	 * were clicked (the list changes as the store adds products). Names come from cached store data,
+	 * never a request to the store; a product that has left the list is shown by its id.
+	 *
+	 * @param array<string, mixed> $block    Product block (latest mode).
+	 * @param array<string, int>   $per_item Clicks by product id ('' = no product recorded).
+	 * @param int                  $clicks   Total clicks on the page.
+	 * @return array<int, array{item_id:string, network:string, title:string, clicks:int, share:float}>
+	 */
+	private static function product_items( array $block, array $per_item, int $clicks ): array {
+		$props = (array) ( $block['props'] ?? [] );
+		$row   = static fn( string $id, string $title, int $n ): array => [
+			'item_id' => $id,
+			'network' => '',
+			'title'   => $title,
+			'clicks'  => $n,
+			'share'   => $clicks > 0 ? round( $n / $clicks, 4 ) : 0.0,
+		];
+		$rows  = [];
+		arsort( $per_item );
+		foreach ( $per_item as $id => $n ) {
+			$id = (string) $id;
+			if ( '' === $id ) {
+				continue;
+			}
+			$product = ctype_digit( $id ) ? Store::known_product( (int) $id, 'latest', (int) ( $props['count'] ?? 3 ), (string) ( $props['category'] ?? '' ) ) : null;
+			/* translators: %s: product id. */
+			$rows[] = $row( $id, $product && '' !== (string) $product['name'] ? (string) $product['name'] : sprintf( __( 'Product #%s (no longer listed)', 'crazylinks' ), $id ), $n );
+		}
+		if ( ( $per_item[''] ?? 0 ) > 0 ) {
+			$rows[] = $row( '', __( 'Earlier clicks (product not recorded)', 'crazylinks' ), $per_item[''] );
+		}
+		return $rows;
+	}
+
+	/**
+	 * Known platforms for traffic sources: key => [ label, host pattern, utm_source aliases ].
+	 * In-app browser tokens (Visitor::in_app()) are keys here too.
+	 */
+	private const PLATFORMS = [
+		'instagram'  => [ 'Instagram', '/(^|\.)instagram\.com$/', [ 'ig', 'insta' ] ],
+		'facebook'   => [ 'Facebook', '/(^|\.)(facebook\.com|fb\.com|fb\.me|messenger\.com)$/', [ 'fb', 'meta' ] ],
+		'tiktok'     => [ 'TikTok', '/(^|\.)tiktok\.com$/', [ 'tt' ] ],
+		'youtube'    => [ 'YouTube', '/(^|\.)(youtube\.com|youtu\.be)$/', [ 'yt' ] ],
+		'twitter'    => [ 'X (Twitter)', '/(^|\.)(twitter\.com|x\.com|t\.co)$/', [ 'x' ] ],
+		'threads'    => [ 'Threads', '/(^|\.)threads\.(net|com)$/', [] ],
+		'bluesky'    => [ 'Bluesky', '/(^|\.)bsky\.(app|social)$/', [ 'bsky' ] ],
+		'linkedin'   => [ 'LinkedIn', '/(^|\.)(linkedin\.com|lnkd\.in)$/', [] ],
+		'pinterest'  => [ 'Pinterest', '/(^|\.)(pinterest\.[a-z.]+|pin\.it)$/', [] ],
+		'snapchat'   => [ 'Snapchat', '/(^|\.)snapchat\.com$/', [ 'snap' ] ],
+		'reddit'     => [ 'Reddit', '/(^|\.)(reddit\.com|redd\.it)$/', [] ],
+		'twitch'     => [ 'Twitch', '/(^|\.)twitch\.tv$/', [] ],
+		'discord'    => [ 'Discord', '/(^|\.)(discord\.com|discord\.gg|discordapp\.com)$/', [] ],
+		'google'     => [ 'Google', '/(^|\.)google\.[a-z.]+$/', [] ],
+		'bing'       => [ 'Bing', '/(^|\.)bing\.com$/', [] ],
+		'duckduckgo' => [ 'DuckDuckGo', '/(^|\.)duckduckgo\.com$/', [ 'ddg' ] ],
+	];
+
+	/**
+	 * Names one traffic source. Order: the campaign tag the owner put on the link (utm_source), then
+	 * the in-app browser (apps often send no referrer, but their browser names itself), then the
+	 * referring site. Different spellings of one platform share a key.
+	 *
+	 * @param string $utm     utm_source of the view, or ''.
+	 * @param string $in_app  In-app browser token, or ''.
+	 * @param string $host    Referrer host, or ''.
+	 * @param bool   $matched False for a click whose view was not found.
+	 * @return array{0:string, 1:string} Key and label.
+	 */
+	public static function source_name( string $utm, string $in_app, string $host, bool $matched = true ): array {
+		$utm = strtolower( trim( $utm ) );
+		if ( '' !== $utm ) {
+			foreach ( self::PLATFORMS as $key => [ $label, , $aliases ] ) {
+				if ( $key === $utm || in_array( $utm, $aliases, true ) || strtolower( $label ) === $utm ) {
+					return [ $key, $label ];
+				}
+			}
+			return [ 'utm:' . $utm, $utm ];
+		}
+		if ( '' !== $in_app && 'none' !== $in_app ) {
+			return [ $in_app, self::PLATFORMS[ $in_app ][0] ?? ucfirst( $in_app ) ];
+		}
+		$host = strtolower( $host );
+		if ( '' !== $host ) {
+			foreach ( self::PLATFORMS as $key => [ $label, $pattern ] ) {
+				if ( preg_match( $pattern, $host ) ) {
+					return [ $key, $label ];
+				}
+			}
+			$host = (string) preg_replace( '/^(www|m|l|lm)\./', '', $host );
+			return [ 'host:' . $host, $host ];
+		}
+		return $matched ? [ 'direct', __( 'Direct or not shared by the app', 'crazylinks' ) ] : [ 'unknown', __( 'Unknown (no matching visit)', 'crazylinks' ) ];
+	}
+
+	/**
+	 * Views and clicks per traffic source, most clicks first, each with its three most clicked
+	 * links (raw events only, so the retention window applies).
+	 *
+	 * A view knows where it came from (campaign tag, in-app browser, referrer). A click does not:
+	 * it is a request from the link page itself. So each click takes the source of the same
+	 * visitor's latest view of this page on the same UTC day, found through the visitor hash (which
+	 * changes daily and is not a cookie). A click with no such view (the view was not counted, or
+	 * the visit crossed midnight UTC) falls back to its own in-app browser, else 'unknown'.
+	 *
+	 * @param int                              $page_id    Page id.
+	 * @param string                           $from       Y-m-d.
+	 * @param string                           $to         Y-m-d.
+	 * @param array<int, array<string, mixed>> $block_rows Rows from block_rows(), for link titles.
+	 * @return array<int, array{source:string, label:string, views:int, clicks:int, ctr:float|null, top:array<int, array{block_id:string, item_id:string, title:string, clicks:int}>}>
+	 */
+	private static function sources( int $page_id, string $from, string $to, array $block_rows ): array {
+		global $wpdb;
+		$start  = $from . ' 00:00:00';
+		$end    = gmdate( 'Y-m-d', (int) strtotime( $to . ' UTC +1 day' ) ) . ' 00:00:00';
+		$events = $wpdb->prefix . 'crazylinks_events';
+		$out    = [];
+		$links  = [];
+		$bucket = static function ( string $utm, string $in_app, string $host, bool $matched ) use ( &$out ): string {
+			[ $key, $label ] = self::source_name( $utm, $in_app, $host, $matched );
+			$out[ $key ]   ??= [
+				'source' => $key,
+				'label'  => $label,
+				'views'  => 0,
+				'clicks' => 0,
+				'ctr'    => null,
+				'top'    => [],
+			];
+			return $key;
+		};
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		foreach ( (array) $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT COALESCE(utm_source, '') AS utm, COALESCE(in_app, '') AS in_app, COALESCE(referrer_host, '') AS host, COUNT(*) AS n
+				FROM {$events} WHERE page_id = %d AND type = 'view' AND ts >= %s AND ts < %s
+				GROUP BY COALESCE(utm_source, ''), COALESCE(in_app, ''), COALESCE(referrer_host, '')",
+				$page_id,
+				$start,
+				$end
+			),
+			ARRAY_A
+		) as $r ) {
+			$out[ $bucket( (string) $r['utm'], (string) $r['in_app'], (string) $r['host'], true ) ]['views'] += (int) $r['n'];
+		}
+		foreach ( (array) $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT block_id, item_id, utm, in_app, host, matched, COUNT(*) AS n FROM (
+					SELECT COALESCE(c.block_id, '') AS block_id, COALESCE(c.item_id, '') AS item_id, COALESCE(v.utm_source, '') AS utm,
+						COALESCE(v.in_app, c.in_app, '') AS in_app, COALESCE(v.referrer_host, '') AS host, (v.id IS NOT NULL) AS matched
+					FROM {$events} c LEFT JOIN {$events} v ON v.id = (
+						SELECT v2.id FROM {$events} v2
+						WHERE v2.page_id = c.page_id AND v2.type = 'view' AND v2.visitor_hash = c.visitor_hash AND v2.ts <= c.ts AND v2.ts >= DATE(c.ts)
+						ORDER BY v2.ts DESC, v2.id DESC LIMIT 1
+					)
+					WHERE c.page_id = %d AND c.type = 'click' AND c.ts >= %s AND c.ts < %s
+				) t GROUP BY block_id, item_id, utm, in_app, host, matched",
+				$page_id,
+				$start,
+				$end
+			),
+			ARRAY_A
+		) as $r ) {
+			$key                    = $bucket( (string) $r['utm'], (string) $r['in_app'], (string) $r['host'], (bool) $r['matched'] );
+			$link                   = $r['block_id'] . '|' . $r['item_id'];
+			$out[ $key ]['clicks'] += (int) $r['n'];
+			$links[ $key ][ $link ] = ( $links[ $key ][ $link ] ?? 0 ) + (int) $r['n'];
+		}
+		// phpcs:enable
+
+		$titles = [];
+		foreach ( $block_rows as $row ) {
+			$titles[ $row['block_id'] . '|' ] = (string) $row['title'];
+			foreach ( (array) ( $row['items'] ?? [] ) as $item ) {
+				if ( '' !== $item['item_id'] ) {
+					$titles[ $row['block_id'] . '|' . $item['item_id'] ] = $row['title'] . ': ' . $item['title'];
+				}
+			}
+		}
+		foreach ( $out as $key => $row ) {
+			$out[ $key ]['ctr'] = $row['views'] > 0 ? round( $row['clicks'] / $row['views'], 4 ) : null;
+			$top                = $links[ $key ] ?? [];
+			arsort( $top );
+			foreach ( array_slice( $top, 0, 3, true ) as $link => $n ) {
+				[ $block_id, $item_id ] = explode( '|', (string) $link, 2 );
+				$out[ $key ]['top'][]   = [
+					'block_id' => $block_id,
+					'item_id'  => $item_id,
+					'title'    => $titles[ $link ] ?? $titles[ $block_id . '|' ] ?? __( '(removed block)', 'crazylinks' ),
+					'clicks'   => $n,
+				];
+			}
+		}
+		$out = array_values( $out );
+		usort(
+			$out,
+			static fn( $a, $b ) => [ $b['clicks'], $b['views'] ] <=> [ $a['clicks'], $a['views'] ]
+		);
+		return $out;
 	}
 
 	/**

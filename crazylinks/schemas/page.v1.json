@@ -1695,6 +1695,38 @@
         "link_label": {
           "type": "string",
           "maxLength": 80
+        },
+        "repeat": {
+          "type": "string",
+          "enum": [
+            "none",
+            "weekly"
+          ],
+          "description": "weekly: counts down to the next occurrence at the target's time of day (site timezone), from the target date on, and starts over after each one."
+        },
+        "repeat_days": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 7,
+          "items": {
+            "type": "string",
+            "enum": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat",
+              "sun"
+            ]
+          },
+          "description": "Weekdays of a weekly countdown. Empty or absent: the weekday of the target."
+        },
+        "live_minutes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 720,
+          "description": "Weekly countdown: minutes the after-the-end text and link stay up before it counts down to the next occurrence. Default 60."
         }
       },
       "required": [

@@ -4,7 +4,7 @@ Tags: link in bio, linktree, links, bio link, landing page
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.3.2
+Stable tag: 0.3.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -141,6 +141,11 @@ Simple Icons, released under CC0. See LICENSE-icons.txt. The logos remain tradem
 5. The page JSON in the editor screen.
 
 == Changelog ==
+
+= 0.3.3 =
+* New: "What each source clicks" on the Analytics screen and in the editor's Analytics tab: views, clicks and the most clicked links per traffic source (campaign tag, the app the page was opened in, or the referring site), with a sources CSV. Each click is matched to the same visitor's visit that day; no cookies are used.
+* New: a newest-products Product block lists its clicks per product.
+* New: the Countdown block can repeat every week: pick the days, and how long the after-the-end text and link stay up before it counts down to the next one.
 
 = 0.3.2 =
 * New: clicks on social icons are counted per platform. The Analytics screen and the editor's Analytics tab list each platform under the Socials row, and the links CSV has a `social_icon` row per platform with a new `item_id` column. Clicks from before this version stay in the Socials total as "Earlier clicks (platform not recorded)".

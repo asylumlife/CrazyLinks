@@ -55,6 +55,15 @@ export interface AnalyticsSummary {
 			share?: number;
 		} >;
 	} >;
+	// Views and clicks per traffic source, most clicks first.
+	sources?: Array< {
+		source: string;
+		label?: string;
+		views?: number;
+		clicks?: number;
+		ctr?: number | null;
+		top?: Array< { title?: string; clicks?: number } >;
+	} >;
 	breakdowns?: {
 		device?: Record< string, number >;
 		os?: Record< string, number >;

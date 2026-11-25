@@ -160,8 +160,9 @@ final class AnalyticsPage {
 		$this->cards( $report );
 		echo '<div class="cl-exports">';
 		foreach ( [
-			'daily'  => __( 'Download daily CSV', 'crazylinks' ),
-			'blocks' => __( 'Download links CSV', 'crazylinks' ),
+			'daily'   => __( 'Download daily CSV', 'crazylinks' ),
+			'blocks'  => __( 'Download links CSV', 'crazylinks' ),
+			'sources' => __( 'Download sources CSV', 'crazylinks' ),
 		] as $which => $label ) {
 			printf( '<a class="button" href="%s">%s</a>', esc_url( $this->export_url( $which, $f ) ), esc_html( $label ) );
 		}
@@ -177,6 +178,7 @@ final class AnalyticsPage {
 		echo '</tbody></table></div></details></div>';
 
 		$this->blocks_table( $report, $f );
+		$this->sources_table( $report );
 		$this->breakdowns( $report );
 		echo '</div>';
 	}
@@ -299,6 +301,35 @@ final class AnalyticsPage {
 	}
 
 	/**
+	 * Views and clicks per traffic source, with the links each source clicks most.
+	 *
+	 * @param array<string, mixed> $report Report.
+	 */
+	private function sources_table( array $report ): void {
+		echo '<div class="cl-panel"><h2>' . esc_html__( 'What each source clicks', 'crazylinks' ) . '</h2>';
+		echo '<p class="cl-muted">' . esc_html__( 'A click is matched to the visit it came from, so you can see which links each audience prefers. Sources are named from your campaign tags (utm_source), the app the page was opened in, or the referring site. Covers the same period as the breakdowns below.', 'crazylinks' ) . '</p>';
+		echo '<div class="cl-table-wrap"><table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Source', 'crazylinks' ) . '</th><th scope="col" class="cl-num">' . esc_html__( 'Views', 'crazylinks' ) . '</th><th scope="col" class="cl-num">' . esc_html__( 'Clicks', 'crazylinks' ) . '</th><th scope="col" class="cl-num">' . esc_html__( 'Click rate', 'crazylinks' ) . '</th><th scope="col">' . esc_html__( 'Most clicked', 'crazylinks' ) . '</th></tr></thead><tbody>';
+		if ( ! $report['sources'] ) {
+			echo '<tr><td colspan="5" class="cl-muted">' . esc_html__( 'No data yet', 'crazylinks' ) . '</td></tr>';
+		}
+		foreach ( $report['sources'] as $s ) {
+			$top = array_map(
+				static fn( $t ) => $t['title'] . ' (' . number_format_i18n( $t['clicks'] ) . ')',
+				$s['top']
+			);
+			printf(
+				'<tr><td>%s</td><td class="cl-num">%s</td><td class="cl-num">%s</td><td class="cl-num">%s</td><td>%s</td></tr>',
+				esc_html( $s['label'] ),
+				esc_html( number_format_i18n( $s['views'] ) ),
+				esc_html( number_format_i18n( $s['clicks'] ) ),
+				esc_html( null === $s['ctr'] ? '—' : number_format_i18n( $s['ctr'] * 100, 1 ) . '%' ),
+				esc_html( $top ? implode( ', ', $top ) : '—' )
+			);
+		}
+		echo '</tbody></table></div></div>';
+	}
+
+	/**
 	 * Breakdown tables.
 	 *
 	 * @param array<string, mixed> $report Report.
@@ -388,7 +419,7 @@ final class AnalyticsPage {
 			wp_die( esc_html( $range->get_error_message() ), 400 );
 		}
 		$report = Summary::report( $page_id, $range['from'], $range['to'] );
-		$which  = isset( $_GET['which'] ) && 'blocks' === $_GET['which'] ? 'blocks' : 'daily';
+		$which  = isset( $_GET['which'] ) && in_array( $_GET['which'], [ 'blocks', 'sources' ], true ) ? sanitize_key( wp_unslash( $_GET['which'] ) ) : 'daily';
 		Csv::send_headers( sprintf( 'crazylinks-%s-%d-%s-%s.csv', $which, $page_id, $range['from'], $range['to'] ) );
 		if ( 'blocks' === $which ) {
 			// A Socials block has one row for the block total, then one `social_icon` row per platform
@@ -397,7 +428,16 @@ final class AnalyticsPage {
 			foreach ( $report['blocks'] as $r ) {
 				echo Csv::line( [ $r['block_id'], $r['title'], $r['type'], $r['clicks'], $r['share'], '' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				foreach ( (array) ( $r['items'] ?? [] ) as $item ) {
-					echo Csv::line( [ $r['block_id'], $item['title'], 'social_icon', $item['clicks'], $item['share'], $item['item_id'] ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+					echo Csv::line( [ $r['block_id'], $item['title'], 'socials' === $r['type'] ? 'social_icon' : 'product_item', $item['clicks'], $item['share'], $item['item_id'] ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				}
+			}
+		} elseif ( 'sources' === $which ) {
+			// One row per source, then one row per link that source clicked most (top three).
+			echo Csv::line( [ 'source', 'views', 'clicks', 'click_rate', 'link', 'link_clicks' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			foreach ( $report['sources'] as $s ) {
+				echo Csv::line( [ $s['label'], $s['views'], $s['clicks'], $s['ctr'] ?? '', '', '' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				foreach ( $s['top'] as $t ) {
+					echo Csv::line( [ $s['label'], '', '', '', $t['title'], $t['clicks'] ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				}
 			}
 		} else {
