@@ -4,7 +4,7 @@
  */
 import { __, sprintf } from '@wordpress/i18n';
 import { Notice, SelectControl, Spinner } from '@wordpress/components';
-import { useEffect, useState } from '@wordpress/element';
+import { Fragment, useEffect, useState } from '@wordpress/element';
 import { api } from '../lib/api';
 import type { AnalyticsSummary } from '../lib/api';
 import { useEditor, useEditorDispatch } from '../hooks';
@@ -233,20 +233,38 @@ export default function AnalyticsTab() {
 							</thead>
 							<tbody>
 								{ ( data?.blocks ?? [] ).map( ( row ) => (
-									<tr key={ row.block_id }>
-										<td>
-											{ titleOf(
-												row.block_id,
-												row.title
-											) }
-										</td>
-										<td className="num">
-											{ fmt( row.clicks ) }
-										</td>
-										<td className="num">
-											{ pct( row.share ) }
-										</td>
-									</tr>
+									<Fragment key={ row.block_id }>
+										<tr>
+											<td>
+												{ titleOf(
+													row.block_id,
+													row.title
+												) }
+											</td>
+											<td className="num">
+												{ fmt( row.clicks ) }
+											</td>
+											<td className="num">
+												{ pct( row.share ) }
+											</td>
+										</tr>
+										{ ( row.items ?? [] ).map(
+											( item, i ) => (
+												<tr
+													key={ `${ item.item_id }-${ i }` }
+													className="cl-block-table__sub"
+												>
+													<td>{ item.title }</td>
+													<td className="num">
+														{ fmt( item.clicks ) }
+													</td>
+													<td className="num">
+														{ pct( item.share ) }
+													</td>
+												</tr>
+											)
+										) }
+									</Fragment>
 								) ) }
 							</tbody>
 						</table>

@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Activator {
 
-	public const DB_VERSION = '6';
+	public const DB_VERSION = '7';
 
 	/**
 	 * Activation hook.
@@ -80,6 +80,7 @@ final class Activator {
   id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   page_id bigint(20) unsigned NOT NULL,
   block_id char(26) DEFAULT NULL,
+  item_id varchar(26) DEFAULT NULL,
   type varchar(16) NOT NULL,
   ts datetime NOT NULL,
   visitor_hash char(32) NOT NULL,
@@ -97,15 +98,24 @@ final class Activator {
   KEY ts (ts)
 ) {$charset};"
 		);
+		// DB 7 added item_id (which social icon or product inside a block was clicked). dbDelta cannot
+		// change a primary key, so an existing rollup table gets the column and the wider key here first.
+		$daily = $wpdb->prefix . 'crazylinks_daily';
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $daily ) ) ) === $daily && ! $wpdb->get_var( "SHOW COLUMNS FROM {$daily} LIKE 'item_id'" ) ) {
+			$wpdb->query( "ALTER TABLE {$daily} ADD COLUMN item_id varchar(26) NOT NULL DEFAULT '' AFTER block_id, DROP PRIMARY KEY, ADD PRIMARY KEY (page_id,block_id,item_id,day,type)" );
+		}
+		// phpcs:enable
 		dbDelta(
 			"CREATE TABLE {$wpdb->prefix}crazylinks_daily (
   page_id bigint(20) unsigned NOT NULL,
   block_id char(26) NOT NULL DEFAULT '',
+  item_id varchar(26) NOT NULL DEFAULT '',
   day date NOT NULL,
   type varchar(16) NOT NULL,
   count int(10) unsigned NOT NULL DEFAULT 0,
   uniques int(10) unsigned NOT NULL DEFAULT 0,
-  PRIMARY KEY  (page_id,block_id,day,type),
+  PRIMARY KEY  (page_id,block_id,item_id,day,type),
   KEY day (day)
 ) {$charset};"
 		);

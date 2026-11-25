@@ -4,7 +4,7 @@ Tags: link in bio, linktree, links, bio link, landing page
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.3.1
+Stable tag: 0.3.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -141,6 +141,9 @@ Simple Icons, released under CC0. See LICENSE-icons.txt. The logos remain tradem
 5. The page JSON in the editor screen.
 
 == Changelog ==
+
+= 0.3.2 =
+* New: clicks on social icons are counted per platform. The Analytics screen and the editor's Analytics tab list each platform under the Socials row, and the links CSV has a `social_icon` row per platform with a new `item_id` column. Clicks from before this version stay in the Socials total as "Earlier clicks (platform not recorded)".
 
 = 0.3.1 =
 * New: Mailchimp for the Email sign-up block: Settings → Integrations (API key, default audience, Test connection, webhook), per-block destination, audience and tags, Mailchimp's own confirmation email, retries with backoff, webhook updates, Sync column, Retry sync and Backfill on the Subscribers screen, `wp crazylinks subscribers sync` and `test-connection`, and an adapter interface for other email services

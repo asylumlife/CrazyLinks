@@ -25,10 +25,11 @@ final class EventLogger {
 	 * @param string                     $type     Event type.
 	 * @param Visitor                    $visitor  Visitor.
 	 * @param string|null                $block_id Block id (clicks).
-	 * @param array<string, string|null> $utm Incoming UTM values (views).
+	 * @param array<string, string|null> $utm      Incoming UTM values (views).
+	 * @param string|null                $item_id  Item inside the block (clicks on a social icon or a listed product).
 	 * @return int|false Insert id.
 	 */
-	public static function insert( int $page_id, string $type, Visitor $visitor, ?string $block_id = null, array $utm = [] ) {
+	public static function insert( int $page_id, string $type, Visitor $visitor, ?string $block_id = null, array $utm = [], ?string $item_id = null ) {
 		global $wpdb;
 		if ( ! in_array( $type, self::TYPES, true ) ) {
 			return false;
@@ -36,6 +37,7 @@ final class EventLogger {
 		$row = [
 			'page_id'       => $page_id,
 			'block_id'      => $block_id,
+			'item_id'       => $item_id,
 			'type'          => $type,
 			'ts'            => gmdate( 'Y-m-d H:i:s' ),
 			'visitor_hash'  => $visitor->hash(),
@@ -49,7 +51,7 @@ final class EventLogger {
 			'utm_campaign'  => $utm['campaign'] ?? null,
 		];
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table write.
-		$ok = $wpdb->insert( $wpdb->prefix . 'crazylinks_events', $row, [ '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ] );
+		$ok = $wpdb->insert( $wpdb->prefix . 'crazylinks_events', $row, [ '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ] );
 		if ( ! $ok ) {
 			return false;
 		}

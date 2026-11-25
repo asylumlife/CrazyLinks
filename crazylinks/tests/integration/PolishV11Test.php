@@ -9,6 +9,7 @@
 namespace CrazyLinks\Tests;
 
 use CrazyLinks\Analytics\ClickRedirect;
+use CrazyLinks\Analytics\Rollup;
 use CrazyLinks\Analytics\Summary;
 use CrazyLinks\Analytics\Visitor;
 use CrazyLinks\PostLock;
@@ -166,6 +167,7 @@ class PolishV11Test extends TestCase {
 		$events = $this->events();
 		$this->assertCount( 1, $events );
 		$this->assertSame( self::SOCIALS, $events[0]['block_id'] );
+		$this->assertSame( self::ITEM_A, $events[0]['item_id'], 'The icon that was clicked is stored' );
 
 		// A second icon is a separate click even inside the de-duplication window.
 		$other = $this->socials_doc();
@@ -204,6 +206,84 @@ class PolishV11Test extends TestCase {
 		$this->assertCount( 1, $rows );
 		$this->assertSame( 'socials', $rows[0]['type'] );
 		$this->assertSame( 1, $rows[0]['clicks'] );
+	}
+
+	public function test_socials_clicks_are_reported_per_platform(): void {
+		global $wpdb;
+		$doc                                  = $this->socials_doc();
+		$doc['blocks'][0]['props']['items'][] = [
+			'id'      => '01HZZZZZZZZZZZZZZZZZZZZZZT',
+			'network' => 'tiktok',
+			'url'     => 'https://tiktok.com/@example',
+		];
+		$post                                 = $this->make_page( $doc );
+		$r                                    = new ClickRedirect();
+		$r->resolve( $post, self::SOCIALS, new Visitor( '203.0.113.20', 'Mozilla/5.0 Safari', '' ), self::ITEM_A );
+		$r->resolve( $post, self::SOCIALS, new Visitor( '203.0.113.21', 'Mozilla/5.0 Safari', '' ), '01HZZZZZZZZZZZZZZZZZZZZZZT' );
+		$r->resolve( $post, self::SOCIALS, new Visitor( '203.0.113.22', 'Mozilla/5.0 Safari', '' ), '01HZZZZZZZZZZZZZZZZZZZZZZT' );
+		// A click from before item ids were stored, and one on an icon that has since been removed.
+		foreach ( [ null, '01HZZZZZZZZZZZZZZZZZZZZZZG' ] as $i => $item ) {
+			$wpdb->insert(
+				$wpdb->prefix . 'crazylinks_events',
+				[
+					'page_id'      => $post->ID,
+					'block_id'     => self::SOCIALS,
+					'item_id'      => $item,
+					'type'         => 'click',
+					'ts'           => gmdate( 'Y-m-d H:i:s' ),
+					'visitor_hash' => 'old' . $i,
+				]
+			);
+		}
+		$check = function () use ( $post ): void {
+			$summary = Summary::report( (int) $post->ID, gmdate( 'Y-m-d', time() - 2 * DAY_IN_SECONDS ), gmdate( 'Y-m-d', time() + DAY_IN_SECONDS ) );
+			$row     = array_values( array_filter( (array) $summary['blocks'], static fn( $b ) => self::SOCIALS === $b['block_id'] ) )[0];
+			$this->assertSame( 5, $row['clicks'], 'The block row is still the total' );
+			$this->assertSame( 5, $summary['totals']['clicks'] );
+			$this->assertSame(
+				[
+					[ 'TikTok', 2 ],
+					[ 'Instagram', 1 ],
+					[ '(removed icons)', 1 ],
+					[ 'Earlier clicks (platform not recorded)', 1 ],
+				],
+				array_map( static fn( $i ) => [ $i['title'], $i['clicks'] ], $row['items'] )
+			);
+			$this->assertSame( 'tiktok', $row['items'][0]['network'] );
+			$this->assertSame( 0.4, $row['items'][0]['share'] );
+		};
+		$check();
+
+		// The same numbers once the events are rolled up and the raw rows are gone.
+		$wpdb->query( "UPDATE {$wpdb->prefix}crazylinks_events SET ts = DATE_SUB(ts, INTERVAL 1 DAY)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$day = gmdate( 'Y-m-d', time() - DAY_IN_SECONDS );
+		Rollup::roll_range( $day, $day );
+		Rollup::roll_range( $day, $day );
+		update_option( 'crazylinks_rollup_through', $day, false );
+		$wpdb->query( "DELETE FROM {$wpdb->prefix}crazylinks_events" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$check();
+		delete_option( 'crazylinks_rollup_through' );
+	}
+
+	public function test_db_7_upgrade_adds_item_id_to_an_existing_rollup_table(): void {
+		global $wpdb;
+		// ALTER TABLE commits whatever the test has changed so far, so put back what set_up() changed first.
+		$this->set_permalink_structure( '' );
+		$daily = $wpdb->prefix . 'crazylinks_daily';
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "ALTER TABLE {$daily} DROP PRIMARY KEY, DROP COLUMN item_id, ADD PRIMARY KEY (page_id,block_id,day,type)" );
+		$wpdb->query( "ALTER TABLE {$wpdb->prefix}crazylinks_events DROP COLUMN item_id" );
+		$wpdb->query( "INSERT INTO {$daily} (page_id, block_id, day, type, count, uniques) VALUES (1, 'B', '2026-01-01', 'click', 4, 3)" );
+		\CrazyLinks\Activator::install_tables();
+		$this->assertSame( '', $wpdb->last_error );
+		$key = $wpdb->get_col( "SHOW KEYS FROM {$daily} WHERE Key_name = 'PRIMARY'", 4 );
+		$this->assertSame( [ 'page_id', 'block_id', 'item_id', 'day', 'type' ], $key );
+		$this->assertSame( '4', $wpdb->get_var( "SELECT count FROM {$daily} WHERE page_id = 1 AND item_id = ''" ), 'Existing rollups are kept' );
+		$this->assertNotEmpty( $wpdb->get_var( "SHOW COLUMNS FROM {$wpdb->prefix}crazylinks_events LIKE 'item_id'" ) );
+		// ALTER TABLE commits, so the test row is not rolled back with the test: remove it by hand.
+		$wpdb->query( "DELETE FROM {$daily} WHERE page_id = 1 AND block_id = 'B'" );
+		$wpdb->query( 'COMMIT' );
+		// phpcs:enable
 	}
 
 	// Alt text warnings.

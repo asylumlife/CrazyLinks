@@ -8,6 +8,8 @@
 namespace CrazyLinks\Analytics;
 
 use CrazyLinks\PageStore;
+use CrazyLinks\Render\Icons;
+use CrazyLinks\Schema\UrlPolicy;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -19,6 +21,8 @@ defined( 'ABSPATH' ) || exit;
  *   pruning); later days (normally today) come from `crazylinks_events`.
  * - `uniques` is the sum of each day's distinct visitor hashes. The hash salt rotates daily, so a
  *   person who visits on two days is counted twice; this holds with or without raw events.
+ * - Clicks on a social icon carry the icon's item id, so a Socials block row lists clicks per
+ *   platform under `items`. Clicks logged before DB 7 have no item id and show as one extra row.
  * - Device, OS, in-app and referrer breakdowns need raw events and cover only the retention window.
  */
 final class Summary {
@@ -81,7 +85,7 @@ final class Summary {
 	 * @param int|null $page_id Page id, or null for every page.
 	 * @param string   $from    Y-m-d.
 	 * @param string   $to      Y-m-d.
-	 * @return array<int, array{page_id:int, block_id:string, day:string, type:string, count:int, uniques:int}>
+	 * @return array<int, array{page_id:int, block_id:string, item_id:string, day:string, type:string, count:int, uniques:int}>
 	 */
 	private static function rows( ?int $page_id, string $from, string $to ): array {
 		global $wpdb;
@@ -92,6 +96,7 @@ final class Summary {
 			return [
 				'page_id'  => (int) $r['page_id'],
 				'block_id' => (string) $r['block_id'],
+				'item_id'  => (string) $r['item_id'],
 				'day'      => (string) $r['day'],
 				'type'     => (string) $r['type'],
 				'count'    => (int) $r['count'],
@@ -102,7 +107,7 @@ final class Summary {
 		if ( '' !== $through && $from <= $through ) {
 			$rolled_to = min( $to, $through );
 			foreach ( (array) $wpdb->get_results(
-				$wpdb->prepare( "SELECT page_id, block_id, day, type, count, uniques FROM {$wpdb->prefix}crazylinks_daily WHERE day >= %s AND day <= %s{$only}", $from, $rolled_to ),
+				$wpdb->prepare( "SELECT page_id, block_id, item_id, day, type, count, uniques FROM {$wpdb->prefix}crazylinks_daily WHERE day >= %s AND day <= %s{$only}", $from, $rolled_to ),
 				ARRAY_A
 			) as $r ) {
 				$out[] = $normal( $r );
@@ -112,9 +117,9 @@ final class Summary {
 		if ( $live_from <= $to ) {
 			foreach ( (array) $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT page_id, COALESCE(block_id, '') AS block_id, DATE(ts) AS day, type, COUNT(*) AS count, COUNT(DISTINCT visitor_hash) AS uniques
+					"SELECT page_id, COALESCE(block_id, '') AS block_id, COALESCE(item_id, '') AS item_id, DATE(ts) AS day, type, COUNT(*) AS count, COUNT(DISTINCT visitor_hash) AS uniques
 					FROM {$wpdb->prefix}crazylinks_events WHERE ts >= %s AND ts < %s AND type IN ('view', 'click'){$only}
-					GROUP BY page_id, COALESCE(block_id, ''), DATE(ts), type",
+					GROUP BY page_id, COALESCE(block_id, ''), COALESCE(item_id, ''), DATE(ts), type",
 					$live_from . ' 00:00:00',
 					gmdate( 'Y-m-d', (int) strtotime( $to . ' UTC +1 day' ) ) . ' 00:00:00'
 				),
@@ -150,6 +155,7 @@ final class Summary {
 			];
 		}
 		$per_block = [];
+		$per_item  = [];
 		foreach ( self::rows( $page_id, $from, $to ) as $r ) {
 			if ( ! isset( $series[ $r['day'] ] ) ) {
 				continue;
@@ -159,9 +165,10 @@ final class Summary {
 				$uniques                      += $r['uniques'];
 				$series[ $r['day'] ]['views'] += $r['count'];
 			} else {
-				$clicks                        += $r['count'];
-				$series[ $r['day'] ]['clicks'] += $r['count'];
-				$per_block[ $r['block_id'] ]    = ( $per_block[ $r['block_id'] ] ?? 0 ) + $r['count'];
+				$clicks                                     += $r['count'];
+				$series[ $r['day'] ]['clicks']              += $r['count'];
+				$per_block[ $r['block_id'] ]                 = ( $per_block[ $r['block_id'] ] ?? 0 ) + $r['count'];
+				$per_item[ $r['block_id'] ][ $r['item_id'] ] = ( $per_item[ $r['block_id'] ][ $r['item_id'] ] ?? 0 ) + $r['count'];
 			}
 		}
 
@@ -173,7 +180,7 @@ final class Summary {
 				'ctr'     => $views > 0 ? round( $clicks / $views, 4 ) : 0.0,
 			],
 			'timeseries'            => array_values( $series ),
-			'blocks'                => self::block_rows( $page_id, $per_block, $clicks, $views ),
+			'blocks'                => self::block_rows( $page_id, $per_block, $clicks, $views, $per_item ),
 			'breakdowns'            => self::breakdowns( $page_id, $from, $to ),
 			/**
 			 * Filters whether country data is available (v1.0 never collects it).
@@ -193,13 +200,16 @@ final class Summary {
 	/**
 	 * Per-block rows: every clickable block still on the page plus removed blocks that have clicks.
 	 *
-	 * @param int                $page_id   Page id.
-	 * @param array<string, int> $per_block Clicks by block id.
-	 * @param int                $clicks    Total clicks.
-	 * @param int                $views     Total views.
+	 * A Socials block row also carries `items`: one row per icon (see social_items()).
+	 *
+	 * @param int                               $page_id   Page id.
+	 * @param array<string, int>                $per_block Clicks by block id.
+	 * @param int                               $clicks    Total clicks.
+	 * @param int                               $views     Total views.
+	 * @param array<string, array<string, int>> $per_item  Clicks by block id, then item id ('' = no item recorded).
 	 * @return array<int, array<string, mixed>>
 	 */
-	private static function block_rows( int $page_id, array $per_block, int $clicks, int $views ): array {
+	private static function block_rows( int $page_id, array $per_block, int $clicks, int $views, array $per_item = [] ): array {
 		$doc  = PageStore::get_document( $page_id ) ?? [];
 		$rows = [];
 		$seen = [];
@@ -210,7 +220,11 @@ final class Summary {
 			$id          = (string) $block['id'];
 			$seen[ $id ] = true;
 			$n           = $per_block[ $id ] ?? 0;
-			$rows[]      = self::block_row( $id, self::block_title( $block ), (string) $block['type'], $n, $clicks, $views );
+			$row         = self::block_row( $id, self::block_title( $block ), (string) $block['type'], $n, $clicks, $views );
+			if ( 'socials' === $block['type'] ) {
+				$row['items'] = self::social_items( $block, $per_item[ $id ] ?? [], $clicks );
+			}
+			$rows[] = $row;
 		}
 		foreach ( $per_block as $id => $n ) {
 			if ( '' === (string) $id || isset( $seen[ (string) $id ] ) ) {
@@ -245,6 +259,54 @@ final class Summary {
 			'share'    => $clicks > 0 ? round( $n / $clicks, 4 ) : 0.0,
 			'ctr'      => $views > 0 ? round( $n / $views, 4 ) : null,
 		];
+	}
+
+	/**
+	 * Per-platform rows of a Socials block, most clicked first: every web-link icon on the block (zero
+	 * clicks included; mailto and the like open directly and are never counted), then icons that were removed but have clicks, then clicks logged before item ids
+	 * were stored. Two icons for the same platform are told apart by their URL.
+	 *
+	 * @param array<string, mixed> $block    Socials block.
+	 * @param array<string, int>   $per_item Clicks by item id ('' = no item recorded).
+	 * @param int                  $clicks   Total clicks on the page.
+	 * @return array<int, array{item_id:string, network:string, title:string, clicks:int, share:float}>
+	 */
+	private static function social_items( array $block, array $per_item, int $clicks ): array {
+		$items = array_values( array_filter( (array) ( $block['props']['items'] ?? [] ), static fn( $i ) => is_array( $i ) && ! empty( $i['url'] ) && UrlPolicy::is_web( (string) $i['url'] ) ) );
+		$count = array_count_values( array_map( static fn( $i ) => (string) ( $i['network'] ?? '' ), $items ) );
+		$row   = static fn( string $id, string $network, string $title, int $n ): array => [
+			'item_id' => $id,
+			'network' => $network,
+			'title'   => $title,
+			'clicks'  => $n,
+			'share'   => $clicks > 0 ? round( $n / $clicks, 4 ) : 0.0,
+		];
+		$rows  = [];
+		foreach ( $items as $item ) {
+			$id      = (string) ( $item['id'] ?? '' );
+			$network = (string) ( $item['network'] ?? '' );
+			$title   = Icons::label( $network );
+			if ( ( $count[ $network ] ?? 0 ) > 1 ) {
+				$title .= ' (' . (string) preg_replace( '#^https?://(www\.)?#i', '', (string) $item['url'] ) . ')';
+			}
+			$rows[] = $row( $id, $network, $title, '' !== $id ? ( $per_item[ $id ] ?? 0 ) : 0 );
+			if ( '' !== $id ) {
+				unset( $per_item[ $id ] );
+			}
+		}
+		$unknown = $per_item[''] ?? 0;
+		unset( $per_item[''] );
+		if ( $per_item ) {
+			$rows[] = $row( '', '', __( '(removed icons)', 'crazylinks' ), (int) array_sum( $per_item ) );
+		}
+		usort(
+			$rows,
+			static fn( $a, $b ) => $b['clicks'] <=> $a['clicks']
+		);
+		if ( $unknown > 0 ) {
+			$rows[] = $row( '', '', __( 'Earlier clicks (platform not recorded)', 'crazylinks' ), $unknown );
+		}
+		return $rows;
 	}
 
 	/**

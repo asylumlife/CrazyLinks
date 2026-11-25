@@ -946,6 +946,15 @@ $cl-topbar: 60px;
 	.num {
 		text-align: right;
 	}
+
+	// Per-platform rows under a Socials block.
+	&__sub td {
+		color: #50575e;
+
+		&:first-child {
+			padding-left: 24px;
+		}
+	}
 }
 
 .cl-breakdown {

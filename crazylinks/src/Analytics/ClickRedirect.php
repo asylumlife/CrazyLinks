@@ -170,6 +170,6 @@ final class ClickRedirect {
 		if ( ! RateLimiter::first_in_window( 'click|' . $key . '|' . $post->ID . '|' . $block['id'] . '|' . $item_id, self::DEDUPE_SECONDS ) ) {
 			return 'duplicate';
 		}
-		return EventLogger::insert( (int) $post->ID, 'click', $visitor, (string) $block['id'] ) ? 'logged' : 'error';
+		return EventLogger::insert( (int) $post->ID, 'click', $visitor, (string) $block['id'], [], '' !== $item_id ? $item_id : null ) ? 'logged' : 'error';
 	}
 }

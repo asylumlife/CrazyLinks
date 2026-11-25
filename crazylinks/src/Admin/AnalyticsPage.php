@@ -285,6 +285,15 @@ final class AnalyticsPage {
 				esc_html( number_format_i18n( $r['clicks'] ) ),
 				esc_html( number_format_i18n( $r['share'] * 100, 1 ) . '%' )
 			);
+			// A Socials block lists its clicks per platform underneath.
+			foreach ( (array) ( $r['items'] ?? [] ) as $item ) {
+				printf(
+					'<tr class="cl-subrow"><td>%s</td><td></td><td class="cl-num">%s</td><td class="cl-num">%s</td></tr>',
+					esc_html( $item['title'] ),
+					esc_html( number_format_i18n( $item['clicks'] ) ),
+					esc_html( number_format_i18n( $item['share'] * 100, 1 ) . '%' )
+				);
+			}
 		}
 		echo '</tbody></table></div></div>';
 	}
@@ -382,9 +391,14 @@ final class AnalyticsPage {
 		$which  = isset( $_GET['which'] ) && 'blocks' === $_GET['which'] ? 'blocks' : 'daily';
 		Csv::send_headers( sprintf( 'crazylinks-%s-%d-%s-%s.csv', $which, $page_id, $range['from'], $range['to'] ) );
 		if ( 'blocks' === $which ) {
-			echo Csv::line( [ 'block_id', 'title', 'type', 'clicks', 'share' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CSV, not HTML.
+			// A Socials block has one row for the block total, then one `social_icon` row per platform
+			// (already counted in the block row, so leave them out when adding up clicks).
+			echo Csv::line( [ 'block_id', 'title', 'type', 'clicks', 'share', 'item_id' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CSV, not HTML.
 			foreach ( $report['blocks'] as $r ) {
-				echo Csv::line( [ $r['block_id'], $r['title'], $r['type'], $r['clicks'], $r['share'] ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				echo Csv::line( [ $r['block_id'], $r['title'], $r['type'], $r['clicks'], $r['share'], '' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				foreach ( (array) ( $r['items'] ?? [] ) as $item ) {
+					echo Csv::line( [ $r['block_id'], $item['title'], 'social_icon', $item['clicks'], $item['share'], $item['item_id'] ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				}
 			}
 		} else {
 			echo Csv::line( [ 'date', 'views', 'clicks' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped

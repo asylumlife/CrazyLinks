@@ -887,7 +887,7 @@ class MailchimpTest extends TestCase {
 		foreach ( [ 'destination', 'audience_id', 'sync_status', 'sync_attempts', 'sync_error', 'synced_at', 'external_id' ] as $col ) {
 			$this->assertContains( $col, $cols );
 		}
-		$this->assertSame( '6', get_option( 'crazylinks_db_version' ) );
+		$this->assertSame( Activator::DB_VERSION, get_option( 'crazylinks_db_version' ) );
 	}
 
 	public function test_editing_guide_and_validator_know_the_audiences(): void {
