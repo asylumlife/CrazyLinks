@@ -274,6 +274,12 @@ class BlockPartialsTest extends TestCase {
 
 		$this->assertFalse( $this->validate_block( 'countdown', [ 'target' => '2030-01-01T00:00:00Z', 'url' => 'javascript:alert(1)' ] )->is_valid() );
 		$this->assertFalse( $this->validate_block( 'countdown', [ 'target' => 'soon' ] )->is_valid() );
+
+		// Size: large unless small or medium is chosen.
+		$this->assertStringContainsString( 'class="cl-countdown cl-countdown--large"', $html );
+		$doc['blocks'][0]['props']['size'] = 'small';
+		$this->assertStringContainsString( 'class="cl-countdown cl-countdown--small"', $this->render( $doc, $now ) );
+		$this->assertFalse( $this->validate_block( 'countdown', [ 'target' => '2030-01-01T00:00:00Z', 'size' => 'huge' ] )->is_valid() );
 	}
 
 	public function test_weekly_countdown_counts_to_the_next_occurrence_and_starts_over(): void {

@@ -2623,6 +2623,15 @@
                     "type": "string",
                     "maxLength": 80
                 },
+                "size": {
+                    "type": "string",
+                    "enum": [
+                        "small",
+                        "medium",
+                        "large"
+                    ],
+                    "description": "How big the countdown is drawn. Default large."
+                },
                 "repeat": {
                     "type": "string",
                     "enum": [
@@ -2684,6 +2693,15 @@
                 "link_label": {
                     "type": "string",
                     "maxLength": 80
+                },
+                "size": {
+                    "type": "string",
+                    "enum": [
+                        "small",
+                        "medium",
+                        "large"
+                    ],
+                    "description": "How big the countdown is drawn. Default large."
                 },
                 "repeat": {
                     "type": "string",

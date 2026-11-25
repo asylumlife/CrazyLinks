@@ -208,6 +208,19 @@
 .cl-page .cl-countdown__num{font-size:1.6em;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
 .cl-page .cl-countdown__name{font-size:.7em;text-transform:uppercase;letter-spacing:.06em;color:var(--cl-muted)}
 .cl-page .cl-countdown__done .cl-link{margin-top:4px}
+/* Countdown sizes: large is the default above. */
+.cl-page .cl-countdown--medium{padding:12px}
+.cl-page .cl-countdown--medium .cl-countdown__label,.cl-page .cl-countdown--medium .cl-countdown__ended{margin-bottom:8px}
+.cl-page .cl-countdown--medium .cl-countdown__live{gap:8px}
+.cl-page .cl-countdown--medium .cl-countdown__unit{min-width:48px;padding:6px 5px}
+.cl-page .cl-countdown--medium .cl-countdown__num{font-size:1.3em}
+.cl-page .cl-countdown--medium .cl-countdown__name{font-size:.65em}
+.cl-page .cl-countdown--small{padding:8px 12px}
+.cl-page .cl-countdown--small .cl-countdown__label,.cl-page .cl-countdown--small .cl-countdown__ended{margin-bottom:6px;font-size:.9em}
+.cl-page .cl-countdown--small .cl-countdown__live{gap:6px}
+.cl-page .cl-countdown--small .cl-countdown__unit{min-width:38px;padding:4px}
+.cl-page .cl-countdown--small .cl-countdown__num{font-size:1em}
+.cl-page .cl-countdown--small .cl-countdown__name{font-size:.6em}
 .cl-page .cl-map{display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px;border-radius:var(--cl-radius);background:color-mix(in srgb,var(--cl-text) 8%,transparent)}
 .cl-page .cl-map__label{margin:0;font-weight:700}
 .cl-page .cl-map__address{font-style:normal;color:var(--cl-muted)}

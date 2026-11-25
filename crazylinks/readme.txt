@@ -4,7 +4,7 @@ Tags: link in bio, linktree, links, bio link, landing page
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.3.3
+Stable tag: 0.3.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -141,6 +141,9 @@ Simple Icons, released under CC0. See LICENSE-icons.txt. The logos remain tradem
 5. The page JSON in the editor screen.
 
 == Changelog ==
+
+= 0.3.4 =
+* New: the Countdown block has a Size setting: large (as before), medium or small.
 
 = 0.3.3 =
 * New: "What each source clicks" on the Analytics screen and in the editor's Analytics tab: views, clicks and the most clicked links per traffic source (campaign tag, the app the page was opened in, or the referring site), with a sources CSV. Each click is matched to the same visitor's visit that day; no cookies are used.

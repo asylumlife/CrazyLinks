@@ -42,10 +42,11 @@ $crazylinks_units = [
 if ( $crazylinks_done && '' === $crazylinks_text && '' === $crazylinks_url ) {
 	return;
 }
+$crazylinks_size = in_array( $props['size'] ?? '', [ 'small', 'medium' ], true ) ? (string) $props['size'] : 'large';
 // Upcoming occurrences as "start/end" Unix times, so a cached page rolls over without a reload.
 $crazylinks_list = implode( ',', array_map( static fn( $o ) => $o[0] . '/' . $o[1], $crazylinks_repeat ) );
 ?>
-<div class="cl-countdown" role="timer" data-cl-countdown="<?php echo esc_attr( gmdate( 'c', $crazylinks_target ) ); ?>"<?php echo '' !== $crazylinks_list ? ' data-cl-repeat="' . esc_attr( $crazylinks_list ) . '"' : ''; ?>>
+<div class="cl-countdown cl-countdown--<?php echo esc_attr( $crazylinks_size ); ?>" role="timer" data-cl-countdown="<?php echo esc_attr( gmdate( 'c', $crazylinks_target ) ); ?>"<?php echo '' !== $crazylinks_list ? ' data-cl-repeat="' . esc_attr( $crazylinks_list ) . '"' : ''; ?>>
 	<?php if ( ! empty( $props['label'] ) ) : ?>
 		<p class="cl-countdown__label"><?php echo esc_html( (string) $props['label'] ); ?></p>
 	<?php endif; ?>
