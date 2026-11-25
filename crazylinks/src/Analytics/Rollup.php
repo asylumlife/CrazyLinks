@@ -76,11 +76,11 @@ final class Rollup {
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$wpdb->query(
 			$wpdb->prepare(
-				"INSERT INTO {$wpdb->prefix}crazylinks_daily (page_id, block_id, day, type, count, uniques)
-				SELECT page_id, COALESCE(block_id, ''), DATE(ts), type, COUNT(*), COUNT(DISTINCT visitor_hash)
+				"INSERT INTO {$wpdb->prefix}crazylinks_daily (page_id, block_id, item_id, day, type, count, uniques)
+				SELECT page_id, COALESCE(block_id, ''), COALESCE(item_id, ''), DATE(ts), type, COUNT(*), COUNT(DISTINCT visitor_hash)
 				FROM {$wpdb->prefix}crazylinks_events
 				WHERE ts >= %s AND ts < %s
-				GROUP BY page_id, COALESCE(block_id, ''), DATE(ts), type
+				GROUP BY page_id, COALESCE(block_id, ''), COALESCE(item_id, ''), DATE(ts), type
 				ON DUPLICATE KEY UPDATE count = VALUES(count), uniques = VALUES(uniques)",
 				$start,
 				$end

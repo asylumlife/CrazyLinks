@@ -25,6 +25,8 @@
 .cl-breakdowns { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
 .cl-breakdowns table { width: 100%; }
 .cl-num { text-align: right; font-variant-numeric: tabular-nums; }
+.cl-subrow td { color: #50575e; }
+.cl-subrow td:first-child { padding-left: 28px; }
 .cl-bar { display: block; height: 4px; background: #2271b1; border-radius: 2px; margin-top: 3px; }
 .cl-muted { color: #50575e; }
 .cl-exports { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }

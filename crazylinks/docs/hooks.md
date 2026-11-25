@@ -7,7 +7,7 @@ Every action and filter the plugin adds (Phase 1). All names carry the `crazylin
 | Hook | Args | Fired |
 |---|---|---|
 | `crazylinks_loaded` | none | After the plugin registers its hooks (`plugins_loaded`). |
-| `crazylinks_event_logged` | `int $id`, `array $row` | After an analytics event row is inserted into `{prefix}crazylinks_events`. `$row` holds the stored columns (no raw IP). |
+| `crazylinks_event_logged` | `int $id`, `array $row` | After an analytics event row is inserted into `{prefix}crazylinks_events`. `$row` holds the stored columns (no raw IP); for a click on a social icon or a listed product, `item_id` says which one. |
 | `crazylinks_daily_rollup` | none | WP-Cron event (daily, 00:15 UTC). Aggregates raw events into `{prefix}crazylinks_daily` and prunes raw events past the retention window. Also runnable with `wp crazylinks rollup`. |
 
 ## Filters

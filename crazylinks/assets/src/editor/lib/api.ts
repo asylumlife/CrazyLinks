@@ -46,6 +46,14 @@ export interface AnalyticsSummary {
 		type?: string;
 		clicks?: number;
 		share?: number;
+		// Socials blocks only: clicks per icon, most clicked first.
+		items?: Array< {
+			item_id: string;
+			network?: string;
+			title?: string;
+			clicks?: number;
+			share?: number;
+		} >;
 	} >;
 	breakdowns?: {
 		device?: Record< string, number >;
