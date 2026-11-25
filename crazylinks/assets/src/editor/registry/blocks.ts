@@ -1490,6 +1490,16 @@ export function blockDefs(): Record< string, BlockDef > {
 					maxLength: 80,
 				},
 				{
+					key: 'size',
+					label: __( 'Size', 'crazylinks' ),
+					kind: 'select',
+					options: opts( [
+						[ 'large', __( 'Large', 'crazylinks' ) ],
+						[ 'medium', __( 'Medium', 'crazylinks' ) ],
+						[ 'small', __( 'Small', 'crazylinks' ) ],
+					] ),
+				},
+				{
 					key: 'repeat',
 					label: __( 'Repeat', 'crazylinks' ),
 					kind: 'select',
