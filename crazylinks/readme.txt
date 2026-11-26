@@ -14,17 +14,19 @@ A self-hosted link-in-bio page builder. Your link page, your domain, your data. 
 
 CrazyLinks adds link-in-bio pages to your own WordPress site, the kind of page Linktree sells. It is free, runs on your server and keeps your data in your database. Pages live at `yoursite.com/l/your-page`, load fast in the Instagram and TikTok in-app browsers, and count views and clicks without cookies.
 
-**Developer preview.** Pages are edited as JSON for now; the visual editor comes in a later release.
-
 = Features =
 
-* Link pages as their own post type, with revisions and a schema-checked JSON format.
+* A visual page editor with drag-and-drop ordering, a live preview and tabs for links, design, settings and analytics. Pages are their own post type, with revisions and a schema-checked JSON format.
 * Links as a classic button, a button with a thumbnail on the left or right, or a large image card. Each link can have a subtitle, a badge, a NEW flag that expires on a date you choose, an attention animation and a pin.
 * Page layouts: list, two-column grid, or a large first link.
-* Blocks: profile header, links, social icons, heading, text, divider, image, gallery, latest posts, product (from WooCommerce on this site or a separate store), video, email capture form (sign-ups are not stored yet), contact card, countdown, map link, payment buttons, collapsible group, spacer, and custom HTML for administrators.
+* Blocks: profile header, links, social icons, heading, text, divider, image, gallery, latest posts, product (from WooCommerce on this site or a separate store), video, embed, email sign-up form, contact card, countdown (one-off or repeating weekly, in three sizes), map link, payment buttons, Sections that group blocks (optionally collapsible), spacer, and custom HTML for administrators.
 * Social icons for 37 networks and contact types, drawn as inline SVG from the Simple Icons set. Other plugins can add icons with a filter.
 * Payment buttons for Buy Me a Coffee, Ko-fi, PayPal.me, Venmo, Cash App, Stripe Payment Links, Patreon and GoFundMe. The button opens the service itself; no money passes through your site.
 * 14 design presets (light, dark, gradient, bold, pastel, mono, neon, earthy, frosted glass, patterned). Every preset meets WCAG AA contrast, and some switch to a dark variant when the visitor's device prefers it. You can override any colour, font, button shape, radius or background (solid, gradient, image or pattern).
+* Weekly schedules: show or hide any block or Section on chosen days and times in the site's timezone, or within a date range.
+* Analytics without cookies: views and clicks per link, per social platform, per product and per traffic source, with CSV exports.
+* Email sign-ups stored on your site with double opt-in, a Subscribers screen and CSV export, or sent to a Mailchimp audience.
+* Optional AI editing in the page editor, and editing from Claude Desktop or Claude Code through the MCP Adapter plugin.
 * Three ways to show a page: standalone with no theme CSS or JavaScript, inside your theme's header and footer, or anywhere with the "CrazyLinks Page" block or the `[crazylinks id="123"]` shortcode.
 * A click redirect at `/l/your-page/go/{block}` for links, images and payment buttons, with optional UTM tags, bot filtering and rate limiting.
 * Contact cards can offer a "Save contact" vCard download at `/l/your-page/vcard/`.
@@ -69,7 +71,7 @@ Developers can turn this off with `add_filter( 'crazylinks_fetch_oembed', '__ret
 == Installation ==
 
 1. Upload the `crazylinks` folder to `/wp-content/plugins/` and activate it.
-2. Go to **CrazyLinks → Add Link Page**, edit the page JSON and publish.
+2. Go to **CrazyLinks → Add Link Page**, add blocks in the editor and publish.
 3. Visit `yoursite.com/l/your-page/`.
 
 WP-CLI: `wp crazylinks demo` creates a sample page; `wp crazylinks validate page.json` checks a document; `wp crazylinks rollup` runs the analytics rollup now.
@@ -82,7 +84,7 @@ Yes. There is no paid tier, no account and no service to sign up for. The plugin
 
 = How do I build a page? =
 
-In this preview, go to CrazyLinks > Add Link Page and edit the page JSON. Run `wp crazylinks demo` to create a sample page that uses every block, then copy it. `wp crazylinks validate page.json` checks a document.
+Go to CrazyLinks > Add Link Page and add blocks in the editor; the preview beside it updates as you type. `wp crazylinks demo` creates a sample page that uses every block.
 
 = Can I change the /l/ part of the address? =
 
@@ -138,7 +140,7 @@ Simple Icons, released under CC0. See LICENSE-icons.txt. The logos remain tradem
 2. Countdown, map link, video facade and gallery blocks.
 3. Latest posts, payment buttons, contact card and social icons.
 4. The same page in the Brutalist, Pastel and Glass presets.
-5. The page JSON in the editor screen.
+5. The page editor: the Links tab with the live preview.
 
 == Changelog ==
 
