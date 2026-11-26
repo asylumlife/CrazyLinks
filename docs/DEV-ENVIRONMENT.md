@@ -1,32 +1,43 @@
 # CrazyLinks dev environment
 
-Set up 2026-11-05. Local only, no Docker. Everything runs through MAMP PRO 7.4.3, which was already installed.
+Set up 2026-11-05, revised 2026-11-26. Local only, no Docker. PHP and MySQL come from MAMP, which was reinstalled on 2026-11-23; see [Starting and stopping](#starting-and-stopping) for what changed.
 
 ## Site
 
 | Item | Value |
 |---|---|
-| URL | http://crazylinks.test:8888 |
+| URL | http://crazylinks.test:8888 (link pages under `/linktree/`) |
 | Admin | http://crazylinks.test:8888/wp-admin/ (user `admin`, password in `~/Sites/.crazylinks-dev-credentials`) |
 | Document root | `/Users/asylumlife/Sites/crazylinks.test` |
 | WordPress | 7.1.4 (en_US), pretty permalinks `/%postname%/` |
 | Database | MySQL 8.0.44, db `crazylinks`, user `root` / `root`, socket `/Applications/MAMP/tmp/mysql/mysql.sock` (TCP is disabled by `skip-networking` in MAMP's my.cnf) |
 | PHP (web) | 8.5.3 via `.htaccess` override, see below |
-| PHP (CLI) | 8.4.17 at `/Applications/MAMP/bin/php/php8.4.17/bin/php` |
+| PHP (CLI) | 8.4.27 at `/Applications/MAMP/bin/php/php8.4.27/bin/php` |
 | Debug | `WP_DEBUG`, `WP_DEBUG_LOG`, `SCRIPT_DEBUG` on, `WP_ENVIRONMENT_TYPE=local`, log at `wp-content/debug.log` |
 
 ## Starting and stopping
 
-MAMP PRO's `cmd` command-line interface does nothing on this version. Its AppleScript interface works:
+Since the MAMP reinstall, the AppleScript commands (`tell application "MAMP PRO" to start all servers`) no longer work, and `crazylinks.test` has no `/etc/hosts` entry unless MAMP PRO is running and managing it. Tests and screenshots need neither: start MySQL by hand and serve the site with PHP's built-in server.
 
 ```sh
-osascript -e 'tell application "MAMP PRO" to start all servers'
-osascript -e 'tell application "MAMP PRO" to stop all servers'
-osascript -e 'tell application "MAMP PRO" to server status "Apache"'   # stopped | starting | running | ...
-osascript -e 'tell application "MAMP PRO" to list all hosts'
+export PATH=/Applications/MAMP/bin/php/php8.4.27/bin:/Applications/MAMP/Library/bin/mysql80/bin:$HOME/.local/bin:$PATH
+
+# MySQL (socket only). Run from /tmp.
+cd /tmp && nohup mysqld_safe --defaults-file=/Applications/MAMP/tmp/mysql/my.cnf \
+  --datadir="/Library/Application Support/appsolute/MAMP PRO/db/mysql80" \
+  --socket=/Applications/MAMP/tmp/mysql/mysql.sock --pid-file=/Applications/MAMP/tmp/mysql/mysql.pid \
+  --log-error=/Applications/MAMP/logs/mysql_error.log >/dev/null 2>&1 &
+
+# The site, on the port WordPress expects.
+cd ~/Sites/crazylinks.test && wp server --host=127.0.0.1 --port=8888
+
+# Stop.
+mysqladmin -uroot -proot -S /Applications/MAMP/tmp/mysql/mysql.sock shutdown
 ```
 
-If the app is not running, `open -a "MAMP PRO"` first. Apache listens on 8888 (HTTP) and 8890 (HTTPS). MySQL is socket-only.
+Without a hosts entry, send the host name yourself: `curl -H 'Host: crazylinks.test:8888' http://127.0.0.1:8888/linktree/demo/`, or start Chrome with `--host-resolver-rules="MAP crazylinks.test 127.0.0.1"` (the screenshot script below does this).
+
+If MAMP PRO is running, Apache listens on 8888 (HTTP) and 8890 (HTTPS) and the hosts entry exists, so the `wp server` step is not needed.
 
 ## PHP version override
 
@@ -36,12 +47,12 @@ MAMP PRO assigned PHP 7.3.33 to the new host, which WordPress 7.1 refuses. The f
 Action php-fastcgi "/fcgi-bin/php8.5.3.fcgi"
 ```
 
-Only PHP versions already used by some host get an `fcgi-bin` alias (7.3.33, 8.5.2, 8.5.3 today), so 8.4.17 is not selectable this way. To make it clean: in MAMP PRO, Hosts → crazylinks.test → PHP version → 8.4.17 or 8.5.3, save, then delete the `Action` line from `.htaccess`.
+This applies only when Apache serves the site, and the versions named here predate the reinstall, so check which `fcgi-bin` aliases exist first. To make it clean: in MAMP PRO, Hosts → crazylinks.test → PHP version → a current 8.4 or 8.5, save, then delete the `Action` line from `.htaccess`.
 
 ## Command-line tools
 
 ```sh
-export PATH=/Applications/MAMP/bin/php/php8.4.17/bin:/Applications/MAMP/Library/bin/mysql80/bin:$PATH
+export PATH=/Applications/MAMP/bin/php/php8.4.27/bin:/Applications/MAMP/Library/bin/mysql80/bin:$PATH
 cd ~/Sites/crazylinks.test
 wp --info
 wp db check
@@ -61,7 +72,7 @@ The plugin source lives in this repo under `crazylinks/` (matching the repo layo
 ## Plugin quality gates and tests (added after Phase 1, 2026-11-05)
 
 ```sh
-export PATH=/Applications/MAMP/bin/php/php8.4.17/bin:/Applications/MAMP/Library/bin/mysql80/bin:$PATH
+export PATH=/Applications/MAMP/bin/php/php8.4.27/bin:/Applications/MAMP/Library/bin/mysql80/bin:$PATH
 cd "/Users/asylumlife/Documents/Claude/Projects/Claude Code/AL-CrazyLinks/crazylinks"
 vendor/bin/phpcs                      # WordPress-Extra + Docs, text-domain check
 vendor/bin/phpstan analyse --no-progress   # level 6
@@ -69,7 +80,7 @@ vendor/bin/phpunit                    # integration tests on the real WP test li
 ```
 
 - WordPress test library: `~/Sites/crazylinks-tests/` (WP 7.1.4), installed by `crazylinks/bin/install-wp-tests.sh` without Docker or svn. Test database `crazylinks_test`, user `root` / `root`, over the MAMP socket.
-- Demo content: `cd ~/Sites/crazylinks.test && wp crazylinks demo` creates `/l/demo/`. Other WP-CLI commands: `wp crazylinks validate file.json`, `wp crazylinks rollup`.
+- Demo content: `cd ~/Sites/crazylinks.test && wp crazylinks demo` creates `/linktree/demo/`. Other WP-CLI commands: `wp crazylinks validate file.json`, `wp crazylinks rollup`.
 - Dev-only header: with `WP_DEBUG` on, `/go/` responses carry `X-CrazyLinks-Event: logged | duplicate | rate-limited | bot`.
 - Assets: edit `assets/src/*`, then `php bin/build-assets.php` writes `assets/build/*`.
 
@@ -79,10 +90,29 @@ Headless Chrome on macOS clamps the window to roughly 500px wide, so `--window-s
 
 ```sh
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --disable-gpu --hide-scrollbars \
-  --window-size=1280,1400 --screenshot=docs/screenshots/demo-desktop.png http://crazylinks.test:8888/l/demo/
+  --window-size=1280,1400 --screenshot=docs/screenshots/demo-desktop.png http://crazylinks.test:8888/linktree/demo/
 ```
 
 Current captures live in `docs/screenshots/`.
+
+### Feature tour screenshots
+
+The images in [`FEATURES.md`](FEATURES.md) live in `docs/screenshots/tour/` and are taken by a Playwright script that drives the installed Chrome at a true 390px phone width. With MySQL and the site running:
+
+```sh
+cd ~/Sites/crazylinks.test
+wp crazylinks demo --slug=tour                                         # prints the page id
+wp eval-file wp-content/plugins/crazylinks/tests/tour-seed.php         # extra blocks and made-up analytics; once per fresh page
+for t in $(wp eval 'echo implode(" ", array_keys(\CrazyLinks\Render\Themes::all()));' | tr ' ' '\n'); do
+  wp crazylinks demo --slug="tt-${t}" --theme="${t}" --porcelain; done  # one page per theme, for the themes sheet
+
+cd "/Users/asylumlife/Documents/Claude/Projects/Claude Code/AL-CrazyLinks/crazylinks"
+TOUR_PAGE_ID=<id> TOUR_THEME_SLUGS="default:tt-default,midnight:tt-midnight,..." \
+TOUR_PASS="$(sed -n 's/^ADMIN_PASSWORD=//p' ~/Sites/.crazylinks-dev-credentials)" \
+node bin/tour-screenshots.mjs            # or only some groups: public, themes, admin
+```
+
+Deactivate other plugins that add admin notices or banners (URL Shortify did) while taking the admin group, and delete the `tt-*` pages afterwards. The product blocks show whatever store is set under CrazyLinks → Settings → Store.
 
 ## Editor JavaScript tooling (added with Phase 2, 2026-11-05)
 
