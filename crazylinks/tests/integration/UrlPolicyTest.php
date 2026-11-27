@@ -120,7 +120,7 @@ class UrlPolicyTest extends TestCase {
 	}
 
 	/**
-	 * Deceptive URLs from the security review (F4).
+	 * Deceptive URLs.
 	 *
 	 * @return array<string, array{string}>
 	 */
@@ -144,18 +144,18 @@ class UrlPolicyTest extends TestCase {
 	}
 
 	/**
-	 * F4: deceptive or ambiguous URLs are rejected.
+	 * Deceptive or ambiguous URLs are rejected.
 	 *
 	 * @dataProvider deceptive_urls
 	 */
-	public function test_f4_rejects_deceptive_urls( string $url ): void {
+	public function test_rejects_deceptive_urls( string $url ): void {
 		$this->assertSame( '', UrlPolicy::clean( $url ), $url );
 	}
 
 	/**
-	 * F4: intranet links stay allowed unless the filter blocks private hosts.
+	 * Intranet links stay allowed unless the filter blocks private hosts.
 	 */
-	public function test_f4_private_hosts_allowed_by_default_and_blockable(): void {
+	public function test_private_hosts_allowed_by_default_and_blockable(): void {
 		$private = [ 'http://127.0.0.1/', 'http://10.0.0.5/wiki', 'http://192.168.1.10:8080/', 'http://localhost/', 'http://printer.local/', 'http://[::1]/' ];
 		foreach ( $private as $url ) {
 			$this->assertNotSame( '', UrlPolicy::clean( $url ), $url );
@@ -169,9 +169,9 @@ class UrlPolicyTest extends TestCase {
 	}
 
 	/**
-	 * F4: ordinary URLs with @ outside the authority, and IDNs, still pass unchanged.
+	 * Ordinary URLs with @ outside the authority, and IDNs, still pass unchanged.
 	 */
-	public function test_f4_legitimate_urls_survive(): void {
+	public function test_legitimate_urls_survive(): void {
 		foreach ( [ 'https://example.com/?q=a@b', 'https://example.com/@handle', 'https://例え.jp/パス', 'mailto:hi@example.com' ] as $url ) {
 			$this->assertSame( $url, UrlPolicy::clean( $url ), $url );
 		}

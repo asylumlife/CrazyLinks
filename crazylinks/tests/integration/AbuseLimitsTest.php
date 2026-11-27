@@ -47,7 +47,7 @@ class AbuseLimitsTest extends TestCase {
 	}
 
 	/**
-	 * F2: rotating the UA from one IP is one view, one unique, and writes no option rows.
+	 * Rotating the UA from one IP is one view, one unique, and writes no option rows.
 	 */
 	public function test_rotating_user_agents_are_one_visitor_for_views(): void {
 		$post = $this->make_page( $this->doc() );
@@ -68,7 +68,7 @@ class AbuseLimitsTest extends TestCase {
 	}
 
 	/**
-	 * F2: rotating the UA does not escape the click rate limit.
+	 * Rotating the UA does not escape the click rate limit.
 	 */
 	public function test_rotating_user_agents_hit_the_click_limit(): void {
 		update_option( Settings::OPTION, [ 'clicks_per_minute' => 20 ] );
@@ -91,7 +91,7 @@ class AbuseLimitsTest extends TestCase {
 	}
 
 	/**
-	 * F2: views are limited per IP across all pages (filterable).
+	 * Views are limited per IP across all pages (filterable).
 	 */
 	public function test_views_are_rate_limited_per_ip_across_pages(): void {
 		$this->assertSame( 120, EventLogger::view_limit() );
@@ -107,7 +107,7 @@ class AbuseLimitsTest extends TestCase {
 	}
 
 	/**
-	 * F2: with a persistent object cache the limiter uses it and leaves the table alone.
+	 * With a persistent object cache the limiter uses it and leaves the table alone.
 	 */
 	public function test_object_cache_backend_is_used_when_available(): void {
 		$was    = (bool) wp_using_ext_object_cache( true );
@@ -126,7 +126,7 @@ class AbuseLimitsTest extends TestCase {
 	}
 
 	/**
-	 * F2: expired limiter rows are swept.
+	 * Expired limiter rows are swept.
 	 */
 	public function test_expired_limiter_rows_are_swept(): void {
 		RateLimiter::first_in_window( 'short', 1 );
@@ -137,7 +137,7 @@ class AbuseLimitsTest extends TestCase {
 	}
 
 	/**
-	 * F2: the salt is not autoloaded, is mixed with wp_salt(), and is the same for racing requests.
+	 * The salt is not autoloaded, is mixed with wp_salt(), and is the same for racing requests.
 	 */
 	public function test_salt_is_private_and_race_safe(): void {
 		global $wpdb;
@@ -169,7 +169,7 @@ class AbuseLimitsTest extends TestCase {
 	}
 
 	/**
-	 * F2: the abuse key ignores the user agent; the uniques hash does not.
+	 * The abuse key ignores the user agent; the uniques hash does not.
 	 */
 	public function test_abuse_key_ignores_user_agent(): void {
 		$a = new Visitor( self::IP, self::ua( 1 ), '' );
@@ -215,7 +215,7 @@ class AbuseLimitsTest extends TestCase {
 	}
 
 	/**
-	 * F8: every unavailable case gives the same answer; a valid one is accepted.
+	 * Every unavailable case gives the same answer; a valid one is accepted.
 	 */
 	public function test_subscribe_has_one_generic_not_found_and_same_checks_as_go(): void {
 		add_filter( 'crazylinks_subscribe_rate_limit', static fn() => 100 );
@@ -288,7 +288,7 @@ class AbuseLimitsTest extends TestCase {
 	}
 
 	/**
-	 * F8: 5 attempts per IP per hour, and rotating the UA does not reset it.
+	 * 5 attempts per IP per hour, and rotating the UA does not reset it.
 	 */
 	public function test_subscribe_rate_limit_is_per_ip(): void {
 		$ok    = $this->make_page( $this->capture_doc(), 'sub-rl' );

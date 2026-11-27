@@ -817,7 +817,7 @@ class AiMcpTest extends TestCase {
 	 * propose-changes + apply-changes cannot save more often than apply-operations, and cannot add log
 	 * rows and proposal transients without bound.
 	 */
-	public function test_review_propose_with_operations_counts_against_the_limit(): void {
+	public function test_propose_with_operations_counts_against_the_limit(): void {
 		$this->ai_settings( [ 'ai_user_hourly' => 1 ] );
 		$ops   = [
 			[
@@ -856,7 +856,7 @@ class AiMcpTest extends TestCase {
 	/**
 	 * The agent role edits link pages through MCP and can do nothing else on the site.
 	 */
-	public function test_review_agent_role_is_limited_to_link_pages(): void {
+	public function test_agent_role_is_limited_to_link_pages(): void {
 		$role = Capabilities::ensure_agent_role();
 		$this->assertInstanceOf( \WP_Role::class, $role );
 		$this->assertEqualsCanonicalizing( array_keys( Capabilities::agent_caps() ), array_keys( array_filter( $role->capabilities ) ) );

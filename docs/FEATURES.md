@@ -1,6 +1,6 @@
 # CrazyLinks feature tour
 
-Everything CrazyLinks can do, with an example of each. The screenshots come from a demo page on a local test site, and the analytics numbers in them are made up. They were taken at version 0.3.5.
+Everything CrazyLinks can do, with an example of each. The screenshots come from a demo page on a local test site, and the analytics numbers in them are made up. They were taken at version 0.3.7, and the subscribers shown are made up too.
 
 - [The page](#the-page)
 - [Links](#links)
@@ -136,9 +136,9 @@ Selecting a block opens its settings. Here is the weekly countdown, with its siz
 
 ![The Countdown block's settings](screenshots/tour/editor-countdown.png)
 
-A new page starts with a three-step wizard for the name, the theme and your profile links, which it recognises as you paste them:
+A new page starts with a three-step wizard: about you, a theme, and your profile links.
 
-![The last step of the setup wizard, with pasted profile links recognised](screenshots/editor-wizard.png)
+![The first step of the setup wizard](screenshots/editor-wizard.png)
 
 ## Analytics
 

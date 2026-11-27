@@ -26,6 +26,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const GROUPS = [ 'public', 'themes', 'admin' ];
+const HIDE_NOTICES =
+	'#wpfooter,.notice,div.updated,div.error{display:none!important}';
 const want = process.argv.slice( 2 );
 const unknown = want.filter( ( name ) => ! GROUPS.includes( name ) );
 
@@ -249,8 +251,7 @@ if ( run( 'admin' ) ) {
 			.locator( '.cl-page' )
 			.waitFor( { timeout: 20_000 } );
 		await page.addStyleTag( {
-			content:
-				'#wpfooter,.notice,div.updated,div.error{display:none!important}',
+			content: HIDE_NOTICES,
 		} );
 		await page.screenshot( { path: `${ OUT }/editor-links.png` } );
 		console.log( 'editor-links' );
@@ -287,6 +288,40 @@ if ( run( 'admin' ) ) {
 			} );
 			console.log( `editor-${ tab.toLowerCase() }` );
 		}
+
+		// The AI tab, then the screens outside the editor. These live one folder up, beside the README images.
+		const general = resolve( OUT, '..' );
+		const aiTab = page
+			.locator( '.cl-tabs' )
+			.getByRole( 'tab', { name: 'AI', exact: true } );
+		if ( await aiTab.count() ) {
+			await aiTab.click();
+			await page.waitForTimeout( 1200 );
+			await page.screenshot( { path: `${ general }/editor-ai-tab.png` } );
+			console.log( 'editor-ai-tab' );
+		}
+		for ( const [ name, query ] of [
+			[ 'admin-subscribers', 'page=crazylinks-subscribers' ],
+			[ 'admin-settings', 'page=crazylinks-settings' ],
+		] ) {
+			await page.goto(
+				`${ BASE }/wp-admin/edit.php?post_type=crazylinks_page&${ query }`
+			);
+			await page.addStyleTag( { content: HIDE_NOTICES } );
+			await page.screenshot( {
+				path: `${ general }/${ name }.png`,
+				fullPage: name === 'admin-settings',
+			} );
+			console.log( name );
+		}
+		await page.goto(
+			`${ BASE }/wp-admin/post-new.php?post_type=crazylinks_page`
+		);
+		await page.locator( '.cl-wizard, .cl-editor' ).first().waitFor();
+		await page.addStyleTag( { content: HIDE_NOTICES } );
+		await page.waitForTimeout( 800 );
+		await page.screenshot( { path: `${ general }/editor-wizard.png` } );
+		console.log( 'editor-wizard' );
 		await ctx.close();
 	}
 }
