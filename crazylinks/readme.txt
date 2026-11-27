@@ -4,7 +4,7 @@ Tags: link in bio, linktree, links, bio link, landing page
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.3.4
+Stable tag: 0.3.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -24,7 +24,7 @@ CrazyLinks adds link-in-bio pages to your own WordPress site, the kind of page L
 * Payment buttons for Buy Me a Coffee, Ko-fi, PayPal.me, Venmo, Cash App, Stripe Payment Links, Patreon and GoFundMe. The button opens the service itself; no money passes through your site.
 * 14 design presets (light, dark, gradient, bold, pastel, mono, neon, earthy, frosted glass, patterned). Every preset meets WCAG AA contrast, and some switch to a dark variant when the visitor's device prefers it. You can override any colour, font, button shape, radius or background (solid, gradient, image or pattern).
 * Weekly schedules: show or hide any block or Section on chosen days and times in the site's timezone, or within a date range.
-* Analytics without cookies: views and clicks per link, per social platform, per product and per traffic source, with CSV exports.
+* Analytics without cookies: views and clicks per link, per social platform, per product and per traffic source, a time-of-day chart and a visit-by-visit activity list, with CSV exports.
 * Email sign-ups stored on your site with double opt-in, a Subscribers screen and CSV export, or sent to a Mailchimp audience.
 * Optional AI editing in the page editor, and editing from Claude Desktop or Claude Code through the MCP Adapter plugin.
 * Three ways to show a page: standalone with no theme CSS or JavaScript, inside your theme's header and footer, or anywhere with the "CrazyLinks Page" block or the `[crazylinks id="123"]` shortcode.
@@ -143,6 +143,11 @@ Simple Icons, released under CC0. See LICENSE-icons.txt. The logos remain tradem
 5. The page editor: the Links tab with the live preview.
 
 == Changelog ==
+
+= 0.3.5 =
+* New: "Activity" on the Analytics screen: visits in time order, newest first, each with the time it started, where the visitor came from, the device, and every page view and click in order with its time. 50 visits per page, with an activity CSV. A visit is one visitor on one day, found through the daily visitor hash; nobody is identified.
+* New: "Time of day" on the Analytics screen: views and clicks per hour, in the site timezone.
+* Change: a payment button without its own label is named by its service ("Support me on Ko-fi") in analytics instead of by its address.
 
 = 0.3.4 =
 * New: the Countdown block has a Size setting: large (as before), medium or small.

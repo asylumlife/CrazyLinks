@@ -10,7 +10,7 @@ Self-hosted link-in-bio pages for WordPress. CrazyLinks is a plugin that replace
 - **Sections.** Styled containers that group blocks, can be collapsible, and carry their own background, padding and heading.
 - **Weekly schedules.** Show or hide any block or Section on chosen days and times in the site's timezone, or within a date range.
 - **14 themes.** Light, dark, gradient, bold, pastel, mono, neon, earthy, frosted glass and patterned presets that meet WCAG AA contrast. Every colour, font, button shape and background can be overridden.
-- **Analytics with privacy.** Views and clicks without cookies, with clicks broken down per link, per social platform, per product and per traffic source (campaign tag, in-app browser or referring site), and CSV exports. The visitor hash uses a daily salt, the raw IP address is never stored, and raw events are pruned after 90 days by default.
+- **Analytics with privacy.** Views and clicks without cookies, with clicks broken down per link, per social platform, per product and per traffic source (campaign tag, in-app browser or referring site), plus a time-of-day chart, a visit-by-visit activity list and CSV exports. The visitor hash uses a daily salt, the raw IP address is never stored, and raw events are pruned after 90 days by default.
 - **Email capture.** Double opt-in by default, unsubscribe links, a Subscribers screen with CSV export, and WordPress personal-data export and erasure support. Sign-ups can also be sent to a Mailchimp audience.
 - **AI editing.** Describe a change in plain words in the page editor. CrazyLinks shows a before/after preview and applies nothing until you confirm. It uses WordPress's AI Client and the provider you connect under Settings → Connectors. Off by default.
 - **Edit from Claude Desktop or Claude Code.** Through the MCP Adapter plugin, an assistant can read, preview and save changes using your own Claude account. See [below](#edit-with-claude-desktop).
@@ -73,7 +73,7 @@ npm run build                          # rebuilds assets/build, which is committ
 npm run test:e2e                       # Playwright, needs a running dev site
 ```
 
-The suite currently has 558 PHPUnit tests, 229 Vitest tests and 5 Playwright tests. [`docs/DEV-ENVIRONMENT.md`](docs/DEV-ENVIRONMENT.md) describes the local site and the WordPress test library setup (`crazylinks/bin/install-wp-tests.sh`). The product and technical specification is [`docs/SPEC.md`](docs/SPEC.md). Hooks, REST routes and WP-CLI commands are listed in [`crazylinks/docs/hooks.md`](crazylinks/docs/hooks.md).
+The suite currently has 564 PHPUnit tests, 229 Vitest tests and 5 Playwright tests. [`docs/DEV-ENVIRONMENT.md`](docs/DEV-ENVIRONMENT.md) describes the local site and the WordPress test library setup (`crazylinks/bin/install-wp-tests.sh`). The product and technical specification is [`docs/SPEC.md`](docs/SPEC.md). Hooks, REST routes and WP-CLI commands are listed in [`crazylinks/docs/hooks.md`](crazylinks/docs/hooks.md).
 
 | Path | Contents |
 |---|---|
@@ -82,7 +82,7 @@ The suite currently has 558 PHPUnit tests, 229 Vitest tests and 5 Playwright tes
 
 ## Project status
 
-Version 0.3.4; the changelog is in [`crazylinks/readme.txt`](crazylinks/readme.txt). CrazyLinks is early software and currently runs on one production site. Expect rough edges, and back up before upgrading. Bug reports are welcome.
+Version 0.3.5; the changelog is in [`crazylinks/readme.txt`](crazylinks/readme.txt). CrazyLinks is early software and currently runs on one production site. Expect rough edges, and back up before upgrading. Bug reports are welcome.
 
 ## Contributing
 

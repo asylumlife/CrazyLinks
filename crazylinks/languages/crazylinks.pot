@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: CrazyLinks 0.3.4\n"
+"Project-Id-Version: CrazyLinks 0.3.5\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/crazylinks\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-25T22:00:34+00:00\n"
+"POT-Creation-Date: 2026-11-27T01:57:52+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: crazylinks\n"
@@ -52,105 +52,114 @@ msgstr ""
 msgid "CrazyLinks is inactive."
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:49
-#: src/Admin/AnalyticsPage.php:144
+#: src/Admin/AnalyticsPage.php:50
+#: src/Admin/AnalyticsPage.php:145
 msgid "CrazyLinks Analytics"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:50
+#: src/Admin/AnalyticsPage.php:51
 #: src/Admin/SettingsPage.php:75
 #: src/Analytics/ListColumns.php:101
 #: assets/build/editor/index.js:28
 msgid "Analytics"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:140
+#: src/Admin/AnalyticsPage.php:141
 msgid "Sorry, you are not allowed to view analytics."
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:146
+#: src/Admin/AnalyticsPage.php:147
 msgid "Create a link page first; its analytics will show up here."
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:150
+#: src/Admin/AnalyticsPage.php:151
 msgid "Analytics are switched off in CrazyLinks settings, so new views and clicks are not being counted."
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:163
+#: src/Admin/AnalyticsPage.php:164
 msgid "Download daily CSV"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:164
+#: src/Admin/AnalyticsPage.php:165
 msgid "Download links CSV"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:165
+#: src/Admin/AnalyticsPage.php:166
 msgid "Download sources CSV"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:171
-msgid "Views and clicks per day (UTC)"
+#: src/Admin/AnalyticsPage.php:167
+msgid "Download activity CSV"
 msgstr ""
 
 #: src/Admin/AnalyticsPage.php:173
-#: src/Admin/AnalyticsPage.php:174
-#: src/Admin/AnalyticsPage.php:226
-#: src/Admin/AnalyticsPage.php:311
+msgid "Views and clicks per day (UTC)"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:175
+#: src/Admin/AnalyticsPage.php:176
+#: src/Admin/AnalyticsPage.php:230
+#: src/Admin/AnalyticsPage.php:315
+#: src/Admin/AnalyticsPage.php:360
 #: src/Admin/AnalyticsPage.php:361
+#: src/Admin/AnalyticsPage.php:470
 #: assets/build/editor/index.js:15
 #: assets/build/editor/index.js:16
 msgid "Views"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:173
-#: src/Admin/AnalyticsPage.php:174
-#: src/Admin/AnalyticsPage.php:232
-#: src/Admin/AnalyticsPage.php:277
-#: src/Admin/AnalyticsPage.php:311
+#: src/Admin/AnalyticsPage.php:175
+#: src/Admin/AnalyticsPage.php:176
+#: src/Admin/AnalyticsPage.php:236
+#: src/Admin/AnalyticsPage.php:281
+#: src/Admin/AnalyticsPage.php:315
+#: src/Admin/AnalyticsPage.php:360
+#: src/Admin/AnalyticsPage.php:361
 #: assets/build/editor/index.js:15
 #: assets/build/editor/index.js:16
 msgid "Clicks"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:174
+#: src/Admin/AnalyticsPage.php:176
+#: src/Admin/AnalyticsPage.php:361
 msgid "Show data table"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:174
+#: src/Admin/AnalyticsPage.php:176
 #: src/Ai/Bootstrap.php:144
 msgid "Date"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:195
+#: src/Admin/AnalyticsPage.php:199
 #: src/Ai/Bootstrap.php:148
 #: assets/src/block-editor.js:37
 msgid "Link page"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:201
+#: src/Admin/AnalyticsPage.php:205
 msgid "Range"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:203
+#: src/Admin/AnalyticsPage.php:207
 #: assets/build/editor/index.js:15
 msgid "Last 7 days"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:204
+#: src/Admin/AnalyticsPage.php:208
 #: assets/build/editor/index.js:15
 msgid "Last 30 days"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:205
+#: src/Admin/AnalyticsPage.php:209
 #: assets/build/editor/index.js:15
 msgid "Last 90 days"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:206
+#: src/Admin/AnalyticsPage.php:210
 msgid "Custom"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:212
+#: src/Admin/AnalyticsPage.php:216
 #: templates/blocks/product.php:50
 #: templates/blocks/product.php:77
 #: assets/build/editor/index.js:12
@@ -158,114 +167,183 @@ msgstr ""
 msgid "From"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:213
+#: src/Admin/AnalyticsPage.php:217
 #: assets/build/editor/index.js:14
 msgid "To"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:214
+#: src/Admin/AnalyticsPage.php:218
 #: assets/build/editor/index.js:3
 msgid "Update"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:228
+#: src/Admin/AnalyticsPage.php:232
 #: assets/build/editor/index.js:15
 msgid "Unique visitors"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:230
+#: src/Admin/AnalyticsPage.php:234
 msgid "Counted per day, then added up. Visitor IDs change every day, so someone who visits on two days counts twice."
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:233
-#: src/Admin/AnalyticsPage.php:311
+#: src/Admin/AnalyticsPage.php:237
+#: src/Admin/AnalyticsPage.php:315
 msgid "Click rate"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:233
+#: src/Admin/AnalyticsPage.php:237
 msgid "Clicks divided by views."
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:276
+#: src/Admin/AnalyticsPage.php:280
 #: assets/build/editor/index.js:12
 #: assets/build/editor/index.js:28
 msgid "Links"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:277
+#: src/Admin/AnalyticsPage.php:281
 #: assets/build/editor/index.js:1
 msgid "Link"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:277
+#: src/Admin/AnalyticsPage.php:281
 #: assets/build/editor/index.js:14
 msgid "Type"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:277
+#: src/Admin/AnalyticsPage.php:281
 #: assets/build/editor/index.js:16
 msgid "Share"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:280
+#: src/Admin/AnalyticsPage.php:284
 msgid "This page has no trackable links yet."
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:309
+#: src/Admin/AnalyticsPage.php:313
 #: assets/build/editor/index.js:16
 msgid "What each source clicks"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:310
+#: src/Admin/AnalyticsPage.php:314
 msgid "A click is matched to the visit it came from, so you can see which links each audience prefers. Sources are named from your campaign tags (utm_source), the app the page was opened in, or the referring site. Covers the same period as the breakdowns below."
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:311
+#: src/Admin/AnalyticsPage.php:315
 #: assets/build/editor/index.js:14
 #: assets/build/editor/index.js:16
 msgid "Source"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:311
+#: src/Admin/AnalyticsPage.php:315
 msgid "Most clicked"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:313
-#: src/Admin/AnalyticsPage.php:363
+#: src/Admin/AnalyticsPage.php:317
+#: src/Admin/AnalyticsPage.php:382
+#: src/Admin/AnalyticsPage.php:472
 msgid "No data yet"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:340
+#: src/Admin/AnalyticsPage.php:346
+msgid "Time of day"
+msgstr ""
+
+#. translators: %s: timezone name, for example America/Chicago.
+#: src/Admin/AnalyticsPage.php:348
+#, php-format
+msgid "Views and clicks by the hour they happened, added up over the period. Times are in the site timezone (%s)."
+msgstr ""
+
+#. translators: 1: hour such as 3 pm, 2: views, 3: clicks.
+#: src/Admin/AnalyticsPage.php:354
+#, php-format
+msgid "%1$s: %2$s views, %3$s clicks"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:361
+msgid "Hour"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:378
+msgid "Activity"
+msgstr ""
+
+#. translators: %s: timezone name, for example America/Chicago.
+#: src/Admin/AnalyticsPage.php:380
+#, php-format
+msgid "Each row is one visit: when it started, where the visitor came from, and what they did, in order. The newest is first. A visit is one visitor on one day; nobody is identified, and the same person on another day counts as a new visit. Times are in the site timezone (%s)."
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:385
+msgid "When"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:385
+msgid "Came from"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:385
+#: src/Admin/AnalyticsPage.php:465
+msgid "Device"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:385
+msgid "What they did"
+msgstr ""
+
+#. translators: %s: the name of the link that was clicked.
+#: src/Admin/AnalyticsPage.php:403
+#, php-format
+msgid "Clicked %s"
+msgstr ""
+
+#. translators: %s: the name of the link that was clicked.
+#: src/Admin/AnalyticsPage.php:403
+msgid "Opened the page"
+msgstr ""
+
+#. translators: 1: first visit shown, 2: last visit shown, 3: total visits.
+#: src/Admin/AnalyticsPage.php:431
+#, php-format
+msgid "Visits %1$s to %2$s of %3$s"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:433
+msgid "Newer"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:436
+msgid "Older"
+msgstr ""
+
+#: src/Admin/AnalyticsPage.php:449
 msgid "Where visitors come from"
 msgstr ""
 
 #. translators: %s: date.
-#: src/Admin/AnalyticsPage.php:345
+#: src/Admin/AnalyticsPage.php:454
 #, php-format
 msgid "Breakdowns come from raw visit records, which are only kept for a limited time. These start on %s."
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:356
-msgid "Device"
-msgstr ""
-
-#: src/Admin/AnalyticsPage.php:357
+#: src/Admin/AnalyticsPage.php:466
 msgid "Operating system"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:358
+#: src/Admin/AnalyticsPage.php:467
 msgid "In-app browser"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:359
+#: src/Admin/AnalyticsPage.php:468
 msgid "Referrer"
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:375
+#: src/Admin/AnalyticsPage.php:484
 msgid "Country: not collected."
 msgstr ""
 
-#: src/Admin/AnalyticsPage.php:409
+#: src/Admin/AnalyticsPage.php:518
 msgid "Sorry, you are not allowed to export analytics for this page."
 msgstr ""
 
@@ -1694,6 +1772,12 @@ msgstr ""
 msgid "The AI provider returned an error: %s"
 msgstr ""
 
+#: src/Analytics/Activity.php:182
+#: src/Analytics/Summary.php:244
+#: src/Analytics/Summary.php:503
+msgid "(removed block)"
+msgstr ""
+
 #: src/Analytics/Chart.php:68
 msgid "Daily page views and link clicks"
 msgstr ""
@@ -1723,46 +1807,41 @@ msgstr ""
 msgid "No views yet"
 msgstr ""
 
-#: src/Analytics/Summary.php:59
+#: src/Analytics/Summary.php:60
 msgid "Dates must look like 2026-01-31."
 msgstr ""
 
-#: src/Analytics/Summary.php:64
+#: src/Analytics/Summary.php:65
 msgid "The start date must not be after the end date."
 msgstr ""
 
-#: src/Analytics/Summary.php:78
+#: src/Analytics/Summary.php:79
 msgid "That range is too long."
 msgstr ""
 
-#: src/Analytics/Summary.php:243
-#: src/Analytics/Summary.php:510
-msgid "(removed block)"
-msgstr ""
-
-#: src/Analytics/Summary.php:310
+#: src/Analytics/Summary.php:311
 msgid "(removed icons)"
 msgstr ""
 
-#: src/Analytics/Summary.php:317
+#: src/Analytics/Summary.php:318
 msgid "Earlier clicks (platform not recorded)"
 msgstr ""
 
 #. translators: %s: product id.
-#: src/Analytics/Summary.php:350
+#: src/Analytics/Summary.php:351
 #, php-format
 msgid "Product #%s (no longer listed)"
 msgstr ""
 
-#: src/Analytics/Summary.php:353
+#: src/Analytics/Summary.php:354
 msgid "Earlier clicks (product not recorded)"
 msgstr ""
 
-#: src/Analytics/Summary.php:415
+#: src/Analytics/Summary.php:416
 msgid "Direct or not shared by the app"
 msgstr ""
 
-#: src/Analytics/Summary.php:415
+#: src/Analytics/Summary.php:416
 msgid "Unknown (no matching visit)"
 msgstr ""
 

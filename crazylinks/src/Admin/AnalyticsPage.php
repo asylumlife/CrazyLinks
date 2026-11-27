@@ -7,6 +7,7 @@
 
 namespace CrazyLinks\Admin;
 
+use CrazyLinks\Analytics\Activity;
 use CrazyLinks\Analytics\Chart;
 use CrazyLinks\Analytics\Csv;
 use CrazyLinks\Analytics\ListColumns;
@@ -160,9 +161,10 @@ final class AnalyticsPage {
 		$this->cards( $report );
 		echo '<div class="cl-exports">';
 		foreach ( [
-			'daily'   => __( 'Download daily CSV', 'crazylinks' ),
-			'blocks'  => __( 'Download links CSV', 'crazylinks' ),
-			'sources' => __( 'Download sources CSV', 'crazylinks' ),
+			'daily'    => __( 'Download daily CSV', 'crazylinks' ),
+			'blocks'   => __( 'Download links CSV', 'crazylinks' ),
+			'sources'  => __( 'Download sources CSV', 'crazylinks' ),
+			'activity' => __( 'Download activity CSV', 'crazylinks' ),
 		] as $which => $label ) {
 			printf( '<a class="button" href="%s">%s</a>', esc_url( $this->export_url( $which, $f ) ), esc_html( $label ) );
 		}
@@ -180,6 +182,8 @@ final class AnalyticsPage {
 		$this->blocks_table( $report, $f );
 		$this->sources_table( $report );
 		$this->breakdowns( $report );
+		$this->hours_chart( $f['page_id'], $range );
+		$this->activity( $report, $f, $range );
 		echo '</div>';
 	}
 
@@ -330,6 +334,111 @@ final class AnalyticsPage {
 	}
 
 	/**
+	 * Views and clicks per hour of the day, in the site's timezone.
+	 *
+	 * @param int                                     $page_id Page id.
+	 * @param array{from:string, to:string, days:int} $range   Range.
+	 */
+	private function hours_chart( int $page_id, array $range ): void {
+		$hours = Activity::hours( $page_id, $range['from'], $range['to'], wp_timezone() );
+		$max   = max( 1, ...array_map( static fn( $h ) => max( $h['views'], $h['clicks'] ), $hours ) );
+		$label = static fn( int $h ): string => wp_date( 'g a', gmmktime( $h, 0, 0, 1, 1, 2001 ), new \DateTimeZone( 'UTC' ) );
+		echo '<div class="cl-panel"><h2>' . esc_html__( 'Time of day', 'crazylinks' ) . '</h2>';
+		/* translators: %s: timezone name, for example America/Chicago. */
+		echo '<p class="cl-muted">' . esc_html( sprintf( __( 'Views and clicks by the hour they happened, added up over the period. Times are in the site timezone (%s).', 'crazylinks' ), wp_timezone_string() ) ) . '</p>';
+		echo '<div class="cl-hours" aria-hidden="true">';
+		foreach ( $hours as $h ) {
+			printf(
+				'<div class="cl-hours__col" title="%s"><div class="cl-hours__bars"><i style="height:%s%%"></i><i class="is-clicks" style="height:%s%%"></i></div><span>%s</span></div>',
+				/* translators: 1: hour such as 3 pm, 2: views, 3: clicks. */
+				esc_attr( sprintf( __( '%1$s: %2$s views, %3$s clicks', 'crazylinks' ), $label( $h['hour'] ), number_format_i18n( $h['views'] ), number_format_i18n( $h['clicks'] ) ) ),
+				esc_attr( (string) round( 100 * $h['views'] / $max, 1 ) ),
+				esc_attr( (string) round( 100 * $h['clicks'] / $max, 1 ) ),
+				0 === $h['hour'] % 3 ? esc_html( $label( $h['hour'] ) ) : ''
+			);
+		}
+		echo '</div><p class="cl-legend cl-legend--bars"><span><i></i>' . esc_html__( 'Views', 'crazylinks' ) . '</span><span><i class="is-clicks"></i>' . esc_html__( 'Clicks', 'crazylinks' ) . '</span></p>';
+		echo '<details><summary>' . esc_html__( 'Show data table', 'crazylinks' ) . '</summary><div class="cl-table-wrap"><table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Hour', 'crazylinks' ) . '</th><th scope="col" class="cl-num">' . esc_html__( 'Views', 'crazylinks' ) . '</th><th scope="col" class="cl-num">' . esc_html__( 'Clicks', 'crazylinks' ) . '</th></tr></thead><tbody>';
+		foreach ( $hours as $h ) {
+			printf( '<tr><td>%s</td><td class="cl-num">%s</td><td class="cl-num">%s</td></tr>', esc_html( $label( $h['hour'] ) ), esc_html( number_format_i18n( $h['views'] ) ), esc_html( number_format_i18n( $h['clicks'] ) ) );
+		}
+		echo '</tbody></table></div></details></div>';
+	}
+
+	/**
+	 * Visits in time order: when each one happened, where it came from and what was clicked.
+	 *
+	 * @param array<string, mixed>                                     $report Report.
+	 * @param array{page_id:int, range:string, from:string, to:string} $f      Filters.
+	 * @param array{from:string, to:string, days:int}                  $range  Range.
+	 */
+	private function activity( array $report, array $f, array $range ): void {
+		$page = isset( $_GET['apage'] ) ? max( 1, absint( $_GET['apage'] ) ) : 1; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only paging.
+		$data = Activity::visits( $f['page_id'], $range['from'], $range['to'], Summary::link_titles( $report['blocks'] ), $page );
+		echo '<div class="cl-panel" id="cl-activity"><h2>' . esc_html__( 'Activity', 'crazylinks' ) . '</h2>';
+		/* translators: %s: timezone name, for example America/Chicago. */
+		echo '<p class="cl-muted">' . esc_html( sprintf( __( 'Each row is one visit: when it started, where the visitor came from, and what they did, in order. The newest is first. A visit is one visitor on one day; nobody is identified, and the same person on another day counts as a new visit. Times are in the site timezone (%s).', 'crazylinks' ), wp_timezone_string() ) ) . '</p>';
+		if ( ! $data['visits'] ) {
+			echo '<p class="cl-muted">' . esc_html__( 'No data yet', 'crazylinks' ) . '</p></div>';
+			return;
+		}
+		echo '<div class="cl-table-wrap"><table class="widefat cl-activity"><thead><tr><th scope="col">' . esc_html__( 'When', 'crazylinks' ) . '</th><th scope="col">' . esc_html__( 'Came from', 'crazylinks' ) . '</th><th scope="col">' . esc_html__( 'Device', 'crazylinks' ) . '</th><th scope="col">' . esc_html__( 'What they did', 'crazylinks' ) . '</th></tr></thead><tbody>';
+		$day_format  = (string) get_option( 'date_format', 'F j, Y' );
+		$time_format = 'g:i:s a';
+		$last_day    = '';
+		foreach ( $data['visits'] as $v ) {
+			$day = wp_date( 'Y-m-d', $v['started'] );
+			if ( $day !== $last_day ) {
+				printf( '<tr class="cl-activity__day"><th scope="colgroup" colspan="4">%s</th></tr>', esc_html( wp_date( 'l, ' . $day_format, $v['started'] ) ) );
+				$last_day = $day;
+			}
+			$steps = '';
+			foreach ( $v['events'] as $e ) {
+				$steps .= sprintf(
+					'<li class="%s"><time datetime="%s">%s</time> %s</li>',
+					'click' === $e['type'] ? 'is-click' : 'is-view',
+					esc_attr( gmdate( 'c', $e['ts'] ) ),
+					esc_html( wp_date( $time_format, $e['ts'] ) ),
+					/* translators: %s: the name of the link that was clicked. */
+					'click' === $e['type'] ? sprintf( esc_html__( 'Clicked %s', 'crazylinks' ), '<strong>' . esc_html( $e['title'] ) . '</strong>' ) : esc_html__( 'Opened the page', 'crazylinks' )
+				);
+			}
+			printf(
+				'<tr><td class="cl-activity__when">%s</td><td>%s</td><td>%s</td><td><ol class="cl-activity__steps">%s</ol></td></tr>',
+				esc_html( wp_date( 'g:i a', $v['started'] ) ),
+				esc_html( $v['label'] ),
+				esc_html( trim( $v['device'] . ( '' !== $v['os'] ? ', ' . $v['os'] : '' ) ) ),
+				$steps // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped parts above.
+			);
+		}
+		echo '</tbody></table></div>';
+
+		$first = ( $data['page'] - 1 ) * $data['per_page'] + 1;
+		$url   = static fn( int $p ): string => add_query_arg(
+			[
+				'post_type' => PostType::NAME,
+				'page'      => self::SLUG,
+				'page_id'   => $f['page_id'],
+				'range'     => $f['range'],
+				'from'      => $f['from'],
+				'to'        => $f['to'],
+				'apage'     => $p,
+			],
+			admin_url( 'edit.php' )
+		) . '#cl-activity';
+		echo '<p class="cl-activity__nav">';
+		/* translators: 1: first visit shown, 2: last visit shown, 3: total visits. */
+		echo '<span class="cl-muted">' . esc_html( sprintf( __( 'Visits %1$s to %2$s of %3$s', 'crazylinks' ), number_format_i18n( $first ), number_format_i18n( $first + count( $data['visits'] ) - 1 ), number_format_i18n( $data['total'] ) ) ) . '</span>';
+		if ( $data['page'] > 1 ) {
+			printf( '<a class="button" href="%s">%s</a>', esc_url( $url( $data['page'] - 1 ) ), esc_html__( 'Newer', 'crazylinks' ) );
+		}
+		if ( $data['page'] < $data['pages'] ) {
+			printf( '<a class="button" href="%s">%s</a>', esc_url( $url( $data['page'] + 1 ) ), esc_html__( 'Older', 'crazylinks' ) );
+		}
+		echo '</p></div>';
+	}
+
+	/**
 	 * Breakdown tables.
 	 *
 	 * @param array<string, mixed> $report Report.
@@ -419,7 +528,7 @@ final class AnalyticsPage {
 			wp_die( esc_html( $range->get_error_message() ), 400 );
 		}
 		$report = Summary::report( $page_id, $range['from'], $range['to'] );
-		$which  = isset( $_GET['which'] ) && in_array( $_GET['which'], [ 'blocks', 'sources' ], true ) ? sanitize_key( wp_unslash( $_GET['which'] ) ) : 'daily';
+		$which  = isset( $_GET['which'] ) && in_array( $_GET['which'], [ 'blocks', 'sources', 'activity' ], true ) ? sanitize_key( wp_unslash( $_GET['which'] ) ) : 'daily';
 		Csv::send_headers( sprintf( 'crazylinks-%s-%d-%s-%s.csv', $which, $page_id, $range['from'], $range['to'] ) );
 		if ( 'blocks' === $which ) {
 			// A Socials block has one row for the block total, then one `social_icon` row per platform
@@ -439,6 +548,12 @@ final class AnalyticsPage {
 				foreach ( $s['top'] as $t ) {
 					echo Csv::line( [ $s['label'], '', '', '', $t['title'], $t['clicks'] ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				}
+			}
+		} elseif ( 'activity' === $which ) {
+			// One row per view or click, newest first. `visit` numbers the visits (1 = most recent); time is in the site timezone.
+			echo Csv::line( [ 'time', 'visit', 'source', 'device', 'os', 'action', 'link' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			foreach ( Activity::rows( $page_id, $range['from'], $range['to'], Summary::link_titles( $report['blocks'] ) ) as $r ) {
+				echo Csv::line( [ wp_date( 'Y-m-d H:i:s', $r['ts'] ), $r['visit'], $r['source'], $r['device'], $r['os'], $r['type'], $r['title'] ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			}
 		} else {
 			echo Csv::line( [ 'date', 'views', 'clicks' ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped

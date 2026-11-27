@@ -207,6 +207,8 @@ if ( run( 'admin' ) ) {
 			'analytics-sources',
 			panel( 'What each source clicks' )
 		);
+		await shot( page, 'analytics-hours', panel( 'Time of day' ) );
+		await shot( page, 'analytics-activity', panel( 'Activity' ) );
 		await shot(
 			page,
 			'analytics-visitors',

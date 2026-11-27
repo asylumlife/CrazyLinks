@@ -9,6 +9,7 @@ namespace CrazyLinks\Analytics;
 
 use CrazyLinks\PageStore;
 use CrazyLinks\Render\Icons;
+use CrazyLinks\Render\Payments;
 use CrazyLinks\Schema\UrlPolicy;
 use CrazyLinks\Woo\Store;
 
@@ -489,15 +490,7 @@ final class Summary {
 		}
 		// phpcs:enable
 
-		$titles = [];
-		foreach ( $block_rows as $row ) {
-			$titles[ $row['block_id'] . '|' ] = (string) $row['title'];
-			foreach ( (array) ( $row['items'] ?? [] ) as $item ) {
-				if ( '' !== $item['item_id'] ) {
-					$titles[ $row['block_id'] . '|' . $item['item_id'] ] = $row['title'] . ': ' . $item['title'];
-				}
-			}
-		}
+		$titles = self::link_titles( $block_rows );
 		foreach ( $out as $key => $row ) {
 			$out[ $key ]['ctr'] = $row['views'] > 0 ? round( $row['clicks'] / $row['views'], 4 ) : null;
 			$top                = $links[ $key ] ?? [];
@@ -521,6 +514,26 @@ final class Summary {
 	}
 
 	/**
+	 * Titles of everything clickable, keyed "block_id|item_id" (item id empty for the block
+	 * itself); an icon or product reads "Block: Item".
+	 *
+	 * @param array<int, array<string, mixed>> $block_rows Rows from a report's `blocks`.
+	 * @return array<string, string>
+	 */
+	public static function link_titles( array $block_rows ): array {
+		$titles = [];
+		foreach ( $block_rows as $row ) {
+			$titles[ $row['block_id'] . '|' ] = (string) $row['title'];
+			foreach ( (array) ( $row['items'] ?? [] ) as $item ) {
+				if ( '' !== $item['item_id'] ) {
+					$titles[ $row['block_id'] . '|' . $item['item_id'] ] = $row['title'] . ': ' . $item['title'];
+				}
+			}
+		}
+		return $titles;
+	}
+
+	/**
 	 * A human label for a clickable block.
 	 *
 	 * @param array<string, mixed> $block Block.
@@ -530,6 +543,13 @@ final class Summary {
 		foreach ( [ 'title', 'alt', 'label' ] as $key ) {
 			if ( ! empty( $props[ $key ] ) && is_string( $props[ $key ] ) ) {
 				return $props[ $key ];
+			}
+		}
+		if ( 'payment' === ( $block['type'] ?? '' ) ) {
+			// A payment button without its own label shows the service's default one ("Support me on Ko-fi").
+			$label = (string) ( Payments::get( (string) ( $props['service'] ?? 'custom' ) )['label'] ?? '' );
+			if ( '' !== $label ) {
+				return $label;
 			}
 		}
 		if ( ! empty( $props['url'] ) && is_string( $props['url'] ) ) {
