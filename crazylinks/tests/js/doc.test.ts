@@ -1,6 +1,12 @@
 /**
  * Pure document operations.
  */
+import {
+	applyOp,
+	initialState,
+	reducer,
+} from '../../assets/src/editor/store/reducer';
+import { moveBlockTo } from '../../assets/src/editor/store/actions';
 import * as D from '../../assets/src/editor/store/doc';
 import { ULID_PATTERN } from '../../assets/src/editor/lib/ulid';
 import type { Block, PageDoc } from '../../assets/src/editor/types';
@@ -12,6 +18,9 @@ function block( type: string, extra: Partial< Block > = {} ): Block {
 function docOf( blocks: Block[] ): PageDoc {
 	return D.normalize( { ...D.emptyDoc(), blocks } );
 }
+
+const ids = ( d: PageDoc, parent: string | null ) =>
+	D.siblings( d, parent ).map( ( b ) => b.id );
 
 describe( 'document operations', () => {
 	it( 'creates blocks with ULIDs and registry defaults', () => {
@@ -174,5 +183,87 @@ describe( 'document operations', () => {
 		expect(
 			D.isEmptyDoc( { ...D.emptyDoc(), profile: { name: 'Me' } } )
 		).toBe( false );
+	} );
+} );
+
+describe( 'moveTo', () => {
+	const a = block( 'link', { order: 0 } );
+	const g = block( 'group', { order: 1 } );
+	const c1 = block( 'link', { parent_id: g.id, order: 0 } );
+	const c2 = block( 'link', { parent_id: g.id, order: 1 } );
+	const z = block( 'heading', { order: 2 } );
+	const doc = docOf( [ a, g, c1, c2, z ] );
+
+	it( 'moves a top-level block into a group at a position', () => {
+		const next = D.moveTo( doc, a.id, g.id, 1 );
+		expect( ids( next, g.id ) ).toEqual( [ c1.id, a.id, c2.id ] );
+		expect( ids( next, null ) ).toEqual( [ g.id, z.id ] );
+		expect( next.blocks.map( ( b ) => b.id ) ).toEqual( [
+			g.id,
+			c1.id,
+			a.id,
+			c2.id,
+			z.id,
+		] );
+	} );
+
+	it( 'moves a child out to the top level and renumbers both lists', () => {
+		const next = D.moveTo( doc, c1.id, null, 0 );
+		expect( ids( next, null ) ).toEqual( [ c1.id, a.id, g.id, z.id ] );
+		expect( ids( next, g.id ) ).toEqual( [ c2.id ] );
+		expect( D.siblings( next, g.id )[ 0 ].order ).toBe( 0 );
+		expect(
+			next.blocks.find( ( b ) => b.id === c1.id )?.parent_id
+		).toBeNull();
+	} );
+
+	it( 'never nests a group and ignores unknown targets', () => {
+		const g2 = block( 'group', { order: 3 } );
+		const d = docOf( [ a, g, g2 ] );
+		expect( D.moveTo( d, g2.id, g.id, 0 ) ).toBe( d );
+		expect( D.moveTo( d, a.id, 'NOPE', 0 ) ).toBe( d );
+		expect( D.moveTo( d, a.id, z.id, 0 ) ).toBe( d );
+	} );
+
+	it( 'is wired through the reducer action', () => {
+		const state = initialState( doc );
+		const next = reducer( state, moveBlockTo( a.id, g.id, 0 ) );
+		expect( ids( next.doc, g.id )[ 0 ] ).toBe( a.id );
+		expect(
+			applyOp( doc, {
+				kind: 'moveTo',
+				id: a.id,
+				parentId: g.id,
+				index: 9,
+			} ).doc.blocks.at( -2 )?.id
+		).toBe( a.id );
+	} );
+} );
+
+describe( 'pin toggle', () => {
+	it( 'leaves the document alone for an unknown id', () => {
+		const doc = D.emptyDoc();
+		expect( D.togglePinned( doc, 'nope' ) ).toBe( doc );
+	} );
+} );
+
+describe( 'weekly windows in a loaded document', () => {
+	const w = { days: [ 1, 2, 3, 4 ], start: '12:30', end: '14:00' };
+
+	it( 'keeps weekly when a document is loaded', () => {
+		const doc = D.coerceDoc( {
+			blocks: [
+				{
+					type: 'link',
+					schedule: { start: null, weekly: w },
+					props: {},
+				},
+			],
+		} );
+		expect( doc.blocks[ 0 ].schedule ).toEqual( {
+			start: null,
+			end: null,
+			weekly: w,
+		} );
 	} );
 } );

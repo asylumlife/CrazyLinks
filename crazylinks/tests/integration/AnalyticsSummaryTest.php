@@ -18,18 +18,11 @@ use CrazyLinks\Settings;
  */
 class AnalyticsSummaryTest extends TestCase {
 
-	private const A = '01HZZZZZZZZZZZZZZZZZZZZZZA';
-	private const B = '01HZZZZZZZZZZZZZZZZZZZZZZB';
-
 	public function tear_down(): void {
 		delete_option( Settings::OPTION );
 		delete_option( 'crazylinks_rollup_through' );
 		delete_transient( Summary::TOTALS_TRANSIENT );
 		parent::tear_down();
-	}
-
-	private static function day( int $ago ): string {
-		return gmdate( 'Y-m-d', time() - $ago * DAY_IN_SECONDS );
 	}
 
 	/**
@@ -65,7 +58,7 @@ class AnalyticsSummaryTest extends TestCase {
 		}
 	}
 
-	private function request( int $page_id, array $params = [] ): \WP_REST_Response {
+	private function summary_request( int $page_id, array $params = [] ): \WP_REST_Response {
 		$req = new \WP_REST_Request( 'GET', '/crazylinks/v1/analytics/summary' );
 		$req->set_query_params( [ 'page_id' => $page_id ] + $params );
 		return rest_get_server()->dispatch( $req );
@@ -77,7 +70,7 @@ class AnalyticsSummaryTest extends TestCase {
 		$this->seed( $post->ID, 'view', 0, 3 );
 		global $wpdb;
 		$wpdb->query( "UPDATE {$wpdb->prefix}crazylinks_events SET visitor_hash = 'same' WHERE id IN (SELECT id FROM (SELECT id FROM {$wpdb->prefix}crazylinks_events ORDER BY id LIMIT 2) t)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$this->seed( $post->ID, 'click', 0, 2, self::A );
+		$this->seed( $post->ID, 'click', 0, 2, self::LINK_A );
 		// 2 days ago: 4 views (direct, desktop), 1 click on B and 1 on a removed block.
 		$this->seed(
 			$post->ID,
@@ -93,7 +86,7 @@ class AnalyticsSummaryTest extends TestCase {
 			],
 			'w'
 		);
-		$this->seed( $post->ID, 'click', 2, 1, self::B );
+		$this->seed( $post->ID, 'click', 2, 1, self::LINK_B );
 		$this->seed( $post->ID, 'click', 2, 1, '01HZZZZZZZZZZZZZZZZZZZZZZZ' );
 		// 40 days ago: outside the 30 day window.
 		$this->seed( $post->ID, 'view', 40, 5 );
@@ -102,7 +95,7 @@ class AnalyticsSummaryTest extends TestCase {
 
 	public function test_summary_contract_shape_and_numbers(): void {
 		$post = $this->page_with_data();
-		$res  = $this->request( $post->ID, [ 'range' => '7d' ] );
+		$res  = $this->summary_request( $post->ID, [ 'range' => '7d' ] );
 		$this->assertSame( 200, $res->get_status() );
 		$d = $res->get_data();
 
@@ -122,14 +115,14 @@ class AnalyticsSummaryTest extends TestCase {
 		$this->assertSame( self::day( 0 ), $d['timeseries'][6]['date'] );
 
 		$blocks = array_column( $d['blocks'], null, 'block_id' );
-		$this->assertSame( 2, $blocks[ self::A ]['clicks'] );
-		$this->assertSame( 'One', $blocks[ self::A ]['title'] );
-		$this->assertSame( 'link', $blocks[ self::A ]['type'] );
-		$this->assertSame( 0.5, $blocks[ self::A ]['share'] );
-		$this->assertSame( 1, $blocks[ self::B ]['clicks'] );
-		$this->assertSame( 0.25, $blocks[ self::B ]['share'] );
+		$this->assertSame( 2, $blocks[ self::LINK_A ]['clicks'] );
+		$this->assertSame( 'One', $blocks[ self::LINK_A ]['title'] );
+		$this->assertSame( 'link', $blocks[ self::LINK_A ]['type'] );
+		$this->assertSame( 0.5, $blocks[ self::LINK_A ]['share'] );
+		$this->assertSame( 1, $blocks[ self::LINK_B ]['clicks'] );
+		$this->assertSame( 0.25, $blocks[ self::LINK_B ]['share'] );
 		$this->assertSame( '(removed block)', $blocks['01HZZZZZZZZZZZZZZZZZZZZZZZ']['title'] );
-		$this->assertSame( self::A, $d['blocks'][0]['block_id'], 'Sorted by clicks' );
+		$this->assertSame( self::LINK_A, $d['blocks'][0]['block_id'], 'Sorted by clicks' );
 
 		$this->assertSame( [ 'mobile' => 3, 'tablet' => 0, 'desktop' => 4 ], $d['breakdowns']['device'] );
 		$this->assertSame( 3, $d['breakdowns']['os']['ios'] );
@@ -148,7 +141,7 @@ class AnalyticsSummaryTest extends TestCase {
 
 	public function test_zero_data_page_has_zeros_not_errors(): void {
 		$post = $this->make_page( $this->doc() );
-		$d    = $this->request( $post->ID, [ 'range' => '30d' ] )->get_data();
+		$d    = $this->summary_request( $post->ID, [ 'range' => '30d' ] )->get_data();
 		$this->assertSame( [ 0, 0, 0, 0.0 ], array_values( $d['totals'] ) );
 		$this->assertCount( 30, $d['timeseries'] );
 		$this->assertCount( 2, $d['blocks'], 'Both links are listed with zero clicks' );
@@ -159,36 +152,36 @@ class AnalyticsSummaryTest extends TestCase {
 
 	public function test_ranges(): void {
 		$post = $this->page_with_data();
-		$this->assertSame( 7, $this->request( $post->ID, [ 'range' => '30d' ] )->get_data()['totals']['views'] );
-		$this->assertSame( 12, $this->request( $post->ID, [ 'range' => '90d' ] )->get_data()['totals']['views'] );
-		$this->assertCount( 90, $this->request( $post->ID, [ 'range' => '90d' ] )->get_data()['timeseries'] );
+		$this->assertSame( 7, $this->summary_request( $post->ID, [ 'range' => '30d' ] )->get_data()['totals']['views'] );
+		$this->assertSame( 12, $this->summary_request( $post->ID, [ 'range' => '90d' ] )->get_data()['totals']['views'] );
+		$this->assertCount( 90, $this->summary_request( $post->ID, [ 'range' => '90d' ] )->get_data()['timeseries'] );
 
-		$custom = $this->request( $post->ID, [ 'from' => self::day( 3 ), 'to' => self::day( 1 ) ] )->get_data();
+		$custom = $this->summary_request( $post->ID, [ 'from' => self::day( 3 ), 'to' => self::day( 1 ) ] )->get_data();
 		$this->assertCount( 3, $custom['timeseries'] );
 		$this->assertSame( 4, $custom['totals']['views'] );
 		$this->assertSame( 4, $custom['totals']['uniques'] );
 
-		$legacy = $this->request( $post->ID, [ 'days' => 28 ] )->get_data();
+		$legacy = $this->summary_request( $post->ID, [ 'days' => 28 ] )->get_data();
 		$this->assertSame( 7, $legacy['views'], 'Older top-level fields remain' );
 		$this->assertSame( $legacy['totals']['clicks'], $legacy['clicks'] );
 		$this->assertCount( 28, $legacy['daily'] );
 		$this->assertArrayHasKey( 'day', $legacy['daily'][0] );
 
 		foreach ( [ [ 'from' => '2026-13-45' ], [ 'from' => self::day( 1 ), 'to' => self::day( 5 ) ], [ 'from' => '2000-01-01', 'to' => self::day( 0 ) ], [ 'range' => '1y' ] ] as $bad ) {
-			$this->assertSame( 400, $this->request( $post->ID, $bad )->get_status(), wp_json_encode( $bad ) );
+			$this->assertSame( 400, $this->summary_request( $post->ID, $bad )->get_status(), wp_json_encode( $bad ) );
 		}
 	}
 
 	public function test_rolled_up_days_survive_event_pruning(): void {
 		$post = $this->page_with_data();
-		$live = $this->request( $post->ID, [ 'range' => '90d' ] )->get_data();
+		$live = $this->summary_request( $post->ID, [ 'range' => '90d' ] )->get_data();
 
 		Rollup::roll_range( self::day( 60 ), self::day( 1 ) );
 		update_option( 'crazylinks_rollup_through', self::day( 1 ) );
 		global $wpdb;
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}crazylinks_events WHERE ts < %s", self::day( 0 ) . ' 00:00:00' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
-		$after = $this->request( $post->ID, [ 'range' => '90d' ] )->get_data();
+		$after = $this->summary_request( $post->ID, [ 'range' => '90d' ] )->get_data();
 		$this->assertSame( $live['totals']['clicks'], $after['totals']['clicks'] );
 		$this->assertSame( $live['totals'], $after['totals'] );
 		$this->assertSame( $live['timeseries'], $after['timeseries'] );
@@ -200,11 +193,11 @@ class AnalyticsSummaryTest extends TestCase {
 	public function test_permissions(): void {
 		$post = $this->make_page( $this->doc() );
 		wp_set_current_user( 0 );
-		$this->assertContains( $this->request( $post->ID )->get_status(), [ 401, 403 ] );
+		$this->assertContains( $this->summary_request( $post->ID )->get_status(), [ 401, 403 ] );
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'subscriber' ] ) );
-		$this->assertSame( 403, $this->request( $post->ID )->get_status() );
+		$this->assertSame( 403, $this->summary_request( $post->ID )->get_status() );
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
-		$this->assertSame( 404, $this->request( 999999 )->get_status() );
+		$this->assertSame( 404, $this->summary_request( 999999 )->get_status() );
 	}
 
 	public function test_list_columns_show_30_day_totals_and_cache_until_rollup(): void {
@@ -305,21 +298,21 @@ class AnalyticsSummaryTest extends TestCase {
 		};
 		// Instagram app, no referrer: two visitors, three clicks.
 		$event( 'view', 'ig1', '10:00:00', [ 'in_app' => 'instagram' ] );
-		$event( 'click', 'ig1', '10:00:05', [ 'block_id' => self::A, 'in_app' => 'instagram' ] );
-		$event( 'click', 'ig1', '10:00:09', [ 'block_id' => self::B, 'in_app' => 'instagram' ] );
+		$event( 'click', 'ig1', '10:00:05', [ 'block_id' => self::LINK_A, 'in_app' => 'instagram' ] );
+		$event( 'click', 'ig1', '10:00:09', [ 'block_id' => self::LINK_B, 'in_app' => 'instagram' ] );
 		$event( 'view', 'ig2', '11:00:00', [ 'referrer_host' => 'l.instagram.com' ] );
-		$event( 'click', 'ig2', '11:00:05', [ 'block_id' => self::A ] );
+		$event( 'click', 'ig2', '11:00:05', [ 'block_id' => self::LINK_A ] );
 		// A campaign tag wins over the app it was opened in, and "ig" is Instagram.
 		$event( 'view', 'ig3', '11:30:00', [ 'utm_source' => 'IG', 'in_app' => 'facebook' ] );
 		// One visitor comes back from a different source: each click belongs to the visit before it.
 		$event( 'view', 'both', '12:00:00', [ 'referrer_host' => 'www.tiktok.com' ] );
-		$event( 'click', 'both', '12:00:05', [ 'block_id' => self::B ] );
+		$event( 'click', 'both', '12:00:05', [ 'block_id' => self::LINK_B ] );
 		$event( 'view', 'both', '13:00:00', [ 'utm_source' => 'newsletter' ] );
-		$event( 'click', 'both', '13:00:05', [ 'block_id' => self::A ] );
+		$event( 'click', 'both', '13:00:05', [ 'block_id' => self::LINK_A ] );
 		// Direct visit, an unknown site, and a click with no view at all.
 		$event( 'view', 'dir', '14:00:00' );
 		$event( 'view', 'blog', '14:30:00', [ 'referrer_host' => 'www.some-blog.example' ] );
-		$event( 'click', 'ghost', '15:00:00', [ 'block_id' => self::A ] );
+		$event( 'click', 'ghost', '15:00:00', [ 'block_id' => self::LINK_A ] );
 		// Another page's view must not lend its source.
 		$other = $this->make_page( $this->doc(), 'other' );
 		$wpdb->insert(
@@ -351,7 +344,7 @@ class AnalyticsSummaryTest extends TestCase {
 		$this->assertSame( 'some-blog.example', $sources['host:some-blog.example']['label'] );
 		$this->assertSame( 6, array_sum( array_column( $sources, 'clicks' ) ), 'Every click lands in exactly one source' );
 		$this->assertSame( 7, array_sum( array_column( $sources, 'views' ) ) );
-		$this->assertArrayHasKey( 'sources', $this->request( $id )->get_data() );
+		$this->assertArrayHasKey( 'sources', $this->summary_request( $id )->get_data() );
 	}
 
 	public function test_source_names(): void {

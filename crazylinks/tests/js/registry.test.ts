@@ -210,3 +210,96 @@ describe( 'email sign-up block and Mailchimp', () => {
 		).toContain( 'Check your inbox' );
 	} );
 } );
+
+describe( 'link, image and email capture fields', () => {
+	const keys = ( type: string ) =>
+		blockDef( type as never ).fields.map( ( f ) => f.key );
+	it( 'link has tile size, focal point and thumbnail alt fields', () => {
+		expect( keys( 'link' ) ).toEqual(
+			expect.arrayContaining( [
+				'tile_size',
+				'focal_point',
+				'thumbnail_alt',
+				'decorative',
+			] )
+		);
+		const focal = blockDef( 'link' ).fields.find(
+			( f ) => f.key === 'focal_point'
+		)!;
+		expect( focal.kind ).toBe( 'focal' );
+		expect( focal.focalOf ).toBe( 'thumbnail' );
+		expect( focal.showIf?.( {} ) ).toBe( false );
+		expect( focal.showIf?.( { thumbnail: 4 } ) ).toBe( true );
+		const tile = blockDef( 'link' ).fields.find(
+			( f ) => f.key === 'tile_size'
+		)!;
+		expect( tile.options?.map( ( o ) => o.value ) ).toEqual( [
+			'',
+			'2x1',
+			'2x2',
+		] );
+	} );
+	it( 'image has a decorative option and email capture has its wording fields', () => {
+		expect( keys( 'image' ) ).toContain( 'decorative' );
+		expect(
+			blockDef( 'image' )
+				.fields.find( ( f ) => f.key === 'alt' )
+				?.showIf?.( { decorative: true } )
+		).toBe( false );
+		expect( keys( 'email_capture' ) ).toEqual(
+			expect.arrayContaining( [ 'success_text', 'pending_text' ] )
+		);
+		expect( blockDef( 'socials' ).trackable ).toBe( true );
+	} );
+} );
+
+describe( 'section block', () => {
+	it( 'is labelled Section with background, layout and collapsible fields', () => {
+		const def = blockDef( 'group' );
+		expect( def.label ).toBe( 'Section' );
+		const keys = def.fields.map( ( f ) => f.key );
+		for ( const k of [
+			'heading',
+			'description',
+			'collapsible',
+			'collapsed',
+			'layout',
+			'background/type',
+			'text_color',
+			'padding',
+			'radius',
+		] ) {
+			expect( keys ).toContain( k );
+		}
+		expect(
+			def.fields.find( ( f ) => f.key === 'background/type' )
+				?.clearsParent
+		).toBe( true );
+		expect( def.summary( { title: 'Old' } ) ).toBe( 'Old' );
+		expect( def.summary( { heading: 'New', title: 'Old' } ) ).toBe( 'New' );
+	} );
+} );
+
+describe( 'heading block', () => {
+	it( 'offers size, weight, colour, divider, emoji and icon fields', () => {
+		const keys = blockDef( 'heading' ).fields.map( ( f ) => f.key );
+		for ( const k of [
+			'size',
+			'weight',
+			'color',
+			'uppercase',
+			'subtext',
+			'divider',
+			'spacing',
+			'emoji',
+			'icon',
+		] ) {
+			expect( keys ).toContain( k );
+		}
+		const icon = blockDef( 'heading' ).fields.find(
+			( f ) => f.key === 'icon'
+		);
+		expect( icon?.kind ).toBe( 'icon' );
+		expect( icon?.showIf?.( { emoji: '🎤' } ) ).toBe( false );
+	} );
+} );

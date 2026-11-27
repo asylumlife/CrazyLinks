@@ -3,12 +3,16 @@
  */
 import {
 	blockErrors,
+	errorFor,
 	errorsFromResponse,
+	forBlock,
+	isValidationError,
 	localErrors,
 	mapErrors,
+	subMessages,
 } from '../../assets/src/editor/lib/errors';
 import { createBlock, emptyDoc } from '../../assets/src/editor/store/doc';
-import type { PageDoc } from '../../assets/src/editor/types';
+import type { MappedError, PageDoc } from '../../assets/src/editor/types';
 
 function doc(): PageDoc {
 	const a = createBlock( 'link' );
@@ -99,5 +103,60 @@ describe( 'errorsFromResponse', () => {
 			errorsFromResponse( { code: 'rest_forbidden', message: 'Nope' } )
 		).toEqual( [ { path: '/', message: 'Nope' } ] );
 		expect( errorsFromResponse( null )[ 0 ].path ).toBe( '/' );
+	} );
+} );
+
+describe( 'error lookups', () => {
+	const errors: MappedError[] = [
+		{
+			path: '/design/text/color',
+			field: '/design/text/color',
+			message: 'A',
+		},
+		{ path: '/settings/seo', field: '/settings/seo', message: 'B' },
+		{
+			path: '/blocks/0/props/url',
+			field: 'props/url',
+			blockId: 'X',
+			message: 'C',
+		},
+		{
+			path: '/blocks/0/props/items/1/url',
+			field: 'props/items/1/url',
+			blockId: 'X',
+			message: 'D',
+		},
+	];
+
+	it( 'finds a page-level error at a path or below it', () => {
+		expect( errorFor( errors, '/design/text/color' ) ).toBe( 'A' );
+		expect( errorFor( errors, '/design/text' ) ).toBe( 'A' );
+		expect( errorFor( errors, '/design/tex' ) ).toBeUndefined();
+		expect( errorFor( errors, '/settings/seo' ) ).toBe( 'B' );
+		expect( errorFor( errors, '/profile/name' ) ).toBeUndefined();
+	} );
+
+	it( 'narrows entries to a block and a field', () => {
+		expect( forBlock( errors, 'X' ) ).toHaveLength( 2 );
+		expect( forBlock( errors, 'X', 'props/items' ) ).toHaveLength( 1 );
+		expect( forBlock( errors, 'Y' ) ).toEqual( [] );
+	} );
+
+	it( 'keys sub-path messages by the path below the field', () => {
+		expect( subMessages( errors, 'props/items' ) ).toEqual( {
+			'1/url': 'D',
+		} );
+		expect( subMessages( errors, 'props/url' ) ).toEqual( {} );
+	} );
+
+	it( 'tells validator rejections from other failures', () => {
+		expect(
+			isValidationError( {
+				code: 'crazylinks_invalid_page',
+				data: { errors: [ { path: '/', message: 'bad' } ] },
+			} )
+		).toBe( true );
+		expect( isValidationError( { code: 'fetch_error' } ) ).toBe( false );
+		expect( isValidationError( null ) ).toBe( false );
 	} );
 } );

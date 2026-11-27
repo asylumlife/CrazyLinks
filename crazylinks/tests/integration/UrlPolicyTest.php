@@ -176,4 +176,45 @@ class UrlPolicyTest extends TestCase {
 			$this->assertSame( $url, UrlPolicy::clean( $url ), $url );
 		}
 	}
+
+	/**
+	 * Text block link fixtures.
+	 *
+	 * @return array<string, array{string, string|null}>
+	 */
+	public function text_links(): array {
+		return [
+			'javascript'        => [ '<a href="javascript:alert(1)">x</a>', null ],
+			'entity-obfuscated' => [ '<a href="JaVaScRiPt&#58;alert(1)">x</a>', null ],
+			'leading space'     => [ '<a href=" javascript:alert(1)">x</a>', null ],
+			'protocol-relative' => [ '<a href="//evil.com/">x</a>', null ],
+			'userinfo'          => [ '<a href="https://paypal.com@evil.com/">x</a>', null ],
+			'valid https'       => [ '<a href="https://example.com/a?b=1" title="t">x</a>', 'https://example.com/a?b=1' ],
+			'valid mailto'      => [ '<a href="mailto:hi@example.com">x</a>', 'mailto:hi@example.com' ],
+		];
+	}
+
+	/**
+	 * Text block links are held to the URL policy; failing hrefs are removed, not rewritten.
+	 *
+	 * @dataProvider text_links
+	 */
+	public function test_text_block_links_follow_url_policy( string $content, ?string $expected ): void {
+		$doc    = $this->doc(
+			[
+				[
+					'id'    => self::LINK_A,
+					'type'  => 'text',
+					'props' => [ 'content' => '<p>' . $content . '</p>' ],
+				],
+			]
+		);
+		$result = ( new PageValidator() )->validate( $doc, self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+		$this->assertTrue( $result->is_valid() );
+		$stored = (string) $result->document()['blocks'][0]['props']['content'];
+		$tags   = new \WP_HTML_Tag_Processor( $stored );
+		$this->assertTrue( $tags->next_tag( [ 'tag_name' => 'A' ] ), $stored );
+		$this->assertSame( $expected, $tags->get_attribute( 'href' ), $stored );
+		$this->assertStringNotContainsString( 'alert(1)"', $stored );
+	}
 }

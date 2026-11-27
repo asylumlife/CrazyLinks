@@ -16,13 +16,6 @@ use CrazyLinks\Analytics\Summary;
  */
 class ActivityTest extends TestCase {
 
-	private const A = '01HZZZZZZZZZZZZZZZZZZZZZZA';
-	private const B = '01HZZZZZZZZZZZZZZZZZZZZZZB';
-
-	private static function day( int $ago ): string {
-		return gmdate( 'Y-m-d', time() - $ago * DAY_IN_SECONDS );
-	}
-
 	private function event( int $page_id, string $type, string $visitor, string $ts, array $extra = [] ): void {
 		global $wpdb;
 		$wpdb->insert(
@@ -47,15 +40,15 @@ class ActivityTest extends TestCase {
 		$d2 = self::day( 2 );
 		// Two days ago: one Instagram visit with two clicks.
 		$this->event( $id, 'view', 'ig', "$d2 15:00:00", [ 'in_app' => 'instagram' ] );
-		$this->event( $id, 'click', 'ig', "$d2 15:00:20", [ 'block_id' => self::B, 'in_app' => 'instagram' ] );
-		$this->event( $id, 'click', 'ig', "$d2 15:00:40", [ 'block_id' => self::A, 'in_app' => 'instagram' ] );
+		$this->event( $id, 'click', 'ig', "$d2 15:00:20", [ 'block_id' => self::LINK_B, 'in_app' => 'instagram' ] );
+		$this->event( $id, 'click', 'ig', "$d2 15:00:40", [ 'block_id' => self::LINK_A, 'in_app' => 'instagram' ] );
 		// Yesterday: the same hash is a new visit; a look-only visit; a click with no view.
 		$this->event( $id, 'view', 'ig', "$d1 09:00:00", [ 'utm_source' => 'newsletter' ] );
 		$this->event( $id, 'view', 'look', "$d1 10:00:00", [ 'referrer_host' => 'www.google.com', 'device' => 'desktop', 'os' => 'macOS' ] );
-		$this->event( $id, 'click', 'ghost', "$d1 11:00:00", [ 'block_id' => self::A ] );
+		$this->event( $id, 'click', 'ghost', "$d1 11:00:00", [ 'block_id' => self::LINK_A ] );
 		// Another page with the same visitor must stay out.
 		$other = (int) $this->make_page( $this->doc(), 'other' )->ID;
-		$this->event( $other, 'click', 'look', "$d1 10:00:05", [ 'block_id' => self::A ] );
+		$this->event( $other, 'click', 'look', "$d1 10:00:05", [ 'block_id' => self::LINK_A ] );
 		return $id;
 	}
 
@@ -126,15 +119,15 @@ class ActivityTest extends TestCase {
 		$id    = (int) $this->make_page(
 			$this->doc(
 				[
-					$block( self::A, [ 'service' => 'kofi', 'url' => 'https://ko-fi.com/example' ] ),
-					$block( self::B, [ 'service' => 'kofi', 'url' => 'https://ko-fi.com/example', 'label' => 'Tip jar' ] ),
+					$block( self::LINK_A, [ 'service' => 'kofi', 'url' => 'https://ko-fi.com/example' ] ),
+					$block( self::LINK_B, [ 'service' => 'kofi', 'url' => 'https://ko-fi.com/example', 'label' => 'Tip jar' ] ),
 				]
 			)
 		)->ID;
 		$titles = Summary::link_titles( Summary::report( $id, self::day( 1 ), self::day( 0 ) )['blocks'] );
-		$this->assertSame( \CrazyLinks\Render\Payments::get( 'kofi' )['label'], $titles[ self::A . '|' ] );
-		$this->assertStringNotContainsString( 'http', $titles[ self::A . '|' ] );
-		$this->assertSame( 'Tip jar', $titles[ self::B . '|' ] );
+		$this->assertSame( \CrazyLinks\Render\Payments::get( 'kofi' )['label'], $titles[ self::LINK_A . '|' ] );
+		$this->assertStringNotContainsString( 'http', $titles[ self::LINK_A . '|' ] );
+		$this->assertSame( 'Tip jar', $titles[ self::LINK_B . '|' ] );
 	}
 
 	public function test_csv_rows_number_the_visits(): void {

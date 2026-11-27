@@ -18,7 +18,6 @@ use CrazyLinks\Settings;
  */
 class AbuseLimitsTest extends TestCase {
 
-	private const A  = '01HZZZZZZZZZZZZZZZZZZZZZZA';
 	private const IP = '198.51.100.23';
 
 	public function set_up(): void {
@@ -78,7 +77,7 @@ class AbuseLimitsTest extends TestCase {
 		$options = $this->option_rows();
 		$events  = [];
 		for ( $i = 0; $i < 25; $i++ ) {
-			$result = ( new ClickRedirect() )->resolve( $post, self::A, new Visitor( self::IP, self::ua( $i ), '' ) );
+			$result = ( new ClickRedirect() )->resolve( $post, self::LINK_A, new Visitor( self::IP, self::ua( $i ), '' ) );
 			$this->assertSame( 302, $result['status'], 'Every valid click still redirects' );
 			$events[] = $result['event'];
 		}
@@ -88,7 +87,7 @@ class AbuseLimitsTest extends TestCase {
 		$this->assertSame( 5, $counts['rate-limited'] );
 		$this->assertCount( 1, $this->events() );
 		$this->assertSame( $options, $this->option_rows() );
-		$this->assertSame( 'logged', ( new ClickRedirect() )->resolve( $post, self::A, new Visitor( '198.51.100.99', self::ua( 0 ), '' ) )['event'], 'Another IP is unaffected' );
+		$this->assertSame( 'logged', ( new ClickRedirect() )->resolve( $post, self::LINK_A, new Visitor( '198.51.100.99', self::ua( 0 ), '' ) )['event'], 'Another IP is unaffected' );
 	}
 
 	/**
@@ -204,7 +203,7 @@ class AbuseLimitsTest extends TestCase {
 					$extra
 				),
 				[
-					'id'    => self::A,
+					'id'    => self::LINK_A,
 					'type'  => 'link',
 					'props' => [
 						'title' => 'One',
@@ -250,7 +249,7 @@ class AbuseLimitsTest extends TestCase {
 			'not started'      => [ $later->ID, '01HZZZZZZZZZZZZZZZZZZZZZZE' ],
 			'password'         => [ $protected->ID, '01HZZZZZZZZZZZZZZZZZZZZZZE' ],
 			'unknown block'    => [ $ok->ID, '01HZZZZZZZZZZZZZZZZZZZZZZQ' ],
-			'not a form block' => [ $ok->ID, self::A ],
+			'not a form block' => [ $ok->ID, self::LINK_A ],
 		];
 		$answers = [];
 		foreach ( $cases as $label => [ $page_id, $block_id ] ) {

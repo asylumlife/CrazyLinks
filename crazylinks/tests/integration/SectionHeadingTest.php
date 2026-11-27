@@ -20,10 +20,6 @@ class SectionHeadingTest extends TestCase {
 	private const GROUP = '01HZZZZZZZZZZZZZZZZZZZZZSG';
 	private const CHILD = '01HZZZZZZZZZZZZZZZZZZZZZSC';
 
-	private function admin(): int {
-		return self::factory()->user->create( [ 'role' => 'administrator' ] );
-	}
-
 	/**
 	 * @param array<int, array<string, mixed>> $blocks Blocks.
 	 * @return array{0: string, 1: \CrazyLinks\Schema\ValidationResult}

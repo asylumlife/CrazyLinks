@@ -12,15 +12,6 @@ namespace CrazyLinks\Tests;
  */
 class RestWarningsTest extends TestCase {
 
-	private function request( string $method, string $route, array $body = [] ): \WP_REST_Response {
-		$req = new \WP_REST_Request( $method, '/crazylinks/v1' . $route );
-		if ( $body ) {
-			$req->set_header( 'Content-Type', 'application/json' );
-			$req->set_body( wp_json_encode( $body ) );
-		}
-		return rest_get_server()->dispatch( $req );
-	}
-
 	private function doc_with_image_without_alt(): array {
 		$id = (int) self::factory()->attachment->create_upload_object( DIR_TESTDATA . '/images/canola.jpg' );
 		return $this->doc(

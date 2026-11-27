@@ -275,3 +275,18 @@ describe( 'initialState', () => {
 		expect( S.isDirty( initialState() ) ).toBe( false );
 	} );
 } );
+
+describe( 'pin toggle', () => {
+	it( 'flips pinned through the store and is undoable', () => {
+		const b = createBlock( 'link' );
+		const doc: PageDoc = { ...emptyDoc(), blocks: [ { ...b, order: 0 } ] };
+		let s = reducer( undefined, A.reset( doc, meta ) );
+		s = reducer( s, A.togglePinned( b.id ) );
+		expect( s.doc.blocks[ 0 ].pinned ).toBe( true );
+		expect( S.isDirty( s ) ).toBe( true );
+		s = reducer( s, A.togglePinned( b.id ) );
+		expect( s.doc.blocks[ 0 ].pinned ).toBe( false );
+		s = reducer( s, A.undo() );
+		expect( s.doc.blocks[ 0 ].pinned ).toBe( true );
+	} );
+} );

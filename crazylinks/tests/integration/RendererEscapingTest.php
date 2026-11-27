@@ -28,16 +28,6 @@ class RendererEscapingTest extends TestCase {
 		return ( new Renderer() )->render( $result->document(), $ctx );
 	}
 
-	private function assert_no_injection( string $html ): void {
-		$this->assertStringNotContainsString( '<script>alert(1)', $html );
-		$this->assertStringNotContainsString( '<img src=x', $html );
-		// Attribute values are entity-escaped, so drop them and look for real handler attributes.
-		$tags = (string) preg_replace( '/"[^"]*"/', '""', $html );
-		if ( preg_match( '/<[a-z]+[^>]*\son[a-z]+\s*=[^>]*>/i', $tags, $m ) ) {
-			$this->fail( 'Injected handler: ' . $m[0] );
-		}
-	}
-
 	public function test_profile_fields_are_escaped(): void {
 		$doc            = $this->doc();
 		$doc['profile'] = [

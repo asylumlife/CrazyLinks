@@ -8,6 +8,8 @@
 namespace CrazyLinks\Tests;
 
 use CrazyLinks\Frontend\Router;
+use CrazyLinks\Frontend\TemplateLoader;
+use CrazyLinks\PostType;
 use CrazyLinks\Settings;
 
 /**
@@ -141,5 +143,60 @@ class RewriteRulesTest extends TestCase {
 		$post = $this->make_page( $this->doc(), 'plain' );
 		$this->go_to( Router::page_url( 'plain' ) );
 		$this->assertSame( $post->ID, get_queried_object_id() );
+	}
+
+	/**
+	 * A stray ?crazylinks_go= on another URL is ignored instead of 404ing it.
+	 */
+	public function test_go_query_var_is_ignored_outside_link_pages(): void {
+		$page = self::factory()->post->create(
+			[
+				'post_type'   => 'page',
+				'post_name'   => 'sample-page',
+				'post_status' => 'publish',
+			]
+		);
+		$this->go_to( home_url( '/sample-page/?crazylinks_go=' . self::LINK_A ) );
+		$this->assertTrue( is_page( $page ) );
+		( new TemplateLoader() )->template_redirect();
+		$this->assertFalse( is_404(), 'The page must not be turned into a 404' );
+		$this->assertSame( '', (string) get_query_var( 'crazylinks_go' ) );
+	}
+
+	/**
+	 * A bare ?crazylinks_slug= hijacks nothing under pretty permalinks.
+	 */
+	public function test_bare_slug_query_var_is_ignored_with_pretty_permalinks(): void {
+		$link = $this->make_page( $this->doc(), 'hijack' );
+		$page = self::factory()->post->create(
+			[
+				'post_type'   => 'page',
+				'post_name'   => 'sample-page',
+				'post_status' => 'publish',
+			]
+		);
+		$this->go_to( home_url( '/sample-page/?crazylinks_slug=hijack' ) );
+		$this->assertTrue( is_page( $page ) );
+		$this->assertFalse( is_singular( PostType::NAME ) );
+
+		$this->go_to( home_url( '/?crazylinks_slug=hijack' ) );
+		$this->assertFalse( is_singular( PostType::NAME ) );
+
+		$other = $this->make_page( $this->doc(), 'other' );
+		$this->go_to( home_url( '/l/hijack/?crazylinks_slug=other' ) );
+		$this->assertSame( $link->ID, get_queried_object_id(), 'The query string cannot override the matched rule' );
+		$this->assertNotSame( $other->ID, get_queried_object_id() );
+	}
+
+	/**
+	 * Plain permalinks still use the query-string form.
+	 */
+	public function test_bare_slug_works_with_plain_permalinks(): void {
+		$link = $this->make_page( $this->doc(), 'plain-links' );
+		$this->set_permalink_structure( '' );
+		$this->assertSame( home_url( '/?crazylinks_slug=plain-links' ), get_permalink( $link ) );
+		$this->go_to( get_permalink( $link ) );
+		$this->assertTrue( is_singular( PostType::NAME ) );
+		$this->assertSame( $link->ID, get_queried_object_id() );
 	}
 }

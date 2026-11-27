@@ -15,15 +15,6 @@ use CrazyLinks\PostType;
  */
 class RevisionsTest extends TestCase {
 
-	private function request( string $method, string $route, array $body = [] ): \WP_REST_Response {
-		$req = new \WP_REST_Request( $method, '/crazylinks/v1' . $route );
-		if ( $body ) {
-			$req->set_header( 'Content-Type', 'application/json' );
-			$req->set_body( wp_json_encode( $body ) );
-		}
-		return rest_get_server()->dispatch( $req );
-	}
-
 	private function editor(): int {
 		$id = self::factory()->user->create( [ 'role' => 'editor' ] );
 		wp_set_current_user( $id );
@@ -336,5 +327,73 @@ class RevisionsTest extends TestCase {
 		$req = new \WP_REST_Request( 'GET', "/crazylinks/v1/pages/{$post->ID}/revisions" );
 		$res = apply_filters( 'rest_post_dispatch', rest_get_server()->dispatch( $req ), rest_get_server(), $req );
 		$this->assertSame( 'no-store', $res->get_headers()['Cache-Control'] ?? '' );
+	}
+
+	/**
+	 * Autosave/preview revisions of a link page are validated too.
+	 */
+	public function test_revisions_of_link_pages_are_validated(): void {
+		$post   = $this->make_page( $this->doc(), 'rev-page' );
+		$parent = (string) get_post( $post->ID )->post_content;
+
+		$bad = $this->doc(
+			[
+				[
+					'id'    => self::LINK_A,
+					'type'  => 'link',
+					'props' => [
+						'title' => 'x',
+						'url'   => 'javascript:alert(1)',
+					],
+				],
+			]
+		);
+		foreach ( [ wp_json_encode( $bad ), 'not json at all' ] as $content ) {
+			$rev = wp_insert_post(
+				[
+					'post_type'    => 'revision',
+					'post_status'  => 'inherit',
+					'post_parent'  => $post->ID,
+					'post_name'    => $post->ID . '-autosave-v1',
+					'post_content' => wp_slash( (string) $content ),
+				]
+			);
+			$this->assertSame( $parent, (string) get_post( $rev )->post_content, 'Invalid revision content falls back to the page document' );
+		}
+
+		$good = $this->doc(
+			[
+				[
+					'id'    => self::LINK_A,
+					'type'  => 'text',
+					'props' => [ 'content' => '<p><a href="javascript:alert(1)">x</a><script>bad()</script></p>' ],
+				],
+			]
+		);
+		$rev  = wp_insert_post(
+			[
+				'post_type'    => 'revision',
+				'post_status'  => 'inherit',
+				'post_parent'  => $post->ID,
+				'post_name'    => $post->ID . '-autosave-v1',
+				'post_content' => wp_slash( (string) wp_json_encode( $good ) ),
+			]
+		);
+		$doc  = PageStore::get_document( $rev );
+		$this->assertSame( 1, $doc['schema'] );
+		$this->assertStringNotContainsString( 'javascript', (string) $doc['blocks'][0]['props']['content'] );
+		$this->assertStringNotContainsString( '<script', (string) $doc['blocks'][0]['props']['content'] );
+
+		// Revisions of other post types are untouched.
+		$other = self::factory()->post->create();
+		$rev   = wp_insert_post(
+			[
+				'post_type'    => 'revision',
+				'post_status'  => 'inherit',
+				'post_parent'  => $other,
+				'post_content' => 'plain words',
+			]
+		);
+		$this->assertSame( 'plain words', get_post( $rev )->post_content );
 	}
 }

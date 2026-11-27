@@ -12,15 +12,6 @@ namespace CrazyLinks\Tests;
  */
 class RestPagesTest extends TestCase {
 
-	private function request( string $method, string $route, array $body = [] ): \WP_REST_Response {
-		$req = new \WP_REST_Request( $method, '/crazylinks/v1' . $route );
-		if ( $body ) {
-			$req->set_header( 'Content-Type', 'application/json' );
-			$req->set_body( wp_json_encode( $body ) );
-		}
-		return rest_get_server()->dispatch( $req );
-	}
-
 	public function test_anonymous_cannot_list_or_create(): void {
 		wp_set_current_user( 0 );
 		$this->assertSame( 401, $this->request( 'GET', '/pages' )->get_status() );

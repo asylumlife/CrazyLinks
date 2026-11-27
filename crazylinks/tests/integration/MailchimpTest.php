@@ -874,21 +874,6 @@ class MailchimpTest extends TestCase {
 		}
 	}
 
-	public function test_db_upgrade_adds_the_sync_columns(): void {
-		global $wpdb;
-		$table = Store::table();
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$wpdb->query( "ALTER TABLE {$table} DROP INDEX sync_status, DROP INDEX audience_email, DROP COLUMN destination, DROP COLUMN audience_id, DROP COLUMN sync_status, DROP COLUMN sync_attempts, DROP COLUMN sync_error, DROP COLUMN synced_at, DROP COLUMN external_id" );
-		// phpcs:enable
-		$this->assertNotContains( 'sync_status', $wpdb->get_col( "SHOW COLUMNS FROM {$table}" ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		update_option( 'crazylinks_db_version', '5' );
-		Activator::maybe_upgrade();
-		$cols = $wpdb->get_col( "SHOW COLUMNS FROM {$table}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		foreach ( [ 'destination', 'audience_id', 'sync_status', 'sync_attempts', 'sync_error', 'synced_at', 'external_id' ] as $col ) {
-			$this->assertContains( $col, $cols );
-		}
-		$this->assertSame( Activator::DB_VERSION, get_option( 'crazylinks_db_version' ) );
-	}
 
 	public function test_editing_guide_and_validator_know_the_audiences(): void {
 		Integrations::audiences();

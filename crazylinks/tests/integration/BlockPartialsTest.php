@@ -56,19 +56,6 @@ class BlockPartialsTest extends TestCase {
 		);
 	}
 
-	private function assert_no_injection( string $html ): void {
-		$this->assertStringNotContainsString( '<script>alert(1)', $html );
-		$this->assertStringNotContainsString( '<img src=x', $html );
-		$tags = (string) preg_replace( '/"[^"]*"/', '""', $html );
-		if ( preg_match( '/<[a-z]+[^>]*\son[a-z]+\s*=[^>]*>/i', $tags, $m ) ) {
-			$this->fail( 'Injected handler: ' . $m[0] );
-		}
-	}
-
-	private function image(): int {
-		return (int) self::factory()->attachment->create_upload_object( DIR_TESTDATA . '/images/canola.jpg' );
-	}
-
 	public function test_gallery_renders_escaped_lazy_grid(): void {
 		$a    = $this->image();
 		$b    = $this->image();

@@ -42,7 +42,7 @@ class AiDriverTest extends TestCase {
 		parent::tear_down();
 	}
 
-	private function request( string $instruction = 'Rename the single', string $mode = 'edit' ): ProposalRequest {
+	private function proposal_request( string $instruction = 'Rename the single', string $mode = 'edit' ): ProposalRequest {
 		return new ProposalRequest( $instruction, $this->doc, get_current_user_id(), $mode );
 	}
 
@@ -161,7 +161,7 @@ class AiDriverTest extends TestCase {
 		$bad                                = $this->rename();
 		$bad['operations'][0]['id']         = '01JM0000000000000000000ZZZ';
 		$this->respond( [ 'not json at all', $this->rename( 'Second try' ) ] );
-		$result = ( new WpAiClientDriver() )->propose( $this->request() );
+		$result = ( new WpAiClientDriver() )->propose( $this->proposal_request() );
 		$this->assertInstanceOf( ProposalResult::class, $result );
 		$this->assertSame( 2, $result->attempts );
 		$this->assertSame( 2400, $result->prompt_tokens, 'Tokens of both calls are counted' );
@@ -170,7 +170,7 @@ class AiDriverTest extends TestCase {
 
 		FakeProvider::$calls = [];
 		$this->respond( [ $bad, $bad ] );
-		$error = ( new WpAiClientDriver() )->propose( $this->request() );
+		$error = ( new WpAiClientDriver() )->propose( $this->proposal_request() );
 		$this->assertWPError( $error );
 		$this->assertSame( 'crazylinks_ai_invalid_output', $error->get_error_code() );
 		$this->assertSame( 422, $error->get_error_data()['status'] );
@@ -180,12 +180,12 @@ class AiDriverTest extends TestCase {
 
 	public function test_code_fences_are_tolerated(): void {
 		$this->respond( [ "```json\n" . wp_json_encode( $this->rename() ) . "\n```" ] );
-		$this->assertInstanceOf( ProposalResult::class, ( new WpAiClientDriver() )->propose( $this->request() ) );
+		$this->assertInstanceOf( ProposalResult::class, ( new WpAiClientDriver() )->propose( $this->proposal_request() ) );
 	}
 
 	public function test_prevent_prompt_filter_is_respected(): void {
 		add_filter( 'wp_ai_client_prevent_prompt', '__return_true' );
-		$error = ( new WpAiClientDriver() )->propose( $this->request() );
+		$error = ( new WpAiClientDriver() )->propose( $this->proposal_request() );
 		remove_filter( 'wp_ai_client_prevent_prompt', '__return_true' );
 		$this->assertWPError( $error );
 		$this->assertSame( 'crazylinks_ai_prevented', $error->get_error_code() );
@@ -194,7 +194,7 @@ class AiDriverTest extends TestCase {
 
 	public function test_no_provider_maps_to_a_friendly_error(): void {
 		FakeProvider::$configured = false;
-		$error                    = ( new WpAiClientDriver() )->propose( $this->request() );
+		$error                    = ( new WpAiClientDriver() )->propose( $this->proposal_request() );
 		$this->assertWPError( $error );
 		$this->assertSame( 'crazylinks_ai_no_provider', $error->get_error_code() );
 		$this->assertSame( 503, $error->get_error_data()['status'] );
@@ -203,7 +203,7 @@ class AiDriverTest extends TestCase {
 	public function test_usage_is_estimated_when_the_provider_reports_none(): void {
 		FakeProvider::$usage = [ 0, 0 ];
 		$this->respond( [ $this->rename() ] );
-		$result = ( new WpAiClientDriver() )->propose( $this->request() );
+		$result = ( new WpAiClientDriver() )->propose( $this->proposal_request() );
 		$this->assertTrue( $result->estimated );
 		$this->assertGreaterThan( 1000, $result->prompt_tokens );
 	}
@@ -228,7 +228,7 @@ class AiDriverTest extends TestCase {
 	public function test_model_preference_setting_wins(): void {
 		$this->ai_settings( [ 'ai_model_edit' => 'claude-haiku-5-5' ] );
 		$this->respond( [ $this->rename() ] );
-		$result = ( new WpAiClientDriver() )->propose( $this->request() );
+		$result = ( new WpAiClientDriver() )->propose( $this->proposal_request() );
 		$this->assertSame( 'claude-haiku-5-5', $result->model );
 	}
 
@@ -237,7 +237,7 @@ class AiDriverTest extends TestCase {
 		try {
 			$this->ai_settings( [ 'ai_consent' => true ] );
 			FakeProvider::$calls = [];
-			( new WpAiClientDriver() )->propose( $this->request( 'Rename the single' ) );
+			( new WpAiClientDriver() )->propose( $this->proposal_request( 'Rename the single' ) );
 			$schema = FakeProvider::$calls[0]['schema'] ?? null;
 			$this->assertIsArray( $schema );
 			$this->assertSame( OpsSchema::close_objects( OpsSchema::for_provider() ), $schema );
