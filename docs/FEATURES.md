@@ -1,6 +1,6 @@
 # CrazyLinks feature tour
 
-Everything CrazyLinks can do, with an example of each. The screenshots come from a demo page on a local test site, and the analytics numbers in them are made up. They were taken at version 0.3.4.
+Everything CrazyLinks can do, with an example of each. The screenshots come from a demo page on a local test site, and the analytics numbers in them are made up. They were taken at version 0.3.5.
 
 - [The page](#the-page)
 - [Links](#links)
@@ -154,7 +154,15 @@ Further breakdowns cover referrers, devices, operating systems and in-app browse
 
 ![Where visitors come from](screenshots/tour/analytics-visitors.png)
 
-The same numbers are available in the editor's Analytics tab while you work on a page.
+"Time of day" adds up views and clicks by the hour they happened, in the site's timezone, so you can see when your audience is around.
+
+![Views and clicks per hour of the day](screenshots/tour/analytics-hours.png)
+
+"Activity" lists visits in time order, newest first: when each one started, where the visitor came from, their device, and every page view and click with its time. A visit is one visitor on one day; nobody is identified, and no cookie is used.
+
+![Visits in time order with what each visitor clicked](screenshots/tour/analytics-activity.png)
+
+The totals, the per-link clicks and the per-source table are also available in the editor's Analytics tab while you work on a page.
 
 ![The Analytics tab of the editor](screenshots/tour/editor-analytics.png)
 
