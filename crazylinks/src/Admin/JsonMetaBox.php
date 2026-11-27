@@ -7,6 +7,7 @@
 
 namespace CrazyLinks\Admin;
 
+use CrazyLinks\Frontend\Router;
 use CrazyLinks\PageStore;
 use CrazyLinks\PostType;
 use CrazyLinks\Schema\PageValidator;
@@ -23,12 +24,35 @@ final class JsonMetaBox {
 	public const NONCE = 'crazylinks_json_nonce';
 
 	/**
+	 * How long rejected JSON is kept so the box can show it again with its errors.
+	 */
+	private const DRAFT_TTL = 5 * MINUTE_IN_SECONDS;
+
+	/**
 	 * Hooks.
 	 */
 	public function register_hooks(): void {
 		add_action( 'add_meta_boxes_' . PostType::NAME, [ $this, 'add' ] );
 		add_filter( 'wp_insert_post_data', [ $this, 'inject' ], 5, 2 );
 		add_action( 'admin_notices', [ $this, 'notice' ] );
+	}
+
+	/**
+	 * Transient holding the JSON a user last submitted for a page.
+	 *
+	 * @param int $post_id Post id.
+	 */
+	private static function draft_key( int $post_id ): string {
+		return 'crazylinks_draft_' . get_current_user_id() . '_' . $post_id;
+	}
+
+	/**
+	 * Nonce action of the box for a page.
+	 *
+	 * @param int $post_id Post id.
+	 */
+	private static function nonce_action( int $post_id ): string {
+		return 'crazylinks_json_' . $post_id;
 	}
 
 	/**
@@ -48,20 +72,22 @@ final class JsonMetaBox {
 	 */
 	public function inject( $data, $postarr ) {
 		// Only autosaves (previews) take the submitted JSON; ordinary revisions copy the saved page.
-		$parent = is_array( $data ) && str_contains( (string) ( $data['post_name'] ?? '' ), '-autosave-' ) ? PostType::revision_parent( $data ) : 0;
-		if ( ( PostType::NAME !== ( $data['post_type'] ?? '' ) && 0 === $parent ) || ! isset( $_POST[ self::NONCE ], $_POST[ self::FIELD ] ) ) {
+		$is_autosave = is_array( $data ) && str_contains( (string) ( $data['post_name'] ?? '' ), '-autosave-' );
+		$parent      = $is_autosave ? PostType::revision_parent( $data ) : 0;
+		$is_page     = PostType::NAME === ( $data['post_type'] ?? '' );
+		if ( ( ! $is_page && 0 === $parent ) || ! isset( $_POST[ self::NONCE ], $_POST[ self::FIELD ] ) ) {
 			return $data;
 		}
 		// For a preview autosave the nonce and capability belong to the parent page.
 		$post_id = $parent > 0 ? $parent : (int) ( $postarr['ID'] ?? 0 );
-		if ( ! wp_verify_nonce( sanitize_key( wp_unslash( $_POST[ self::NONCE ] ) ), 'crazylinks_json_' . $post_id ) || ! current_user_can( 'edit_post', $post_id ) ) {
+		if ( ! wp_verify_nonce( sanitize_key( wp_unslash( $_POST[ self::NONCE ] ) ), self::nonce_action( $post_id ) ) || ! current_user_can( 'edit_post', $post_id ) ) {
 			return $data;
 		}
 		// Raw JSON is validated and sanitized by PostType::filter_insert_data() at priority 10.
 		$raw = wp_unslash( $_POST[ self::FIELD ] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Validated against the page schema next.
 		$raw = is_string( $raw ) ? $raw : '';
 		if ( 0 === $parent ) {
-			set_transient( 'crazylinks_draft_' . get_current_user_id() . '_' . $post_id, $raw, 5 * MINUTE_IN_SECONDS );
+			set_transient( self::draft_key( $post_id ), $raw, self::DRAFT_TTL );
 		}
 		$data['post_content'] = wp_slash( $raw );
 		return $data;
@@ -74,7 +100,7 @@ final class JsonMetaBox {
 	 */
 	public function render( \WP_Post $post ): void {
 		$errors = PageStore::pop_errors( (int) $post->ID );
-		$key    = 'crazylinks_draft_' . get_current_user_id() . '_' . $post->ID;
+		$key    = self::draft_key( (int) $post->ID );
 		$draft  = get_transient( $key );
 		delete_transient( $key );
 		if ( $errors && is_string( $draft ) ) {
@@ -83,9 +109,11 @@ final class JsonMetaBox {
 			$doc  = PageStore::get_document( $post ) ?? PageValidator::empty_document();
 			$text = (string) wp_json_encode( PageValidator::to_json_shape( $doc ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
 		}
-		wp_nonce_field( 'crazylinks_json_' . $post->ID, self::NONCE );
+		wp_nonce_field( self::nonce_action( (int) $post->ID ), self::NONCE );
 		if ( $errors ) {
-			echo '<div class="notice notice-error inline"><p><strong>' . esc_html__( 'The page JSON was not saved. Fix these problems and update again:', 'crazylinks' ) . '</strong></p><ul style="list-style:disc;margin-left:2em">';
+			echo '<div class="notice notice-error inline"><p><strong>'
+				. esc_html__( 'The page JSON was not saved. Fix these problems and update again:', 'crazylinks' )
+				. '</strong></p><ul style="list-style:disc;margin-left:2em">';
 			foreach ( $errors as $error ) {
 				echo '<li><code>' . esc_html( $error['path'] ) . '</code> ' . esc_html( $error['message'] ) . '</li>';
 			}
@@ -95,7 +123,7 @@ final class JsonMetaBox {
 			'<p>%s</p>',
 			esc_html__( 'Edit the page document directly. It is validated against schemas/page.v1.json when you save. Block ids are generated automatically when omitted.', 'crazylinks' )
 		);
-		if ( 'auto-draft' !== $post->post_status && is_readable( CRAZYLINKS_DIR . 'assets/build/editor/index.asset.php' ) ) {
+		if ( 'auto-draft' !== $post->post_status && EditorPage::is_built() ) {
 			printf(
 				'<p class="hide-if-no-js"><a href="%s">%s</a></p>',
 				esc_url( (string) get_edit_post_link( $post->ID, 'url' ) ),
@@ -124,9 +152,18 @@ final class JsonMetaBox {
 		echo '<ol style="margin-left:1.2em">';
 		foreach ( (array) $doc['blocks'] as $block ) {
 			$label = (string) ( $block['props']['title'] ?? $block['props']['text'] ?? '' );
-			echo '<li><strong>' . esc_html( (string) $block['type'] ) . '</strong> ' . esc_html( $label ) . '<br><code style="font-size:11px">' . esc_html( (string) $block['id'] ) . '</code>';
+			printf(
+				'<li><strong>%s</strong> %s<br><code style="font-size:11px">%s</code>',
+				esc_html( (string) $block['type'] ),
+				esc_html( $label ),
+				esc_html( (string) $block['id'] )
+			);
 			if ( 'link' === $block['type'] && 'publish' === $post->post_status ) {
-				echo '<br><a href="' . esc_url( \CrazyLinks\Frontend\Router::go_url( $post->post_name, (string) $block['id'] ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'click URL', 'crazylinks' ) . '</a>';
+				printf(
+					'<br><a href="%s" target="_blank" rel="noopener">%s</a>',
+					esc_url( Router::go_url( $post->post_name, (string) $block['id'] ) ),
+					esc_html__( 'click URL', 'crazylinks' )
+				);
 			}
 			echo '</li>';
 		}
@@ -142,7 +179,7 @@ final class JsonMetaBox {
 			return;
 		}
 		$post_id = isset( $_GET['post'] ) ? absint( $_GET['post'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen state.
-		if ( $post_id && false !== get_transient( 'crazylinks_errors_' . get_current_user_id() . '_' . $post_id ) ) {
+		if ( $post_id && PageStore::has_errors( (int) $post_id ) ) {
 			echo '<div class="notice notice-error"><p>' . esc_html__( 'CrazyLinks: the page JSON had errors and was not saved. Details are in the Page JSON box below.', 'crazylinks' ) . '</p></div>';
 		}
 	}

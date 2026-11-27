@@ -15,6 +15,11 @@ defined( 'ABSPATH' ) || exit;
 final class Capabilities {
 
 	/**
+	 * Role for the account an external AI agent connects with (MCP).
+	 */
+	public const AGENT_ROLE = 'crazylinks_agent';
+
+	/**
 	 * Primitive capabilities for the crazylinks_page post type, keyed by WP cap name.
 	 *
 	 * @return array<string, string>
@@ -76,20 +81,14 @@ final class Capabilities {
 				$role->add_cap( (string) $cap );
 			}
 		}
-		// The agent role (SPEC §10.7, 2026-11-06 review) exists on every site without WP-CLI.
+		// The agent role (SPEC §10.7) exists on every site, so setting it up never needs WP-CLI.
 		self::ensure_agent_role();
 	}
 
 	/**
-	 * Role for the account an external AI agent connects with (MCP). Editor, which the 0.2.0 docs
-	 * suggested, also carries unfiltered_html and every post and page on the site, so a leaked
-	 * Application Password for it could put scripts into any post. This role can edit and publish link
-	 * pages and use the CrazyLinks tools, nothing else (2026-11-06 review).
-	 */
-	public const AGENT_ROLE = 'crazylinks_agent';
-
-	/**
-	 * Capabilities of the agent role.
+	 * Capabilities of the agent role: edit and publish link pages and use the CrazyLinks tools,
+	 * nothing else. Editor would also carry unfiltered_html and every post and page on the site, so
+	 * a leaked Application Password for it could put scripts into any post.
 	 *
 	 * @return array<string, bool>
 	 */

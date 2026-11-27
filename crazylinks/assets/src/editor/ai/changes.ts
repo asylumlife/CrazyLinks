@@ -3,9 +3,15 @@
  * count them for the proposal card.
  */
 import { __, _n, sprintf } from '@wordpress/i18n';
+import type { Dashicon } from '@wordpress/components';
+import type { ComponentProps } from 'react';
 import type { ChangeItem, ChangeKind } from './types';
 
-export const CHANGE_ORDER: ChangeKind[] = [
+/** A Dashicon slug the Dashicon component accepts. */
+type DashiconName = ComponentProps< typeof Dashicon >[ 'icon' ];
+
+/** Kinds in the order the proposal card lists them. */
+const CHANGE_ORDER: ChangeKind[] = [
 	'add',
 	'update',
 	'move',
@@ -15,7 +21,7 @@ export const CHANGE_ORDER: ChangeKind[] = [
 ];
 
 /** Dashicon per kind. */
-export function changeIcon( kind: ChangeKind ): string {
+export function changeIcon( kind: ChangeKind ): DashiconName {
 	switch ( kind ) {
 		case 'add':
 			return 'plus-alt2';

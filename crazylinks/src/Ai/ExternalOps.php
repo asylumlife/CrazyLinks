@@ -34,6 +34,11 @@ final class ExternalOps {
 	public const KEY_PATTERN = '^[A-Za-z0-9_-]{1,64}$';
 
 	/**
+	 * Validation errors spelled out in an error message (the data carries all of them).
+	 */
+	private const MAX_LISTED_ERRORS = 10;
+
+	/**
 	 * Validates operations on a copy of the page. Saves nothing and stores no proposal.
 	 *
 	 * @param \WP_Post $post       Page.
@@ -44,7 +49,7 @@ final class ExternalOps {
 	public static function preview( \WP_Post $post, $operations, $full_page = false ): array {
 		$user_id = get_current_user_id();
 		$stored  = PageStore::get_document( $post, false );
-		$base    = self::base( $user_id, $stored );
+		$base    = Proposals::stored_base( $user_id, $stored );
 		$ops     = is_array( $operations ) ? array_values( $operations ) : [];
 		$result  = ( new OpsValidator() )->validate( self::payload( $operations, '' ), $base, $user_id, 'edit', $stored );
 		$full    = rest_sanitize_boolean( is_scalar( $full_page ) ? $full_page : false );
@@ -171,7 +176,7 @@ final class ExternalOps {
 		$ops     = is_array( $input['operations'] ?? null ) ? array_values( $input['operations'] ) : [];
 		$summary = mb_substr( sanitize_text_field( (string) ( $input['summary'] ?? '' ) ), 0, self::MAX_SUMMARY );
 		$stored  = PageStore::get_document( $post, false );
-		$base    = self::base( $user_id, $stored );
+		$base    = Proposals::stored_base( $user_id, $stored );
 		$result  = ( new OpsValidator() )->validate( self::payload( $input['operations'] ?? null, $summary ), $base, $user_id, 'edit', $stored );
 		if ( ! $result->is_valid() ) {
 			return self::invalid( $result->errors() );
@@ -232,7 +237,9 @@ final class ExternalOps {
 			$out['applied']     = true;
 			$out['revision_id'] = $saved['revision_id'];
 			$out['modified']    = $fresh instanceof \WP_Post ? mysql_to_rfc3339( $fresh->post_modified_gmt ) : $modified;
-			$out['message']     = null === $saved['revision_id'] ? __( 'Saved. The page content did not change, so no revision was created.', 'crazylinks' ) : __( 'Saved. The change is in the page history as "AI (external)".', 'crazylinks' );
+			$out['message']     = null === $saved['revision_id']
+				? __( 'Saved. The page content did not change, so no revision was created.', 'crazylinks' )
+				: __( 'Saved. The change is in the page history as "AI (external)".', 'crazylinks' );
 			/** This action is documented in src/Ai/Proposals.php */
 			do_action( 'crazylinks_ai_applied', (int) $post->ID, $saved['revision_id'], 'mcp', $ops );
 		}
@@ -241,18 +248,6 @@ final class ExternalOps {
 			set_transient( $slot, $out, self::IDEMPOTENCY_TTL );
 		}
 		return $out;
-	}
-
-	/**
-	 * The validated stored page (what the operations apply to).
-	 *
-	 * @param int                       $user_id User.
-	 * @param array<string, mixed>|null $stored  Stored document.
-	 * @return array<string, mixed>
-	 */
-	private static function base( int $user_id, ?array $stored ): array {
-		$base = Proposals::base_document( null, $user_id, $stored );
-		return is_wp_error( $base ) ? ( $stored ?? PageValidator::empty_document() ) : $base;
 	}
 
 	/**
@@ -298,7 +293,7 @@ final class ExternalOps {
 	 * @param array<int, array{path:string, message:string}> $errors Errors.
 	 */
 	private static function invalid( array $errors ): WP_Error {
-		$lines = array_map( static fn( $e ) => $e['path'] . ': ' . $e['message'], array_slice( $errors, 0, 10 ) );
+		$lines = array_map( static fn( $e ) => $e['path'] . ': ' . $e['message'], array_slice( $errors, 0, self::MAX_LISTED_ERRORS ) );
 		return new WP_Error(
 			'crazylinks_ai_invalid_ops',
 			__( 'These operations cannot be applied to this page. Nothing was saved. Fix these problems (preview-operations shows them too):', 'crazylinks' ) . "\n" . implode( "\n", $lines ),

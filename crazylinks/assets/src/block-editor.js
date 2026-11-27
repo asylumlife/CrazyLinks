@@ -1,5 +1,6 @@
 /* Editor UI for the crazylinks/page block. No build step: uses WordPress globals. */
 ( function ( wp ) {
+	'use strict';
 	var el = wp.element.createElement;
 	var __ = wp.i18n.__;
 	var useState = wp.element.useState;
@@ -11,6 +12,9 @@
 			var state = useState( [] );
 			var pages = state[ 0 ];
 			var setPages = state[ 1 ];
+			var setId = function ( value ) {
+				props.setAttributes( { id: parseInt( value, 10 ) || 0 } );
+			};
 
 			useEffect( function () {
 				wp.apiFetch( { path: '/crazylinks/v1/pages?per_page=100&status=publish' } ).then( function ( res ) {
@@ -39,9 +43,7 @@
 							label: __( 'Page', 'crazylinks' ),
 							value: props.attributes.id,
 							options: options,
-							onChange: function ( v ) {
-								props.setAttributes( { id: parseInt( v, 10 ) || 0 } );
-							},
+							onChange: setId,
 						} )
 					)
 				),
@@ -51,9 +53,7 @@
 						el( wp.components.SelectControl, {
 							value: 0,
 							options: options,
-							onChange: function ( v ) {
-								props.setAttributes( { id: parseInt( v, 10 ) || 0 } );
-							},
+							onChange: setId,
 						} )
 					)
 			);

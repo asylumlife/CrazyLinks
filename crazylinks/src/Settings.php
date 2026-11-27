@@ -17,6 +17,11 @@ final class Settings {
 	public const OPTION = 'crazylinks_settings';
 
 	/**
+	 * URL base used when none is stored or the stored one is unusable.
+	 */
+	private const DEFAULT_BASE = 'l';
+
+	/**
 	 * URL bases that would collide with core routes.
 	 */
 	public const RESERVED_BASES = [ 'wp-admin', 'wp-content', 'wp-includes', 'wp-json', 'feed', 'comments', 'page', 'author', 'search', 'category', 'tag', 'embed', 'trackback', 'attachment', 'type', 'date', 'xmlrpc', 'login', 'admin' ];
@@ -28,7 +33,7 @@ final class Settings {
 	 */
 	public static function defaults(): array {
 		return [
-			'base'                      => 'l',
+			'base'                      => self::DEFAULT_BASE,
 			'analytics'                 => true,
 			'delete_on_uninstall'       => false,
 			'render_mode'               => 'standalone',
@@ -97,7 +102,7 @@ final class Settings {
 		 */
 		$base     = (string) apply_filters( 'crazylinks_base_path', $base );
 		$filtered = self::sanitize_base( $base );
-		return '' === $filtered ? 'l' : $filtered;
+		return '' === $filtered ? self::DEFAULT_BASE : $filtered;
 	}
 
 	/**
@@ -159,8 +164,8 @@ final class Settings {
 	 */
 	private static function sanitize_ai( array $input, array $out ): array {
 		// One opt-in: the enable checkbox carries the consent statement (wordpress.org guideline 7), so
-		// consent is recorded whenever AI is turned on. A separate consent box let people tick "on" and
-		// silently lose it on save (AsylumLife.com, 2026-11-05).
+		// consent is recorded whenever AI is turned on. With a separate consent box, ticking only "on"
+		// would silently be lost on save.
 		$out['ai_enabled'] = ! empty( $input['ai_enabled'] );
 		$out['ai_consent'] = $out['ai_enabled'];
 		foreach ( [ 'ai_model_edit', 'ai_model_suggest' ] as $key ) {
@@ -240,8 +245,7 @@ final class Settings {
 		// The form marks the AI section with a hidden field. WordPress runs this sanitizer twice when the
 		// option is written for the first time (update_option, then add_option), and the second pass
 		// receives our own output, which has no marker but does carry `ai_consent` (never posted by the
-		// form). Treat either as "the AI section is present" so a first save cannot drop AI settings
-		// (AsylumLife.com, 2026-11-05).
+		// form). Treat either as "the AI section is present" so a first save cannot drop AI settings.
 		if ( isset( $input['ai_section'] ) || array_key_exists( 'ai_consent', $input ) ) {
 			$out = self::sanitize_ai( $input, $out );
 		}

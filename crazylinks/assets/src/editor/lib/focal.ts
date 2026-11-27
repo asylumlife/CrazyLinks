@@ -2,6 +2,7 @@
  * Focal point maths: a point {x, y} (0 to 1) stored on a block and rendered as `object-position`.
  */
 import type { JsonObject } from '../types';
+import { asObject } from './paths';
 
 export interface Focal {
 	x: number;
@@ -17,10 +18,7 @@ const round3 = ( n: number ) => Math.round( n * 1000 ) / 1000;
  * @param value Stored value.
  */
 export function readFocal( value: unknown ): Focal {
-	const v = ( value && typeof value === 'object' ? value : {} ) as Record<
-		string,
-		unknown
-	>;
+	const v = asObject( value );
 	return {
 		x: typeof v.x === 'number' ? clamp01( v.x ) : 0.5,
 		y: typeof v.y === 'number' ? clamp01( v.y ) : 0.5,
@@ -59,16 +57,4 @@ export function normalizeFocal( f: Focal ): JsonObject | undefined {
 	const x = round3( clamp01( f.x ) );
 	const y = round3( clamp01( f.y ) );
 	return x === 0.5 && y === 0.5 ? undefined : { x, y };
-}
-
-/**
- * CSS `object-position` for a focal point (empty for the centre).
- *
- * @param value Stored value.
- */
-export function focalCss( value: unknown ): string {
-	const f = readFocal( value );
-	return f.x === 0.5 && f.y === 0.5
-		? ''
-		: `${ Math.round( f.x * 1000 ) / 10 }% ${ Math.round( f.y * 1000 ) / 10 }%`;
 }

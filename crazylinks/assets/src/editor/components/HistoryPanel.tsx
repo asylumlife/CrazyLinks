@@ -1,7 +1,7 @@
 /**
  * Revision history: list, load a revision into the editor (undoable), or restore it on the server.
  */
-import { __, sprintf } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 import { Button, Modal, Notice, Spinner } from '@wordpress/components';
 import { useEffect, useState } from '@wordpress/element';
 import { api } from '../lib/api';
@@ -123,8 +123,11 @@ export default function HistoryPanel( { onClose }: { onClose: () => void } ) {
 								<strong>{ when( r.date ) }</strong>
 								<span>
 									{ sprintf(
-										/* translators: 1: author, 2: number of blocks. */ __(
+										/* translators: 1: author, 2: number of blocks. */
+										_n(
+											'%1$s · %2$d block',
 											'%1$s · %2$d blocks',
+											r.blocks,
 											'crazylinks'
 										),
 										r.author.name,

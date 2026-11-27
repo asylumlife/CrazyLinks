@@ -5,6 +5,29 @@ import type { JsonObject, ThemePreset } from '../types';
 import { getPath } from './paths';
 import type { ColorTokens } from './contrast';
 
+/** Slug of the theme used when a page names none. */
+export const DEFAULT_THEME = 'default';
+
+/** Background shown when a theme or page sets none. */
+const FALLBACK_BACKGROUND = '#f5f5f4';
+
+/**
+ * The theme a design uses: its slug and preset, falling back to the default theme.
+ *
+ * @param design Page design tokens.
+ * @param themes Theme presets by slug.
+ */
+export function presetFor(
+	design: JsonObject,
+	themes: Record< string, ThemePreset >
+): { slug: string; preset: ThemePreset | undefined } {
+	const slug =
+		typeof design.theme === 'string' && design.theme
+			? design.theme
+			: DEFAULT_THEME;
+	return { slug, preset: themes[ slug ] ?? themes[ DEFAULT_THEME ] };
+}
+
 /**
  * The value a design token resolves to: page override, else preset, else undefined.
  *
@@ -31,9 +54,9 @@ export function effective(
  */
 export function backgroundCss( bg: JsonObject | undefined ): string {
 	if ( ! bg ) {
-		return '#f5f5f4';
+		return FALLBACK_BACKGROUND;
 	}
-	const color = typeof bg.color === 'string' ? bg.color : '#f5f5f4';
+	const color = typeof bg.color === 'string' ? bg.color : FALLBACK_BACKGROUND;
 	if ( bg.type === 'gradient' ) {
 		const from = typeof bg.from === 'string' ? bg.from : color;
 		const to = typeof bg.to === 'string' ? bg.to : color;

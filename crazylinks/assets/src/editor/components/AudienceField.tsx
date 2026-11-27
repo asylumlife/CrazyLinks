@@ -6,6 +6,7 @@
 import { __, sprintf } from '@wordpress/i18n';
 import { useEffect, useState } from '@wordpress/element';
 import { SelectControl, TextControl } from '@wordpress/components';
+import FieldError from './FieldError';
 import { api } from '../lib/api';
 import type { Audiences } from '../lib/api';
 
@@ -69,7 +70,7 @@ export default function AudienceField( {
 		};
 	}, [] );
 
-	const errorNode = error && <p className="cl-field-error">{ error }</p>;
+	const errorNode = <FieldError message={ error } />;
 
 	if ( failed || ( res && ! res.available ) ) {
 		return (

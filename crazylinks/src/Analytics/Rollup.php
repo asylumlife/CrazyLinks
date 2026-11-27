@@ -21,12 +21,20 @@ final class Rollup {
 	public const HOOK = 'crazylinks_daily_rollup';
 
 	/**
+	 * Raw events deleted per query when pruning.
+	 */
+	private const PRUNE_BATCH = 5000;
+
+	/**
+	 * Most delete queries one prune runs, so a large backlog is spread over several nights.
+	 */
+	private const PRUNE_MAX_BATCHES = 20;
+
+	/**
 	 * Hooks.
 	 */
 	public function register_hooks(): void {
 		add_action( self::HOOK, [ $this, 'run' ] );
-		// Always-on hooks for the subscriber system (privacy exporter/eraser, WP-CLI); Plugin::boot() cannot reach them.
-		( new Subscribers\Bootstrap() )->register_hooks();
 	}
 
 	/**
@@ -52,7 +60,7 @@ final class Rollup {
 		RateLimiter::sweep();
 		$through = (string) get_option( 'crazylinks_rollup_through', '' );
 		// Re-roll the last rolled day too, in case events arrived late.
-		$from      = '' !== $through ? gmdate( 'Y-m-d', (int) strtotime( $through . ' -1 day' ) ) : $this->first_event_day();
+		$from      = '' !== $through ? gmdate( 'Y-m-d', (int) strtotime( $through . ' UTC -1 day' ) ) : $this->first_event_day();
 		$yesterday = gmdate( 'Y-m-d', time() - DAY_IN_SECONDS );
 		if ( null !== $from && $from <= $yesterday ) {
 			self::roll_range( $from, $yesterday );
@@ -71,22 +79,22 @@ final class Rollup {
 	 */
 	public static function roll_range( string $from, string $to ): void {
 		global $wpdb;
-		$start = $from . ' 00:00:00';
-		$end   = gmdate( 'Y-m-d', (int) strtotime( $to . ' +1 day' ) ) . ' 00:00:00';
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		[ $start, $end ] = Summary::day_bounds( $from, $to );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table write.
 		$wpdb->query(
 			$wpdb->prepare(
-				"INSERT INTO {$wpdb->prefix}crazylinks_daily (page_id, block_id, item_id, day, type, count, uniques)
+				"INSERT INTO %i (page_id, block_id, item_id, day, type, count, uniques)
 				SELECT page_id, COALESCE(block_id, ''), COALESCE(item_id, ''), DATE(ts), type, COUNT(*), COUNT(DISTINCT visitor_hash)
-				FROM {$wpdb->prefix}crazylinks_events
+				FROM %i
 				WHERE ts >= %s AND ts < %s
 				GROUP BY page_id, COALESCE(block_id, ''), COALESCE(item_id, ''), DATE(ts), type
 				ON DUPLICATE KEY UPDATE count = VALUES(count), uniques = VALUES(uniques)",
+				Summary::daily_table(),
+				Summary::events_table(),
 				$start,
 				$end
 			)
 		);
-		// phpcs:enable
 		Summary::flush_page_totals();
 	}
 
@@ -95,8 +103,8 @@ final class Rollup {
 	 */
 	private function first_event_day(): ?string {
 		global $wpdb;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$ts = $wpdb->get_var( "SELECT MIN(ts) FROM {$wpdb->prefix}crazylinks_events" );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table, read once per nightly run.
+		$ts = $wpdb->get_var( $wpdb->prepare( 'SELECT MIN(ts) FROM %i', Summary::events_table() ) );
 		return $ts ? substr( (string) $ts, 0, 10 ) : null;
 	}
 
@@ -118,14 +126,14 @@ final class Rollup {
 		}
 		$cutoff = min(
 			gmdate( 'Y-m-d 00:00:00', time() - $days * DAY_IN_SECONDS ),
-			gmdate( 'Y-m-d', (int) strtotime( $through . ' +1 day' ) ) . ' 00:00:00'
+			Summary::next_day( $through ) . ' 00:00:00'
 		);
 		$total  = 0;
-		for ( $i = 0; $i < 20; $i++ ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-			$deleted = (int) $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}crazylinks_events WHERE ts < %s LIMIT 5000", $cutoff ) );
+		for ( $batch = 0; $batch < self::PRUNE_MAX_BATCHES; $batch++ ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table housekeeping write.
+			$deleted = (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE ts < %s LIMIT %d', Summary::events_table(), $cutoff, self::PRUNE_BATCH ) );
 			$total  += $deleted;
-			if ( $deleted < 5000 ) {
+			if ( $deleted < self::PRUNE_BATCH ) {
 				break;
 			}
 		}

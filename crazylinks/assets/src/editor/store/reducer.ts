@@ -10,7 +10,7 @@ import type {
 	PageDoc,
 	PageMeta,
 } from '../types';
-import * as D from './doc';
+import * as docOps from './doc';
 import { setPath } from '../lib/paths';
 
 export type Section = 'profile' | 'design' | 'settings';
@@ -20,7 +20,6 @@ export type DocOp =
 	| { kind: 'remove'; id: string }
 	| { kind: 'duplicate'; id: string }
 	| { kind: 'move'; id: string; delta: number }
-	| { kind: 'order'; parentId: string | null; ids: string[] }
 	| { kind: 'parent'; id: string; parentId: string | null }
 	| { kind: 'moveTo'; id: string; parentId: string | null; index: number }
 	| {
@@ -81,17 +80,16 @@ export type Action =
 export const HISTORY_LIMIT = 100;
 
 /** Design keys a theme owns; picking a theme clears page overrides of them. */
-export const THEME_KEYS = [
-	'background',
-	'text',
-	'button',
-	'accent',
-	'radius',
-];
+const THEME_KEYS = [ 'background', 'text', 'button', 'accent', 'radius' ];
 
-const metaKey = ( m: PageMeta ) => JSON.stringify( [ m.title, m.slug ] );
+/** The part of the page meta that counts as unsaved changes, as a comparable string. */
+export const metaKey = ( m: PageMeta ) => JSON.stringify( [ m.title, m.slug ] );
 
-export const emptyMeta = (): PageMeta => ( {
+/** The selection, or null when the selected block is not in the document. */
+const selectionIn = ( doc: PageDoc, selected: string | null ) =>
+	selected && doc.blocks.some( ( b ) => b.id === selected ) ? selected : null;
+
+const emptyMeta = (): PageMeta => ( {
 	id: 0,
 	title: '',
 	slug: '',
@@ -101,10 +99,10 @@ export const emptyMeta = (): PageMeta => ( {
 } );
 
 export function initialState(
-	doc: PageDoc = D.emptyDoc(),
+	doc: PageDoc = docOps.emptyDoc(),
 	meta: PageMeta = emptyMeta()
 ): EditorState {
-	const normalized = D.normalize( doc );
+	const normalized = docOps.normalize( doc );
 	return {
 		doc: normalized,
 		meta,
@@ -141,29 +139,27 @@ export function applyOp(
 	switch ( op.kind ) {
 		case 'insert':
 			return {
-				doc: D.insertBlock( doc, op.block, op.afterId ),
+				doc: docOps.insertBlock( doc, op.block, op.afterId ),
 				select: op.block.id,
 			};
 		case 'remove':
-			return { doc: D.removeBlock( doc, op.id ), select: null };
+			return { doc: docOps.removeBlock( doc, op.id ), select: null };
 		case 'duplicate': {
-			const r = D.duplicateBlock( doc, op.id );
+			const r = docOps.duplicateBlock( doc, op.id );
 			return { doc: r.doc, select: r.id };
 		}
 		case 'move':
-			return { doc: D.moveBlock( doc, op.id, op.delta ) };
-		case 'order':
-			return { doc: D.applyOrder( doc, op.parentId, op.ids ) };
+			return { doc: docOps.moveBlock( doc, op.id, op.delta ) };
 		case 'parent':
-			return { doc: D.setParent( doc, op.id, op.parentId ) };
+			return { doc: docOps.setParent( doc, op.id, op.parentId ) };
 		case 'moveTo':
-			return { doc: D.moveTo( doc, op.id, op.parentId, op.index ) };
+			return { doc: docOps.moveTo( doc, op.id, op.parentId, op.index ) };
 		case 'block':
-			return { doc: D.updateBlock( doc, op.id, op.patch ) };
+			return { doc: docOps.updateBlock( doc, op.id, op.patch ) };
 		case 'props':
-			return { doc: D.setProps( doc, op.id, op.props ) };
+			return { doc: docOps.setProps( doc, op.id, op.props ) };
 		case 'pin':
-			return { doc: D.togglePinned( doc, op.id ) };
+			return { doc: docOps.togglePinned( doc, op.id ) };
 		case 'section':
 			return {
 				doc: {
@@ -183,9 +179,8 @@ export function applyOp(
 			return { doc: { ...doc, design } };
 		}
 		case 'replace':
-			return { doc: D.normalize( op.doc ) };
+			return { doc: docOps.normalize( op.doc ) };
 	}
-	return { doc };
 }
 
 export function reducer(
@@ -217,10 +212,7 @@ export function reducer(
 				past,
 				future: [],
 				lastKey: action.key ?? null,
-				selected:
-					selected && doc.blocks.some( ( b ) => b.id === selected )
-						? selected
-						: null,
+				selected: selectionIn( doc, selected ),
 			};
 		}
 		case 'UNDO': {
@@ -237,11 +229,7 @@ export function reducer(
 					HISTORY_LIMIT
 				),
 				lastKey: null,
-				selected:
-					state.selected &&
-					prev.blocks.some( ( b ) => b.id === state.selected )
-						? state.selected
-						: null,
+				selected: selectionIn( prev, state.selected ),
 			};
 		}
 		case 'REDO': {
@@ -255,11 +243,7 @@ export function reducer(
 				past: [ ...state.past, state.doc ].slice( -HISTORY_LIMIT ),
 				future: rest,
 				lastKey: null,
-				selected:
-					state.selected &&
-					next.blocks.some( ( b ) => b.id === state.selected )
-						? state.selected
-						: null,
+				selected: selectionIn( next, state.selected ),
 			};
 		}
 		case 'SELECT':
@@ -270,8 +254,8 @@ export function reducer(
 			// Adopt the server's normalized document only if nothing changed while the request ran.
 			const unchanged =
 				JSON.stringify( state.doc ) ===
-				JSON.stringify( D.normalize( action.sentDoc ) );
-			const serverDoc = D.normalize( action.serverDoc );
+				JSON.stringify( docOps.normalize( action.sentDoc ) );
+			const serverDoc = docOps.normalize( action.serverDoc );
 			return {
 				...state,
 				doc: unchanged ? serverDoc : state.doc,
@@ -305,5 +289,3 @@ export function reducer(
 	}
 	return state;
 }
-
-export { metaKey };

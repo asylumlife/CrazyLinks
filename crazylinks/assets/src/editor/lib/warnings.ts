@@ -1,11 +1,14 @@
 /**
- * Non-blocking problems found client-side (SPEC §5A.6): images without alternative text. Mirrors
- * PageValidator::warnings_for(), so the editor shows them as soon as they appear and the Publish
- * button can ask for confirmation. The effective alt text is the block's own text, else the Media
- * Library's, which the renderer falls back to as well.
+ * Non-blocking problems found client-side (SPEC §5A.6): images without alternative text, and a
+ * profile picture with no name to describe it. Mirrors PageValidator::warnings_for(), so the editor
+ * shows them as soon as they appear and the Publish button can ask for confirmation. The effective
+ * alt text is the block's own text, else the Media Library's, which the renderer falls back to as
+ * well.
  */
 import { __ } from '@wordpress/i18n';
-import type { JsonObject, MediaInfo, PageDoc } from '../types';
+import type { MediaInfo, PageDoc } from '../types';
+import { forBlock } from './errors';
+import { asObject } from './paths';
 
 export interface MappedWarning {
 	/** Block id when the warning belongs to a block. */
@@ -16,11 +19,6 @@ export interface MappedWarning {
 }
 
 type MediaMap = Record< number, MediaInfo >;
-
-const asObj = ( v: unknown ): JsonObject =>
-	v && typeof v === 'object' && ! Array.isArray( v )
-		? ( v as JsonObject )
-		: {};
 
 function lacksAlt(
 	attachment: unknown,
@@ -40,7 +38,7 @@ function lacksAlt(
 }
 
 /**
- * Alt-text warnings for a document.
+ * Accessibility warnings for a document.
  *
  * @param doc   Document.
  * @param media Media info by attachment id (carries the Media Library alt text).
@@ -77,7 +75,7 @@ export function altWarnings( doc: PageDoc, media: MediaMap ): MappedWarning[] {
 			} );
 		} else if ( block.type === 'gallery' && Array.isArray( p.items ) ) {
 			p.items.forEach( ( raw, n ) => {
-				const item = asObj( raw );
+				const item = asObject( raw );
 				if (
 					lacksAlt( item.image, item.alt, item.decorative, media )
 				) {
@@ -120,11 +118,5 @@ export function blockWarnings(
 	blockId: string,
 	field?: string
 ): MappedWarning[] {
-	return warnings.filter(
-		( w ) =>
-			w.blockId === blockId &&
-			( field === undefined ||
-				w.field === field ||
-				w.field.startsWith( field + '/' ) )
-	);
+	return forBlock( warnings, blockId, field );
 }

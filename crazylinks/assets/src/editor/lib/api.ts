@@ -4,7 +4,8 @@
 import apiFetch from '@wordpress/api-fetch';
 import type { PageDoc, PagePayload } from '../types';
 
-const NS = '/crazylinks/v1';
+/** REST namespace of every editor route. */
+export const NS = '/crazylinks/v1';
 
 export interface PreviewResponse {
 	html: string;
@@ -46,7 +47,7 @@ export interface AnalyticsSummary {
 		type?: string;
 		clicks?: number;
 		share?: number;
-		// Socials blocks only: clicks per icon, most clicked first.
+		/** Socials blocks only: clicks per icon, most clicked first. */
 		items?: Array< {
 			item_id: string;
 			network?: string;
@@ -55,7 +56,7 @@ export interface AnalyticsSummary {
 			share?: number;
 		} >;
 	} >;
-	// Views and clicks per traffic source, most clicks first.
+	/** Views and clicks per traffic source, most clicks first. */
 	sources?: Array< {
 		source: string;
 		label?: string;
@@ -118,11 +119,6 @@ export const api = {
 			path: `${ NS }/pages/${ id }`,
 			method: 'PATCH',
 			data,
-		} );
-	},
-	getPage( id: number ) {
-		return apiFetch< PagePayload >( {
-			path: `${ NS }/pages/${ id }?context=edit`,
 		} );
 	},
 	autosave( id: number, page: PageDoc, title: string ) {

@@ -38,7 +38,7 @@ declare global {
  *
  * @param a Attachment JSON.
  */
-export function toMediaInfo( a: WpAttachment ): MediaInfo {
+function toMediaInfo( a: WpAttachment ): MediaInfo {
 	const sizes = a.sizes ?? {};
 	const thumb =
 		sizes[ 'cl-thumb' ]?.url ??

@@ -6,6 +6,7 @@ import { Button } from '@wordpress/components';
 import { useEditor } from '../hooks';
 import { useAi } from './hooks';
 import { insertSuggestion, suggest } from './run';
+import { aiSelectors } from './store';
 import type { AiState } from './types';
 
 const selectSuggestions = ( s: AiState ) => s.suggestions;
@@ -19,8 +20,8 @@ export default function Suggestions() {
 	);
 	const suggestions = useAi( selectSuggestions );
 	const status = useAi( selectStatus );
+	const busy = useAi( aiSelectors.isBusy );
 	const isLink = block?.type === 'link';
-	const busy = status !== 'idle';
 
 	return (
 		<div className="cl-ai-suggest">

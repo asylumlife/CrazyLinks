@@ -24,9 +24,7 @@ final class VCard {
 	 * @param mixed $post Queried object.
 	 */
 	public function handle( $post ): void {
-		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
-			define( 'DONOTCACHEPAGE', true ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- Standard page-cache constant.
-		}
+		TemplateLoader::no_page_cache();
 		nocache_headers();
 		header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0' );
 		header( 'X-Robots-Tag: noindex, nofollow' );

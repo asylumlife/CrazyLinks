@@ -17,13 +17,50 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Uses wp_ai_client_prompt() and whatever provider the owner connected in Settings → Connectors.
  *
- * Proposals: system prompt + ops schema as structured output (as_json_response) + the trimmed page,
- * optional site facts or analytics totals, and the instruction. The answer is validated with
- * OpsValidator (schema, business rules, PageValidator); on failure the model gets one retry with the
- * validation errors. No streaming (the builder has none). Respects `wp_ai_client_prevent_prompt`
- * (core returns `prompt_prevented`).
+ * Proposals: system prompt + the trimmed page, optional site facts or analytics totals, and the
+ * instruction. The model is asked for a bare JSON object; the ops schema is sent to the provider as
+ * structured output (as_json_response) only when structured_output() is switched on. The answer is
+ * validated with OpsValidator (schema, business rules, PageValidator); on failure the model gets one
+ * retry with the validation errors. No streaming (the builder has none). Respects
+ * `wp_ai_client_prevent_prompt` (core returns `prompt_prevented`).
  */
 final class WpAiClientDriver implements AiDriver {
+
+	/**
+	 * Output caps in tokens: a page edit, a whole page built from scratch, and a short answer
+	 * (suggestions, the eval grader).
+	 */
+	private const MAX_TOKENS_EDIT = 4096;
+
+	private const MAX_TOKENS_BUILD = 8192;
+
+	private const MAX_TOKENS_SHORT = 1024;
+
+	/**
+	 * Model calls per proposal: the first answer and one retry that carries the validation errors.
+	 */
+	private const MAX_ATTEMPTS = 2;
+
+	/**
+	 * Validation errors returned with a rejected proposal.
+	 */
+	private const MAX_REPORTED_ERRORS = 20;
+
+	/**
+	 * Suggestions kept per request and their longest accepted length in characters.
+	 */
+	private const BIO_SUGGESTIONS = 3;
+
+	private const TITLE_SUGGESTIONS = 5;
+
+	private const MAX_BIO_LENGTH = 280;
+
+	private const MAX_TITLE_LENGTH = 120;
+
+	/**
+	 * Nesting depth accepted when decoding model output.
+	 */
+	private const JSON_DEPTH = 64;
 
 	/**
 	 * Usage of the last call: provider, model, prompt/completion tokens, estimated flag.
@@ -57,28 +94,33 @@ final class WpAiClientDriver implements AiDriver {
 		}
 		$system     = Prompt::system( $r->mode );
 		$message    = Prompt::user_message( $r );
-		$max_tokens = in_array( $r->mode, [ 'build_from_site', 'build_from_description' ], true ) ? 8192 : 4096;
+		$max_tokens = in_array( $r->mode, [ 'build_from_site', 'build_from_description' ], true ) ? self::MAX_TOKENS_BUILD : self::MAX_TOKENS_EDIT;
+		$schema     = self::structured_output() ? OpsSchema::for_provider() : null;
 		$validator  = new OpsValidator();
-		$usage      = [ 0, 0, false ];
-		$provider   = '';
-		$model      = '';
-		$attempt    = 0;
+		$usage      = [
+			'provider'          => '',
+			'model'             => '',
+			'prompt_tokens'     => 0,
+			'completion_tokens' => 0,
+			'estimated'         => false,
+		];
 		$errors     = '';
 		$text       = '';
 
-		while ( $attempt < 2 ) {
-			++$attempt;
+		for ( $attempt = 1; $attempt <= self::MAX_ATTEMPTS; ++$attempt ) {
 			$prompt = 1 === $attempt ? $message : $message . "\n\n" . Prompt::retry_message( $text, $errors );
-			$out    = $this->generate( $system, $prompt, Status::models( 'edit' ), $max_tokens, OpsSchema::for_provider() );
+			$out    = $this->generate( $system, $prompt, Status::models( 'edit' ), $max_tokens, $schema );
 			if ( is_wp_error( $out ) ) {
 				return $out;
 			}
-			$text      = $out['text'];
-			$provider  = $out['provider'];
-			$model     = $out['model'];
-			$usage[0] += $out['prompt_tokens'];
-			$usage[1] += $out['completion_tokens'];
-			$usage[2]  = $usage[2] || $out['estimated'];
+			$text  = $out['text'];
+			$usage = [
+				'provider'          => $out['provider'],
+				'model'             => $out['model'],
+				'prompt_tokens'     => $usage['prompt_tokens'] + $out['prompt_tokens'],
+				'completion_tokens' => $usage['completion_tokens'] + $out['completion_tokens'],
+				'estimated'         => $usage['estimated'] || $out['estimated'],
+			];
 
 			$payload = self::decode( $text );
 			if ( null === $payload ) {
@@ -93,30 +135,25 @@ final class WpAiClientDriver implements AiDriver {
 					array_values( array_map( 'strval', (array) $payload['questions'] ) ),
 					(array) $result->document(),
 					$result->added(),
-					$provider,
-					$model,
-					$usage[0],
-					$usage[1],
-					$usage[2],
+					$usage['provider'],
+					$usage['model'],
+					$usage['prompt_tokens'],
+					$usage['completion_tokens'],
+					$usage['estimated'],
 					$attempt
 				);
 			}
 			$errors = $result->error_text();
 		}
 
-		$this->last_usage = [
-			'provider'          => $provider,
-			'model'             => $model,
-			'prompt_tokens'     => $usage[0],
-			'completion_tokens' => $usage[1],
-			'estimated'         => $usage[2],
-		];
+		// Every attempt was rejected: report the usage of all of them, not only the last call.
+		$this->last_usage = $usage;
 		return new WP_Error(
 			'crazylinks_ai_invalid_output',
 			__( 'The AI returned changes that do not fit this page, even after a retry. Try rephrasing the request.', 'crazylinks' ),
 			[
 				'status' => 422,
-				'errors' => array_slice( array_filter( explode( "\n", $errors ) ), 0, 20 ),
+				'errors' => array_slice( array_filter( explode( "\n", $errors ) ), 0, self::MAX_REPORTED_ERRORS ),
 			]
 		);
 	}
@@ -141,12 +178,12 @@ final class WpAiClientDriver implements AiDriver {
 				],
 			],
 		];
-		$out    = $this->generate( Prompt::suggest_system( $kind ), Prompt::suggest_message( $kind, $ctx ), Status::models( 'suggest' ), 1024, $schema );
+		$out    = $this->generate( Prompt::suggest_system( $kind ), Prompt::suggest_message( $kind, $ctx ), Status::models( 'suggest' ), self::MAX_TOKENS_SHORT, $schema );
 		if ( is_wp_error( $out ) ) {
 			return $out;
 		}
 		$payload = self::decode( $out['text'] );
-		$max     = 'bio' === $kind ? 280 : 120;
+		$max     = 'bio' === $kind ? self::MAX_BIO_LENGTH : self::MAX_TITLE_LENGTH;
 		$list    = [];
 		foreach ( (array) ( $payload['suggestions'] ?? [] ) as $s ) {
 			$s = trim( wp_strip_all_tags( is_string( $s ) ? $s : '' ) );
@@ -154,7 +191,7 @@ final class WpAiClientDriver implements AiDriver {
 				$list[] = $s;
 			}
 		}
-		$list = array_slice( array_values( array_unique( $list ) ), 0, 'bio' === $kind ? 3 : 5 );
+		$list = array_slice( array_values( array_unique( $list ) ), 0, 'bio' === $kind ? self::BIO_SUGGESTIONS : self::TITLE_SUGGESTIONS );
 		if ( ! $list ) {
 			return new WP_Error( 'crazylinks_ai_invalid_output', __( 'The AI did not return usable suggestions. Please try again.', 'crazylinks' ), [ 'status' => 422 ] );
 		}
@@ -171,7 +208,7 @@ final class WpAiClientDriver implements AiDriver {
 	 * @return array<string, mixed>|WP_Error
 	 */
 	public function json( string $system, string $message, array $schema, string $purpose = 'suggest' ): array|WP_Error {
-		$out = $this->generate( $system, $message, Status::models( $purpose ), 1024, $schema );
+		$out = $this->generate( $system, $message, Status::models( $purpose ), self::MAX_TOKENS_SHORT, $schema );
 		if ( is_wp_error( $out ) ) {
 			return $out;
 		}
@@ -190,9 +227,9 @@ final class WpAiClientDriver implements AiDriver {
 
 	/**
 	 * Whether to ask the provider for schema-constrained output. Off by default: Anthropic's structured
-	 * outputs rejected both the full and the compact operations schema ("compiled grammar is too large",
-	 * AsylumLife.com, 2026-11-05), so the prompt asks for a bare JSON object and OpsValidator checks it,
-	 * with one retry carrying the validation errors.
+	 * outputs reject both the full and the compact operations schema as too large a grammar, so the
+	 * prompt asks for a bare JSON object and OpsValidator checks it, with one retry carrying the
+	 * validation errors.
 	 */
 	public static function structured_output(): bool {
 		/**
@@ -204,13 +241,14 @@ final class WpAiClientDriver implements AiDriver {
 	}
 
 	/**
-	 * One structured-output call.
+	 * One model call that should answer with JSON. The schema is sent to the provider, and counted in
+	 * the token estimate, only when structured output is switched on.
 	 *
-	 * @param string               $system     System instruction.
-	 * @param string               $message    User message.
-	 * @param string[]             $models     Model preference.
-	 * @param int                  $max_tokens Output cap.
-	 * @param array<string, mixed> $schema     JSON schema.
+	 * @param string                    $system     System instruction.
+	 * @param string                    $message    User message.
+	 * @param string[]                  $models     Model preference.
+	 * @param int                       $max_tokens Output cap.
+	 * @param array<string, mixed>|null $schema     JSON schema of the answer, or null for none.
 	 * @return array{text:string, provider:string, model:string, prompt_tokens:int, completion_tokens:int, estimated:bool}|WP_Error
 	 */
 	private function generate( string $system, string $message, array $models, int $max_tokens, ?array $schema ): array|WP_Error {
@@ -222,7 +260,8 @@ final class WpAiClientDriver implements AiDriver {
 			remove_filter( 'wp_ai_client_default_request_timeout', $timeout );
 		}
 		$builder = $builder->using_system_instruction( $system )->using_max_tokens( $max_tokens );
-		if ( self::structured_output() && $schema ) {
+		$schema  = self::structured_output() ? $schema : null;
+		if ( $schema ) {
 			$builder = $builder->as_json_response( OpsSchema::close_objects( $schema ) );
 		}
 		if ( $models ) {
@@ -244,7 +283,7 @@ final class WpAiClientDriver implements AiDriver {
 		}
 		$estimated = 0 === $in + $out;
 		if ( $estimated ) {
-			$in  = Limits::estimate( $system . $message . (string) wp_json_encode( $schema ) );
+			$in  = Limits::estimate( $system . $message . ( $schema ? (string) wp_json_encode( $schema ) : '' ) );
 			$out = Limits::estimate( $text );
 		}
 		$this->last_usage = [
@@ -280,7 +319,7 @@ final class WpAiClientDriver implements AiDriver {
 		if ( false === $start || false === $end || $end < $start ) {
 			return null;
 		}
-		$decoded = json_decode( substr( $text, $start, $end - $start + 1 ), true, 64 );
+		$decoded = json_decode( substr( $text, $start, $end - $start + 1 ), true, self::JSON_DEPTH );
 		$decoded = OpsSchema::inflate_props( $decoded );
 		return is_array( $decoded ) && ( [] === $decoded || ! array_is_list( $decoded ) ) ? $decoded : null;
 	}

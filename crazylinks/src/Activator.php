@@ -22,29 +22,40 @@ final class Activator {
 	 * @param bool $network_wide Network activation.
 	 */
 	public static function activate( $network_wide = false ): void {
-		// Store the option once so later saves never take WordPress's add_option path, which runs
-		// the sanitizer twice.
-		add_option( Settings::OPTION, Settings::defaults(), '', true );
-		if ( is_multisite() && $network_wide ) {
-			foreach ( get_sites(
-				[
-					'fields' => 'ids',
-					'number' => 0,
-				]
-			) as $site_id ) {
-				switch_to_blog( (int) $site_id );
-				self::activate_site();
-				restore_current_blog();
-			}
+		self::on_each_site( (bool) $network_wide, [ self::class, 'activate_site' ] );
+	}
+
+	/**
+	 * Runs a callback on this site, or on every site of the network.
+	 *
+	 * @param bool     $network_wide Whether the plugin is being (de)activated for the whole network.
+	 * @param callable $callback     Per-site work.
+	 */
+	private static function on_each_site( bool $network_wide, callable $callback ): void {
+		if ( ! is_multisite() || ! $network_wide ) {
+			$callback();
 			return;
 		}
-		self::activate_site();
+		$site_ids = get_sites(
+			[
+				'fields' => 'ids',
+				'number' => 0,
+			]
+		);
+		foreach ( $site_ids as $site_id ) {
+			switch_to_blog( (int) $site_id );
+			$callback();
+			restore_current_blog();
+		}
 	}
 
 	/**
 	 * Per-site activation.
 	 */
 	public static function activate_site(): void {
+		// Store the option once so later saves never take WordPress's add_option path, which runs
+		// the sanitizer twice.
+		add_option( Settings::OPTION, Settings::defaults(), '', true );
 		self::install_tables();
 		Capabilities::grant();
 		Analytics\Rollup::schedule();
@@ -59,7 +70,13 @@ final class Activator {
 	 * @param bool $network_wide Network deactivation.
 	 */
 	public static function deactivate( $network_wide = false ): void {
-		unset( $network_wide );
+		self::on_each_site( (bool) $network_wide, [ self::class, 'deactivate_site' ] );
+	}
+
+	/**
+	 * Per-site deactivation: cron events and rewrite rules. Data stays until uninstall.
+	 */
+	public static function deactivate_site(): void {
 		Analytics\Rollup::unschedule();
 		Subscribers\Sync::unschedule();
 		delete_option( 'crazylinks_flush_rewrite' );
@@ -98,14 +115,7 @@ final class Activator {
   KEY ts (ts)
 ) {$charset};"
 		);
-		// DB 7 added item_id (which social icon or product inside a block was clicked). dbDelta cannot
-		// change a primary key, so an existing rollup table gets the column and the wider key here first.
-		$daily = $wpdb->prefix . 'crazylinks_daily';
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $daily ) ) ) === $daily && ! $wpdb->get_var( "SHOW COLUMNS FROM {$daily} LIKE 'item_id'" ) ) {
-			$wpdb->query( "ALTER TABLE {$daily} ADD COLUMN item_id varchar(26) NOT NULL DEFAULT '' AFTER block_id, DROP PRIMARY KEY, ADD PRIMARY KEY (page_id,block_id,item_id,day,type)" );
-		}
-		// phpcs:enable
+		self::widen_daily_key();
 		dbDelta(
 			"CREATE TABLE {$wpdb->prefix}crazylinks_daily (
   page_id bigint(20) unsigned NOT NULL,
@@ -129,8 +139,8 @@ final class Activator {
   KEY expires (expires)
 ) {$charset};"
 		);
-		// Email sign-ups (Subscribers\Store). Never holds an IP address or user agent. DB 6 added the
-		// destination, audience and sync columns for email services (Subscribers\Sync).
+		// Email sign-ups (Subscribers\Store). Never holds an IP address or user agent. The destination,
+		// audience and sync columns belong to email services (Subscribers\Sync).
 		dbDelta(
 			"CREATE TABLE {$wpdb->prefix}crazylinks_subscribers (
   id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -192,12 +202,41 @@ final class Activator {
 	}
 
 	/**
+	 * Brings an existing rollup table up to the per-item shape: the `item_id` column (which social
+	 * icon or product inside a block was clicked) and a primary key that includes it. dbDelta can
+	 * add the column but cannot change a primary key, so both are done here, before dbDelta runs.
+	 * Each half is checked on its own, so a run that was interrupted is finished by the next one.
+	 */
+	private static function widen_daily_key(): void {
+		global $wpdb;
+		$daily = $wpdb->prefix . 'crazylinks_daily';
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $daily ) ) ) !== $daily ) {
+			return;
+		}
+		$changes = [];
+		if ( ! $wpdb->get_var( "SHOW COLUMNS FROM {$daily} LIKE 'item_id'" ) ) {
+			$changes[] = "ADD COLUMN item_id varchar(26) NOT NULL DEFAULT '' AFTER block_id";
+		}
+		if ( ! $wpdb->get_var( "SHOW INDEX FROM {$daily} WHERE Key_name = 'PRIMARY' AND Column_name = 'item_id'" ) ) {
+			$changes[] = 'DROP PRIMARY KEY';
+			$changes[] = 'ADD PRIMARY KEY (page_id,block_id,item_id,day,type)';
+		}
+		if ( $changes ) {
+			$wpdb->query( "ALTER TABLE {$daily} " . implode( ', ', $changes ) );
+		}
+		// phpcs:enable
+	}
+
+	/**
 	 * Runs table upgrades when the stored DB version is behind (activation does not run on updates).
 	 */
 	public static function maybe_upgrade(): void {
 		if ( get_option( 'crazylinks_db_version' ) !== self::DB_VERSION ) {
 			self::install_tables();
 			Capabilities::grant();
+			// Legacy single-salt option; per-day salts replaced it.
+			delete_option( 'crazylinks_salt' );
 		}
 	}
 

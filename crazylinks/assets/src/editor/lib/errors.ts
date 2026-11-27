@@ -93,6 +93,37 @@ export function errorsFromResponse( e: unknown ): ServerError[] {
 }
 
 /**
+ * Whether a failed request was rejected by the validator, as opposed to a network or server error.
+ *
+ * @param e Thrown value.
+ */
+export function isValidationError( e: unknown ): boolean {
+	const err = e as { data?: { errors?: unknown } } | null;
+	return Array.isArray( err?.data?.errors );
+}
+
+/**
+ * Entries that belong to one block, optionally narrowed to a field (exact match or a sub-path).
+ *
+ * @param list    Mapped errors or warnings.
+ * @param blockId Block id.
+ * @param field   Field path relative to the block, e.g. `props/url`.
+ */
+export function forBlock< T extends { blockId?: string; field: string } >(
+	list: T[],
+	blockId: string,
+	field?: string
+): T[] {
+	return list.filter(
+		( entry ) =>
+			entry.blockId === blockId &&
+			( field === undefined ||
+				entry.field === field ||
+				entry.field.startsWith( field + '/' ) )
+	);
+}
+
+/**
  * Errors for one block, optionally narrowed to a field (exact match or a sub-path of it).
  *
  * @param errors  Mapped errors.
@@ -104,11 +135,42 @@ export function blockErrors(
 	blockId: string,
 	field?: string
 ): MappedError[] {
-	return errors.filter(
+	return forBlock( errors, blockId, field );
+}
+
+/**
+ * Message of the first page-level error at a document path or below it.
+ *
+ * @param errors Mapped errors.
+ * @param path   Document path, e.g. `/design/text/color`.
+ */
+export function errorFor(
+	errors: MappedError[],
+	path: string
+): string | undefined {
+	return errors.find(
 		( e ) =>
-			e.blockId === blockId &&
-			( field === undefined ||
-				e.field === field ||
-				e.field.startsWith( field + '/' ) )
-	);
+			! e.blockId &&
+			( e.field === path || e.field.startsWith( path + '/' ) )
+	)?.message;
+}
+
+/**
+ * Messages for the sub-paths of one block field, keyed by the path below it (`0/url`).
+ *
+ * @param list  Mapped errors or warnings of one block.
+ * @param field Field path relative to the block, e.g. `props/items`.
+ */
+export function subMessages(
+	list: Array< { field: string; message: string } >,
+	field: string
+): Record< string, string > {
+	const prefix = `${ field }/`;
+	const out: Record< string, string > = {};
+	for ( const entry of list ) {
+		if ( entry.field.startsWith( prefix ) ) {
+			out[ entry.field.slice( prefix.length ) ] = entry.message;
+		}
+	}
+	return out;
 }

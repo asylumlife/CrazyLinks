@@ -8,6 +8,7 @@
 namespace CrazyLinks\Cli;
 
 use CrazyLinks\Analytics\Csv;
+use CrazyLinks\Subscribers\Adapters;
 use CrazyLinks\Subscribers\Integrations;
 use CrazyLinks\Subscribers\Store;
 use CrazyLinks\Subscribers\Sync;
@@ -19,6 +20,11 @@ defined( 'ABSPATH' ) || exit;
  * Manage CrazyLinks email subscribers.
  */
 final class SubscribersCommand {
+
+	/**
+	 * Most rows of one sync state a single `sync` run picks up.
+	 */
+	private const SYNC_LIMIT = 10000;
 
 	/**
 	 * Exports subscribers as CSV (default) or JSON to stdout.
@@ -50,10 +56,14 @@ final class SubscribersCommand {
 		if ( '' !== $status && ! in_array( $status, Store::STATUSES, true ) ) {
 			WP_CLI::error( 'Unknown status. Use pending, confirmed or unsubscribed.' );
 		}
+		$sync = isset( $assoc_args['sync'] ) ? sanitize_key( $assoc_args['sync'] ) : '';
+		if ( '' !== $sync && ! in_array( $sync, Store::SYNC_STATUSES, true ) ) {
+			WP_CLI::error( 'Unknown sync state. Use queued, sent, failed or skipped.' );
+		}
 		$filter = [
 			'page_id' => isset( $assoc_args['page'] ) ? absint( $assoc_args['page'] ) : 0,
 			'status'  => $status,
-			'sync'    => isset( $assoc_args['sync'] ) ? sanitize_key( $assoc_args['sync'] ) : '',
+			'sync'    => $sync,
 		];
 		if ( 'json' === ( $assoc_args['format'] ?? 'csv' ) ) {
 			WP_CLI::line( (string) wp_json_encode( iterator_to_array( Store::each( $filter ), false ) ) );
@@ -61,7 +71,7 @@ final class SubscribersCommand {
 		}
 		echo Csv::line( Csv::SUBSCRIBER_HEADER ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CSV, not HTML.
 		foreach ( Store::each( $filter ) as $row ) {
-			echo Csv::line( Csv::subscriber_row( $row ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			echo Csv::line( Csv::subscriber_row( $row ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CSV, not HTML.
 		}
 	}
 
@@ -124,12 +134,12 @@ final class SubscribersCommand {
 	 */
 	public function sync( $args, $assoc_args ): void {
 		unset( $args );
-		if ( ! \CrazyLinks\Subscribers\Adapters::active() ) {
+		if ( ! Adapters::active() ) {
 			WP_CLI::error( 'No email service is connected. Choose Mailchimp and save an API key under CrazyLinks → Settings → Integrations.' );
 		}
-		$ids = Store::ids_by_sync( 'queued', 10000 );
+		$ids = Store::ids_by_sync( 'queued', self::SYNC_LIMIT );
 		if ( ! empty( $assoc_args['retry-failed'] ) ) {
-			$ids = array_merge( $ids, Store::ids_by_sync( 'failed', 10000 ), Store::ids_by_sync( 'skipped', 10000 ) );
+			$ids = array_merge( $ids, Store::ids_by_sync( 'failed', self::SYNC_LIMIT ), Store::ids_by_sync( 'skipped', self::SYNC_LIMIT ) );
 		}
 		$sent = $ids ? Sync::retry( $ids ) : 0;
 		WP_CLI::line( sprintf( 'Pushed %d of %d row(s).', $sent, count( $ids ) ) );

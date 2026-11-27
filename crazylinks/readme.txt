@@ -4,7 +4,7 @@ Tags: link in bio, linktree, links, bio link, landing page
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.3.5
+Stable tag: 0.3.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -143,6 +143,16 @@ Simple Icons, released under CC0. See LICENSE-icons.txt. The logos remain tradem
 5. The page editor: the Links tab with the live preview.
 
 == Changelog ==
+
+= 0.3.6 =
+* Fix: the Time of day chart put some events in the wrong hour in timezones with a half-hour offset.
+* Fix: analytics figures given to AI editing could miss the most recent days.
+* Fix: a database upgrade that was interrupted is now finished on the next load; network activation and deactivation cover every site.
+* Fix: the confirmation email states the real lifetime of its link.
+* Fix: accessibility: linked images without alt text get a name, an email sign-up block with empty button text shows "Subscribe", and the sign-up form is labelled by its heading.
+* Fix: editor: quick date-range switches in the Analytics tab no longer show the wrong range, a failed autosave is reported as a connection problem and retried, the image overlay colour can be cleared, and shortcut hints match the platform.
+* Fix: REST: page routes no longer reveal whether an id exists to callers without access; deleting a page already in the trash returns 410.
+* Change: code clean-up throughout with no change to pages or settings: duplicated logic merged, long statements split, dead code removed.
 
 = 0.3.5 =
 * New: "Activity" on the Analytics screen: visits in time order, newest first, each with the time it started, where the visitor came from, the device, and every page view and click in order with its time. 50 visits per page, with an activity CSV. A visit is one visitor on one day, found through the daily visitor hash; nobody is identified.

@@ -36,8 +36,8 @@ final class Plugin {
 		( new PostType() )->register_hooks();
 		( new Frontend\Router() )->register_hooks();
 		( new Frontend\TemplateLoader() )->register_hooks();
-		( new Frontend\Embeds() )->register_hooks();
 		( new Analytics\Rollup() )->register_hooks();
+		( new Subscribers\Bootstrap() )->register_hooks();
 		( new Rest\RestRoutes() )->register_hooks();
 		( new Render\ImageSizes() )->register_hooks();
 		( new Ai\Abilities() )->register_hooks();

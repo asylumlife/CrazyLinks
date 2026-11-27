@@ -15,7 +15,27 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Csv {
 
-	public const SUBSCRIBER_HEADER = [ 'email', 'status', 'page_id', 'page', 'block_id', 'consent_text', 'consent_at', 'confirmed_at', 'created_at', 'destination', 'audience_id', 'sync_status', 'sync_attempts', 'sync_error', 'synced_at', 'external_id' ];
+	/**
+	 * Columns of the subscriber export, in the order subscriber_row() returns them.
+	 */
+	public const SUBSCRIBER_HEADER = [
+		'email',
+		'status',
+		'page_id',
+		'page',
+		'block_id',
+		'consent_text',
+		'consent_at',
+		'confirmed_at',
+		'created_at',
+		'destination',
+		'audience_id',
+		'sync_status',
+		'sync_attempts',
+		'sync_error',
+		'synced_at',
+		'external_id',
+	];
 
 	/**
 	 * One safe cell value.
@@ -45,6 +65,18 @@ final class Csv {
 			$out[] = ( '' !== $text && preg_match( '/[",\r\n]/', $text ) ) ? '"' . str_replace( '"', '""', $text ) . '"' : $text;
 		}
 		return implode( ',', $out ) . "\r\n";
+	}
+
+	/**
+	 * Prints rows as CSV lines.
+	 *
+	 * @param iterable $rows Rows, each an array of cells.
+	 * @phpstan-param iterable<int, mixed[]> $rows
+	 */
+	public static function output( iterable $rows ): void {
+		foreach ( $rows as $cells ) {
+			echo self::line( $cells ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CSV, not HTML; cells are made safe in cell().
+		}
 	}
 
 	/**

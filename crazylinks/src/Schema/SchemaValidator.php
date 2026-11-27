@@ -20,7 +20,34 @@ defined( 'ABSPATH' ) || exit;
  */
 final class SchemaValidator {
 
-	public const SUPPORTED = [ 'type', 'const', 'enum', 'properties', 'required', 'additionalProperties', 'items', 'minItems', 'maxItems', 'uniqueItems', 'minLength', 'maxLength', 'pattern', 'minimum', 'maximum', 'format', '$ref', 'allOf', 'if', 'then', 'else', '$schema', '$id', '$defs', 'title', 'description' ];
+	public const SUPPORTED = [
+		'type',
+		'const',
+		'enum',
+		'properties',
+		'required',
+		'additionalProperties',
+		'items',
+		'minItems',
+		'maxItems',
+		'uniqueItems',
+		'minLength',
+		'maxLength',
+		'pattern',
+		'minimum',
+		'maximum',
+		'format',
+		'$ref',
+		'allOf',
+		'if',
+		'then',
+		'else',
+		'$schema',
+		'$id',
+		'$defs',
+		'title',
+		'description',
+	];
 
 	/**
 	 * Root schema (for $ref resolution).

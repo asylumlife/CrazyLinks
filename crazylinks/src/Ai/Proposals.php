@@ -8,6 +8,7 @@
 namespace CrazyLinks\Ai;
 
 use CrazyLinks\PageStore;
+use CrazyLinks\Rest\RestRoutes;
 use CrazyLinks\Schema\PageValidator;
 use CrazyLinks\Settings;
 use WP_Error;
@@ -46,6 +47,32 @@ final class Proposals {
 	public const PENDING_TTL = 7 * DAY_IN_SECONDS;
 
 	public const MAX_PENDING = 10;
+
+	/**
+	 * Proposal ids are random strings of this many letters and digits.
+	 */
+	public const ID_LENGTH = 24;
+
+	/**
+	 * JSON Schema pattern (no delimiters) for a proposal id.
+	 */
+	public const ID_PATTERN = '^[A-Za-z0-9]{24}$';
+
+	public const SUGGEST_KINDS = [ 'titles', 'bio' ];
+
+	/**
+	 * Answers to clarifying questions accepted per request, and their length limits in characters.
+	 */
+	public const MAX_ANSWERS = 5;
+
+	private const MAX_QUESTION_LENGTH = 300;
+
+	private const MAX_ANSWER_LENGTH = 1000;
+
+	/**
+	 * An applied proposal stays readable at least this long, so a repeated apply gets the first result.
+	 */
+	private const APPLIED_MIN_TTL = MINUTE_IN_SECONDS;
 
 	/**
 	 * The AI driver (filterable so sites and tests can swap it).
@@ -89,63 +116,11 @@ final class Proposals {
 			return $base;
 		}
 
-		if ( null !== $agent_ops ) {
-			// Counted like apply-operations: otherwise propose-changes + apply-changes would save without
-			// limit and every call would add a log row and a proposal transient (2026-11-06 review).
-			$limited = Limits::hit( $user_id );
-			if ( is_wp_error( $limited ) ) {
-				return $limited;
-			}
-			$result = ( new OpsValidator() )->validate(
-				[
-					'summary'    => (string) ( $args['summary'] ?? '' ),
-					'operations' => $agent_ops,
-					'questions'  => [],
-				],
-				$base,
-				$user_id,
-				$mode,
-				$stored
-			);
-			if ( ! $result->is_valid() ) {
-				return self::invalid( $result->errors() );
-			}
-			$proposal = new ProposalResult( (string) ( $args['summary'] ?? '' ), array_values( $agent_ops ), [], (array) $result->document(), $result->added(), '', 'external' );
-		} else {
-			$ready = self::check_ready( $user_id );
-			if ( is_wp_error( $ready ) ) {
-				return $ready;
-			}
-			if ( 'analytics_qa' === $mode && ! current_user_can( 'view_crazylinks_analytics' ) ) {
-				return new WP_Error( 'crazylinks_forbidden', __( 'You are not allowed to view analytics.', 'crazylinks' ), [ 'status' => rest_authorization_required_code() ] );
-			}
-			$answers = [];
-			foreach ( array_slice( (array) ( $args['questions_answers'] ?? [] ), 0, 5 ) as $qa ) {
-				if ( is_array( $qa ) ) {
-					$answers[] = [
-						'question' => mb_substr( sanitize_textarea_field( (string) ( $qa['question'] ?? '' ) ), 0, 300 ),
-						'answer'   => mb_substr( sanitize_textarea_field( (string) ( $qa['answer'] ?? '' ) ), 0, 1000 ),
-					];
-				}
-			}
-			$request  = new ProposalRequest(
-				$instruction,
-				$base,
-				$user_id,
-				$mode,
-				(int) $post->ID,
-				$answers,
-				'build_from_site' === $mode ? Context::site_facts( $user_id ) : null,
-				'analytics_qa' === $mode ? Context::analytics( (int) $post->ID ) : null,
-				$stored
-			);
-			$driver   = self::driver();
-			$proposal = $driver->propose( $request );
-			if ( is_wp_error( $proposal ) ) {
-				self::record_failure( $driver, $post, $user_id, $mode, $instruction, $source );
-				return $proposal;
-			}
-			Limits::record( $proposal->tokens() );
+		$proposal = null === $agent_ops
+			? self::propose_with_model( $post, $args, $instruction, $mode, $base, $stored, $user_id, $source )
+			: self::propose_external( $agent_ops, (string) ( $args['summary'] ?? '' ), $mode, $base, $stored, $user_id );
+		if ( is_wp_error( $proposal ) ) {
+			return $proposal;
 		}
 
 		$log_id = AiLog::insert(
@@ -168,9 +143,7 @@ final class Proposals {
 
 		$id = null;
 		if ( $proposal->operations ) {
-			$id = wp_generate_password( 24, false );
-			set_transient(
-				self::TRANSIENT . $id,
+			$id = self::store(
 				[
 					'user_id'    => $user_id,
 					'page_id'    => (int) $post->ID,
@@ -180,10 +153,7 @@ final class Proposals {
 					'operations' => $proposal->operations,
 					'added'      => $proposal->added,
 					'base_hash'  => self::hash( $base ),
-					'modified'   => (string) $post->post_modified_gmt,
 					'log_id'     => $log_id,
-					'expires'    => time() + self::TTL,
-					'applied'    => null,
 				],
 				self::TTL
 			);
@@ -289,7 +259,7 @@ final class Proposals {
 			'page'        => $saved['page'],
 		];
 		$proposal['applied'] = $out;
-		set_transient( self::TRANSIENT . $proposal_id, $proposal, max( 60, (int) $proposal['expires'] - time() ) );
+		set_transient( self::TRANSIENT . $proposal_id, $proposal, max( self::APPLIED_MIN_TTL, (int) $proposal['expires'] - time() ) );
 		if ( $pending ) {
 			self::forget_pending( (int) $post->ID, $proposal_id );
 		}
@@ -317,7 +287,7 @@ final class Proposals {
 	 */
 	public static function save_document( \WP_Post $post, array $doc, string $source ) {
 		$before = self::latest_revision( (int) $post->ID );
-		$req    = new \WP_REST_Request( 'PATCH', '/crazylinks/v1/pages/' . $post->ID );
+		$req    = new \WP_REST_Request( 'PATCH', '/' . RestRoutes::NS . '/pages/' . $post->ID );
 		$req->set_header( 'Content-Type', 'application/json' );
 		$req->set_body( (string) wp_json_encode( [ 'page' => PageValidator::to_json_shape( $doc ) ] ) );
 		$res = rest_do_request( $req );
@@ -348,9 +318,7 @@ final class Proposals {
 	 * @return string Proposal id.
 	 */
 	public static function store_pending( \WP_Post $post, array $operations, string $summary, array $added, array $base, int $log_id ): string {
-		$id = wp_generate_password( 24, false );
-		set_transient(
-			self::TRANSIENT . $id,
+		$id    = self::store(
 			[
 				'user_id'    => get_current_user_id(),
 				'page_id'    => (int) $post->ID,
@@ -360,11 +328,8 @@ final class Proposals {
 				'operations' => array_values( $operations ),
 				'added'      => $added,
 				'base_hash'  => self::hash( $base ),
-				'modified'   => (string) $post->post_modified_gmt,
 				'log_id'     => $log_id,
 				'created'    => time(),
-				'expires'    => time() + self::PENDING_TTL,
-				'applied'    => null,
 				'pending'    => true,
 			],
 			self::PENDING_TTL
@@ -374,8 +339,7 @@ final class Proposals {
 		foreach ( array_slice( $ids, 0, max( 0, count( $ids ) - self::MAX_PENDING ) ) as $old ) {
 			delete_transient( self::TRANSIENT . $old );
 		}
-		$ids = array_slice( $ids, -self::MAX_PENDING );
-		update_post_meta( $post->ID, self::PENDING_META, $ids );
+		self::save_pending_ids( (int) $post->ID, array_slice( $ids, -self::MAX_PENDING ) );
 		return $id;
 	}
 
@@ -391,12 +355,12 @@ final class Proposals {
 		$user_id = get_current_user_id();
 		$ids     = self::pending_ids( (int) $post->ID );
 		$stored  = PageStore::get_document( $post, false );
-		$base    = self::base_document( null, $user_id, $stored );
+		$base    = self::stored_base( $user_id, $stored );
 		$keep    = [];
 		$out     = [];
 		foreach ( $ids as $id ) {
 			$p = self::load( $id );
-			if ( null === $p || empty( $p['pending'] ) || is_array( $p['applied'] ) || (int) $p['page_id'] !== (int) $post->ID || is_wp_error( $base ) ) {
+			if ( null === $p || empty( $p['pending'] ) || is_array( $p['applied'] ) || (int) $p['page_id'] !== (int) $post->ID ) {
 				continue;
 			}
 			$ops    = array_values( (array) $p['operations'] );
@@ -462,7 +426,10 @@ final class Proposals {
 	 */
 	private static function pending_ids( int $page_id ): array {
 		$ids = get_post_meta( $page_id, self::PENDING_META, true );
-		return is_array( $ids ) ? array_values( array_filter( array_map( 'strval', $ids ), static fn( $id ) => (bool) preg_match( '/^[A-Za-z0-9]{24}$/', $id ) ) ) : [];
+		if ( ! is_array( $ids ) ) {
+			return [];
+		}
+		return array_values( array_filter( array_map( 'strval', $ids ), [ self::class, 'is_id' ] ) );
 	}
 
 	/**
@@ -500,34 +467,30 @@ final class Proposals {
 	 */
 	public static function suggest( string $kind, array $context, int $page_id, string $source = 'admin' ) {
 		$user_id = get_current_user_id();
-		if ( ! in_array( $kind, [ 'titles', 'bio' ], true ) ) {
+		if ( ! in_array( $kind, self::SUGGEST_KINDS, true ) ) {
 			return new WP_Error( 'crazylinks_ai_bad_kind', __( 'Unknown suggestion type.', 'crazylinks' ), [ 'status' => 400 ] );
 		}
 		$ready = self::check_ready( $user_id );
 		if ( is_wp_error( $ready ) ) {
 			return $ready;
 		}
-		$ctx    = self::clean_context( $context );
 		$driver = self::driver();
-		$list   = $driver->suggestText( $kind, $ctx );
-		$usage  = method_exists( $driver, 'last_usage' ) ? (array) $driver->last_usage() : [];
-		Limits::record( (int) ( $usage['prompt_tokens'] ?? 0 ) + (int) ( $usage['completion_tokens'] ?? 0 ) );
-		AiLog::insert(
-			[
-				'page_id'           => $page_id,
-				'user_id'           => $user_id,
-				'kind'              => 'suggest',
-				'mode'              => $kind,
-				'source'            => $source,
-				'instruction'       => '',
-				'operations'        => is_wp_error( $list ) ? [] : $list,
-				'provider'          => (string) ( $usage['provider'] ?? '' ),
-				'model'             => (string) ( $usage['model'] ?? '' ),
-				'prompt_tokens'     => (int) ( $usage['prompt_tokens'] ?? 0 ),
-				'completion_tokens' => (int) ( $usage['completion_tokens'] ?? 0 ),
-				'tokens_estimated'  => ! empty( $usage['estimated'] ),
-			]
-		);
+		$list   = $driver->suggestText( $kind, self::clean_context( $context ) );
+		$row    = [
+			'page_id'     => $page_id,
+			'user_id'     => $user_id,
+			'kind'        => 'suggest',
+			'mode'        => $kind,
+			'source'      => $source,
+			'instruction' => '',
+		];
+		if ( is_wp_error( $list ) ) {
+			self::record_failure( $driver, $row );
+			return $list;
+		}
+		$usage = self::usage_of( $driver );
+		Limits::record( $usage['prompt_tokens'] + $usage['completion_tokens'] );
+		AiLog::insert( $row + [ 'operations' => $list ] + $usage );
 		return $list;
 	}
 
@@ -548,7 +511,7 @@ final class Proposals {
 	 * @return array<string, mixed>|null
 	 */
 	public static function load( string $id ): ?array {
-		if ( ! preg_match( '/^[A-Za-z0-9]{24}$/', $id ) ) {
+		if ( ! self::is_id( $id ) ) {
 			return null;
 		}
 		$data = get_transient( self::TRANSIENT . $id );
@@ -596,8 +559,7 @@ final class Proposals {
 	 */
 	public static function base_document( $page, int $user_id, ?array $stored ) {
 		if ( null === $page ) {
-			$result = ( new PageValidator() )->validate( $stored ?? PageValidator::empty_document(), $user_id, $stored );
-			return $result->is_valid() ? $result->document() : ( $stored ?? PageValidator::empty_document() );
+			return self::stored_base( $user_id, $stored );
 		}
 		if ( ! is_array( $page ) ) {
 			return new WP_Error( 'crazylinks_invalid_page', __( 'The page document is invalid.', 'crazylinks' ), [ 'status' => 400 ] );
@@ -609,6 +571,20 @@ final class Proposals {
 			return $error;
 		}
 		return $result->document();
+	}
+
+	/**
+	 * The stored page as the document operations apply to: normalized by PageValidator when it passes,
+	 * as stored otherwise (the operations are validated against it either way).
+	 *
+	 * @param int                       $user_id User.
+	 * @param array<string, mixed>|null $stored  Stored document.
+	 * @return array<string, mixed>
+	 */
+	public static function stored_base( int $user_id, ?array $stored ): array {
+		$doc    = $stored ?? PageValidator::empty_document();
+		$result = ( new PageValidator() )->validate( $doc, $user_id, $stored );
+		return $result->is_valid() ? (array) $result->document() : $doc;
 	}
 
 	/**
@@ -628,37 +604,173 @@ final class Proposals {
 	}
 
 	/**
-	 * Logs a failed model call and counts its tokens (the provider still billed them).
+	 * A proposal from operations the agent wrote itself: validated here, no model call.
 	 *
-	 * @param AiDriver $driver      Driver.
-	 * @param \WP_Post $post        Page.
-	 * @param int      $user_id     User.
-	 * @param string   $mode        Mode.
-	 * @param string   $instruction Instruction.
-	 * @param string   $source      Source.
+	 * @param array<int|string, mixed>  $agent_ops Operations as sent.
+	 * @param string                    $summary   Agent's summary.
+	 * @param string                    $mode      Mode.
+	 * @param array<string, mixed>      $base      Document the operations apply to.
+	 * @param array<string, mixed>|null $stored    Stored document.
+	 * @param int                       $user_id   User.
+	 * @return ProposalResult|WP_Error
 	 */
-	private static function record_failure( AiDriver $driver, \WP_Post $post, int $user_id, string $mode, string $instruction, string $source ): void {
+	private static function propose_external( array $agent_ops, string $summary, string $mode, array $base, ?array $stored, int $user_id ) {
+		// Counted against the rate limits like apply-operations: every call adds a log row and a
+		// proposal transient, and applying the proposal saves the page.
+		$limited = Limits::hit( $user_id );
+		if ( is_wp_error( $limited ) ) {
+			return $limited;
+		}
+		$result = ( new OpsValidator() )->validate(
+			[
+				'summary'    => $summary,
+				'operations' => $agent_ops,
+				'questions'  => [],
+			],
+			$base,
+			$user_id,
+			$mode,
+			$stored
+		);
+		if ( ! $result->is_valid() ) {
+			return self::invalid( $result->errors() );
+		}
+		return new ProposalResult( $summary, array_values( $agent_ops ), [], (array) $result->document(), $result->added(), '', 'external' );
+	}
+
+	/**
+	 * A proposal written by the site's AI provider. Counts the tokens against the budget, also when
+	 * the call fails.
+	 *
+	 * @param \WP_Post                  $post        Page.
+	 * @param array<string, mixed>      $args        Arguments of propose() (questions_answers is read here).
+	 * @param string                    $instruction Instruction.
+	 * @param string                    $mode        Mode.
+	 * @param array<string, mixed>      $base        Document the operations apply to.
+	 * @param array<string, mixed>|null $stored      Stored document.
+	 * @param int                       $user_id     User.
+	 * @param string                    $source      admin | mcp.
+	 * @return ProposalResult|WP_Error
+	 */
+	private static function propose_with_model( \WP_Post $post, array $args, string $instruction, string $mode, array $base, ?array $stored, int $user_id, string $source ) {
+		$ready = self::check_ready( $user_id );
+		if ( is_wp_error( $ready ) ) {
+			return $ready;
+		}
+		if ( 'analytics_qa' === $mode && ! current_user_can( 'view_crazylinks_analytics' ) ) {
+			return new WP_Error( 'crazylinks_forbidden', __( 'You are not allowed to view analytics.', 'crazylinks' ), [ 'status' => rest_authorization_required_code() ] );
+		}
+		$request  = new ProposalRequest(
+			$instruction,
+			$base,
+			$user_id,
+			$mode,
+			(int) $post->ID,
+			self::clean_answers( (array) ( $args['questions_answers'] ?? [] ) ),
+			'build_from_site' === $mode ? Context::site_facts( $user_id ) : null,
+			'analytics_qa' === $mode ? Context::analytics( (int) $post->ID ) : null,
+			$stored
+		);
+		$driver   = self::driver();
+		$proposal = $driver->propose( $request );
+		if ( is_wp_error( $proposal ) ) {
+			self::record_failure(
+				$driver,
+				[
+					'page_id'     => $post->ID,
+					'user_id'     => $user_id,
+					'kind'        => 'propose',
+					'mode'        => $mode,
+					'source'      => $source,
+					'instruction' => $instruction,
+				]
+			);
+			return $proposal;
+		}
+		Limits::record( $proposal->tokens() );
+		return $proposal;
+	}
+
+	/**
+	 * Answers to the model's clarifying questions: a few short, plain-text pairs.
+	 *
+	 * @param array<int|string, mixed> $raw Answers as sent.
+	 * @return array<int, array{question:string, answer:string}>
+	 */
+	private static function clean_answers( array $raw ): array {
+		$answers = [];
+		foreach ( array_slice( $raw, 0, self::MAX_ANSWERS ) as $qa ) {
+			if ( is_array( $qa ) ) {
+				$answers[] = [
+					'question' => mb_substr( sanitize_textarea_field( (string) ( $qa['question'] ?? '' ) ), 0, self::MAX_QUESTION_LENGTH ),
+					'answer'   => mb_substr( sanitize_textarea_field( (string) ( $qa['answer'] ?? '' ) ), 0, self::MAX_ANSWER_LENGTH ),
+				];
+			}
+		}
+		return $answers;
+	}
+
+	/**
+	 * Stores a proposal under a new id and returns the id.
+	 *
+	 * @param array<string, mixed> $fields Proposal fields.
+	 * @param int                  $ttl    Lifetime in seconds.
+	 */
+	private static function store( array $fields, int $ttl ): string {
+		$id = wp_generate_password( self::ID_LENGTH, false );
+		set_transient(
+			self::TRANSIENT . $id,
+			$fields + [
+				'expires' => time() + $ttl,
+				'applied' => null,
+			],
+			$ttl
+		);
+		return $id;
+	}
+
+	/**
+	 * Whether a string has the shape of a proposal id.
+	 *
+	 * @param string $id Candidate.
+	 */
+	private static function is_id( string $id ): bool {
+		return 1 === preg_match( '/' . self::ID_PATTERN . '/', $id );
+	}
+
+	/**
+	 * What the driver reports about its last call, as crazylinks_ai_log columns. Drivers without
+	 * last_usage() report nothing, so their calls count as zero tokens.
+	 *
+	 * @param AiDriver $driver Driver.
+	 * @return array{provider:string, model:string, prompt_tokens:int, completion_tokens:int, tokens_estimated:bool}
+	 */
+	private static function usage_of( AiDriver $driver ): array {
 		$usage = method_exists( $driver, 'last_usage' ) ? (array) $driver->last_usage() : [];
-		$used  = (int) ( $usage['prompt_tokens'] ?? 0 ) + (int) ( $usage['completion_tokens'] ?? 0 );
+		return [
+			'provider'          => (string) ( $usage['provider'] ?? '' ),
+			'model'             => (string) ( $usage['model'] ?? '' ),
+			'prompt_tokens'     => (int) ( $usage['prompt_tokens'] ?? 0 ),
+			'completion_tokens' => (int) ( $usage['completion_tokens'] ?? 0 ),
+			'tokens_estimated'  => ! empty( $usage['estimated'] ),
+		];
+	}
+
+	/**
+	 * Logs a failed model call and counts its tokens (the provider still billed them). A failure
+	 * that used no tokens leaves no trace.
+	 *
+	 * @param AiDriver             $driver Driver.
+	 * @param array<string, mixed> $row    Log columns: page_id, user_id, kind, mode, source, instruction.
+	 */
+	private static function record_failure( AiDriver $driver, array $row ): void {
+		$usage = self::usage_of( $driver );
+		$used  = $usage['prompt_tokens'] + $usage['completion_tokens'];
 		if ( $used <= 0 ) {
 			return;
 		}
 		Limits::record( $used );
-		AiLog::insert(
-			[
-				'page_id'           => $post->ID,
-				'user_id'           => $user_id,
-				'kind'              => 'propose',
-				'mode'              => $mode,
-				'source'            => $source,
-				'instruction'       => $instruction,
-				'provider'          => (string) ( $usage['provider'] ?? '' ),
-				'model'             => (string) ( $usage['model'] ?? '' ),
-				'prompt_tokens'     => (int) ( $usage['prompt_tokens'] ?? 0 ),
-				'completion_tokens' => (int) ( $usage['completion_tokens'] ?? 0 ),
-				'tokens_estimated'  => ! empty( $usage['estimated'] ),
-			]
-		);
+		AiLog::insert( $row + $usage );
 	}
 
 	/**
@@ -695,7 +807,8 @@ final class Proposals {
 		}
 		foreach ( [ 'link_titles', 'other_titles' ] as $key ) {
 			if ( isset( $context[ $key ] ) && is_array( $context[ $key ] ) ) {
-				$out[ $key ] = array_slice( array_map( static fn( $t ) => mb_substr( wp_strip_all_tags( is_scalar( $t ) ? (string) $t : '' ), 0, 120 ), $context[ $key ] ), 0, 30 );
+				$titles      = array_map( static fn( $title ) => mb_substr( wp_strip_all_tags( is_scalar( $title ) ? (string) $title : '' ), 0, 120 ), $context[ $key ] );
+				$out[ $key ] = array_slice( $titles, 0, 30 );
 			}
 		}
 		if ( ! isset( $out['site_name'] ) ) {

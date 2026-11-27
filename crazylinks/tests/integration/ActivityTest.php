@@ -107,6 +107,16 @@ class ActivityTest extends TestCase {
 		$this->assertSame( [ 1, 1, 0 ], [ $ist[14]['views'], $ist[15]['views'], $ist[9]['views'] ] );
 	}
 
+	public function test_hours_follow_half_hour_timezones_within_the_hour(): void {
+		$id = (int) $this->make_page( $this->doc() )->ID;
+		$d1 = self::day( 1 );
+		// 15:10 UTC is 20:40 in Kolkata (UTC+5:30); 15:40 UTC is already 21:10 there.
+		$this->event( $id, 'view', 'early', "$d1 15:10:00" );
+		$this->event( $id, 'view', 'late', "$d1 15:40:00" );
+		$hours = Activity::hours( $id, self::day( 2 ), self::day( 0 ), new \DateTimeZone( 'Asia/Kolkata' ) );
+		$this->assertSame( [ 1, 1 ], [ $hours[20]['views'], $hours[21]['views'] ] );
+	}
+
 	public function test_payment_buttons_are_named_by_their_label_not_their_url(): void {
 		$block = static fn( string $id, array $props ): array => [
 			'id'    => $id,

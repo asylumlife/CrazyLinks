@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
  * Social network labels and the inline SVG icon set.
  *
  * Brand icons are the single `<path d>` of each Simple Icons glyph (CC0 1.0, see LICENSE-icons.txt), 24x24 viewBox,
- * filled with currentColor. Generic glyphs (email, phone, website, pin, map) are original strokes.
+ * filled with currentColor. Generic glyphs (email, phone, website, pin, pinned, vcard) are original strokes.
  */
 final class Icons {
 
@@ -246,7 +246,7 @@ final class Icons {
 		if ( '' !== $svg ) {
 			return $svg;
 		}
-		$label = self::networks()[ $network ] ?? $network;
+		$label = self::label( $network );
 		$mono  = ucfirst( mb_substr( (string) preg_replace( '/[^A-Za-z]/', '', $label ), 0, 2 ) );
 		return '<span class="cl-icon cl-icon--mono" aria-hidden="true">' . esc_html( $mono ) . '</span>';
 	}

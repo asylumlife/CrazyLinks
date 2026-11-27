@@ -18,6 +18,11 @@ defined( 'ABSPATH' ) || exit;
 final class Notices {
 
 	/**
+	 * Transient that caches the conflict check for the admin notice.
+	 */
+	private const CACHE = 'crazylinks_conflicts';
+
+	/**
 	 * Hooks.
 	 */
 	public function register_hooks(): void {
@@ -59,7 +64,11 @@ final class Notices {
 			}
 		}
 		if ( '' === (string) get_option( 'permalink_structure' ) ) {
-			$out[] = __( 'Pretty permalinks are off, so link pages use query-string URLs (?crazylinks_slug=...). Enable permalinks for /l/your-page addresses.', 'crazylinks' );
+			$out[] = sprintf(
+				/* translators: %s: URL base. */
+				__( 'Pretty permalinks are off, so link pages use query-string URLs (?crazylinks_slug=...). Enable permalinks for /%s/your-page addresses.', 'crazylinks' ),
+				$base
+			);
 		}
 		return $out;
 	}
@@ -75,10 +84,10 @@ final class Notices {
 		if ( ! $screen || ! in_array( $screen->id, [ 'dashboard', 'plugins', 'edit-' . PostType::NAME, PostType::NAME ], true ) ) {
 			return;
 		}
-		$conflicts = get_transient( 'crazylinks_conflicts' );
+		$conflicts = get_transient( self::CACHE );
 		if ( ! is_array( $conflicts ) ) {
 			$conflicts = self::conflicts( Settings::base() );
-			set_transient( 'crazylinks_conflicts', $conflicts, HOUR_IN_SECONDS );
+			set_transient( self::CACHE, $conflicts, HOUR_IN_SECONDS );
 		}
 		foreach ( $conflicts as $conflict ) {
 			echo '<div class="notice notice-warning"><p><strong>CrazyLinks:</strong> ' . esc_html( (string) $conflict ) . '</p></div>';
@@ -89,6 +98,6 @@ final class Notices {
 	 * Clears the cached check.
 	 */
 	public function clear_cache(): void {
-		delete_transient( 'crazylinks_conflicts' );
+		delete_transient( self::CACHE );
 	}
 }

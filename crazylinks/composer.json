@@ -27,13 +27,20 @@
     "platform": {
       "php": "8.1.0"
     },
+    "process-timeout": 0,
     "sort-packages": true
   },
   "scripts": {
     "lint": "phpcs",
-    "analyse": "phpstan analyse --memory-limit=1G",
+    "analyse": "phpstan analyse --no-progress --memory-limit=1G",
     "test": "phpunit",
+    "check": [
+      "@lint",
+      "@analyse",
+      "@test"
+    ],
     "build:assets": "php bin/build-assets.php",
-    "make-pot": "wp i18n make-pot . languages/crazylinks.pot --exclude=vendor,tests,assets/build"
+    "build:ai-schema": "php bin/build-ai-schema.php",
+    "make-pot": "wp i18n make-pot . languages/crazylinks.pot --exclude=vendor,node_modules,tests,bin"
   }
 }

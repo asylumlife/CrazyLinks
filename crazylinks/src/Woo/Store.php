@@ -40,6 +40,25 @@ final class Store {
 	private const MAX_STALE   = 60;
 
 	/**
+	 * Most products a "latest" block shows, and most a search returns.
+	 */
+	private const MAX_LATEST = 12;
+	private const MAX_SEARCH = 50;
+	private const MAX_TERM   = 100;
+
+	/**
+	 * Seconds to wait for the store, and how long its status is remembered (up, down).
+	 */
+	private const REQUEST_TIMEOUT = 5;
+	private const STATUS_TTL_OK   = 10 * MINUTE_IN_SECONDS;
+	private const STATUS_TTL_DOWN = MINUTE_IN_SECONDS;
+
+	/**
+	 * A price in minor units, as the Store API sends it.
+	 */
+	private const MINOR_AMOUNT = '/^\d{1,12}$/';
+
+	/**
 	 * Sanitizes the store address setting. Returns '' when it is not usable.
 	 *
 	 * @param mixed $url Raw value.
@@ -98,7 +117,15 @@ final class Store {
 		if ( '' === $base ) {
 			return '';
 		}
-		$parts = (array) wp_parse_url( $base );
+		return self::authority( (array) wp_parse_url( $base ) );
+	}
+
+	/**
+	 * Lowercased host, with the port when the URL names one.
+	 *
+	 * @param array<string, mixed> $parts wp_parse_url() result.
+	 */
+	private static function authority( array $parts ): string {
 		return strtolower( (string) ( $parts['host'] ?? '' ) ) . ( isset( $parts['port'] ) ? ':' . (int) $parts['port'] : '' );
 	}
 
@@ -160,7 +187,7 @@ final class Store {
 	 * @return array<int, array<string, mixed>>
 	 */
 	public static function latest( int $count, string $category = '' ): array {
-		$count    = max( 1, min( 12, $count ) );
+		$count    = self::clamp_latest( $count );
 		$category = self::clean_slug( $category );
 		switch ( self::mode() ) {
 			case 'local':
@@ -173,17 +200,39 @@ final class Store {
 					] + ( '' !== $category ? [ 'category' => [ $category ] ] : [] )
 				);
 			case 'remote':
-				$query = [
-					'per_page' => (string) $count,
-					'orderby'  => 'date',
-					'order'    => 'desc',
-				];
-				if ( '' !== $category ) {
-					$query['category'] = $category;
-				}
-				return self::remote_cached( 'latest', $query );
+				return self::remote_cached( 'latest', self::latest_query( $count, $category ) );
 		}
 		return [];
+	}
+
+	/**
+	 * A "latest" count within its limits.
+	 *
+	 * @param int $count Requested count.
+	 */
+	private static function clamp_latest( int $count ): int {
+		return max( 1, min( self::MAX_LATEST, $count ) );
+	}
+
+	/**
+	 * Store API query for the newest products. latest() caches under it and known_product() reads the
+	 * same entry back, so both must build it here.
+	 *
+	 * @param int    $count    How many.
+	 * @param string $category Category slug or ''.
+	 * @return array<string, string>
+	 */
+	private static function latest_query( int $count, string $category ): array {
+		$query    = [
+			'per_page' => (string) self::clamp_latest( $count ),
+			'orderby'  => 'date',
+			'order'    => 'desc',
+		];
+		$category = self::clean_slug( $category );
+		if ( '' !== $category ) {
+			$query['category'] = $category;
+		}
+		return $query;
 	}
 
 	/**
@@ -194,9 +243,9 @@ final class Store {
 	 * @return array<int, array<string, mixed>>
 	 */
 	public static function search( string $term, int $limit = 10 ): array {
-		$limit = max( 1, min( 50, $limit ) );
+		$limit = max( 1, min( self::MAX_SEARCH, $limit ) );
 		$term  = trim( wp_strip_all_tags( $term ) );
-		$term  = function_exists( 'mb_substr' ) ? mb_substr( $term, 0, 100 ) : substr( $term, 0, 100 );
+		$term  = mb_substr( $term, 0, self::MAX_TERM );
 		switch ( self::mode() ) {
 			case 'local':
 				return self::local_query(
@@ -248,16 +297,7 @@ final class Store {
 				return self::local_product( $id );
 			case 'remote':
 				if ( 'latest' === $mode ) {
-					$query = [
-						'per_page' => (string) max( 1, min( 12, $count ) ),
-						'orderby'  => 'date',
-						'order'    => 'desc',
-					];
-					$slug  = self::clean_slug( $category );
-					if ( '' !== $slug ) {
-						$query['category'] = $slug;
-					}
-					$list = self::stored( 'latest', $query );
+					$list = self::stored( 'latest', self::latest_query( $count, $category ) );
 				} else {
 					$list = self::stored( 'product', [ 'include' => (string) $id ] );
 				}
@@ -278,24 +318,23 @@ final class Store {
 	public static function on_store_host( string $url ): bool {
 		$parts  = (array) wp_parse_url( $url );
 		$scheme = strtolower( (string) ( $parts['scheme'] ?? '' ) );
-		$host   = strtolower( (string) ( $parts['host'] ?? '' ) ) . ( isset( $parts['port'] ) ? ':' . (int) $parts['port'] : '' );
-		return ( 'https' === $scheme || ( 'http' === $scheme && self::allow_http() ) ) && '' !== self::host() && self::host() === $host;
+		return ( 'https' === $scheme || ( 'http' === $scheme && self::allow_http() ) ) && '' !== self::host() && self::host() === self::authority( $parts );
 	}
 
 	/**
 	 * The short form used by the picker and the ability.
 	 *
-	 * @param array<string, mixed> $p Normalized product.
+	 * @param array<string, mixed> $product Normalized product.
 	 * @return array{id:int, name:string, price:string, url:string, image:string, on_sale:bool}
 	 */
-	public static function brief( array $p ): array {
+	public static function brief( array $product ): array {
 		return [
-			'id'      => (int) $p['id'],
-			'name'    => (string) $p['name'],
-			'price'   => (string) $p['price'],
-			'url'     => (string) $p['url'],
-			'image'   => (string) $p['image'],
-			'on_sale' => (bool) $p['on_sale'],
+			'id'      => (int) $product['id'],
+			'name'    => (string) $product['name'],
+			'price'   => (string) $product['price'],
+			'url'     => (string) $product['url'],
+			'image'   => (string) $product['image'],
+			'on_sale' => (bool) $product['on_sale'],
 		];
 	}
 
@@ -333,7 +372,7 @@ final class Store {
 		$out['ok']      = null !== $products;
 		$out['name']    = is_array( $root ) && isset( $root['name'] ) ? self::text( $root['name'], 80 ) : '';
 		$out['checked'] = time();
-		set_transient( $key, $out, $out['ok'] ? 10 * MINUTE_IN_SECONDS : MINUTE_IN_SECONDS );
+		set_transient( $key, $out, $out['ok'] ? self::STATUS_TTL_OK : self::STATUS_TTL_DOWN );
 		return $out;
 	}
 
@@ -480,9 +519,9 @@ final class Store {
 		$response = wp_remote_get(
 			$url,
 			[
-				'timeout'             => 5,
+				'timeout'             => self::REQUEST_TIMEOUT,
 				'redirection'         => 0,
-				'user-agent'          => 'CrazyLinks/' . ( defined( 'CRAZYLINKS_VERSION' ) ? CRAZYLINKS_VERSION : '1' ),
+				'user-agent'          => 'CrazyLinks/' . CRAZYLINKS_VERSION,
 				'headers'             => [ 'Accept' => 'application/json' ],
 				'reject_unsafe_urls'  => ! self::allow_http(),
 				'limit_response_size' => 2 * MB_IN_BYTES,
@@ -516,47 +555,67 @@ final class Store {
 	 * One Store API product into the plugin's shape; null when it lacks an id, a name or a valid
 	 * product page on the store's own host.
 	 *
-	 * @param array<mixed> $p Store API product.
+	 * @param array<mixed> $product Store API product.
 	 * @return array<string, mixed>|null
 	 */
-	public static function normalize( array $p ): ?array {
-		$id   = isset( $p['id'] ) && is_numeric( $p['id'] ) ? (int) $p['id'] : 0;
-		$name = self::text( $p['name'] ?? '', 200 );
-		$url  = self::store_url_for( (string) ( $p['permalink'] ?? '' ) );
+	private static function normalize( array $product ): ?array {
+		$id   = isset( $product['id'] ) && is_numeric( $product['id'] ) ? (int) $product['id'] : 0;
+		$name = self::text( $product['name'] ?? '', 200 );
+		$url  = self::store_url_for( (string) ( $product['permalink'] ?? '' ) );
 		if ( $id <= 0 || '' === $name || '' === $url ) {
 			return null;
 		}
 		$image  = '';
-		$images = isset( $p['images'] ) && is_array( $p['images'] ) ? $p['images'] : [];
+		$images = isset( $product['images'] ) && is_array( $product['images'] ) ? $product['images'] : [];
 		if ( isset( $images[0]['src'] ) && is_string( $images[0]['src'] ) ) {
 			$image = self::https_url( $images[0]['src'] );
 		}
-		$prices = isset( $p['prices'] ) && is_array( $p['prices'] ) ? $p['prices'] : [];
-		$minor  = isset( $prices['currency_minor_unit'] ) && is_numeric( $prices['currency_minor_unit'] ) ? max( 0, min( 4, (int) $prices['currency_minor_unit'] ) ) : 2;
-		$fmt    = static function ( $value ) use ( $prices, $minor ): array {
-			if ( ( ! is_string( $value ) && ! is_int( $value ) ) || ! preg_match( '/^\d{1,12}$/', (string) $value ) ) {
-				return [ '', '' ];
-			}
-			$number = number_format( (int) $value / ( 10 ** $minor ), $minor, self::symbol( $prices['currency_decimal_separator'] ?? '.', '.' ), self::symbol( $prices['currency_thousand_separator'] ?? ',', ',' ) );
-			return [ $number, self::text( $prices['currency_prefix'] ?? '', 8, false ) . $number . self::text( $prices['currency_suffix'] ?? '', 8, false ) ];
-		};
-		$range  = isset( $prices['price_range'] ) && is_array( $prices['price_range'] ) ? $prices['price_range'] : [];
-		$from   = isset( $range['min_amount'], $range['max_amount'] ) && (string) $range['min_amount'] !== (string) $range['max_amount'] && preg_match( '/^\d{1,12}$/', (string) $range['min_amount'] );
-		$price  = $fmt( $from ? $range['min_amount'] : ( $prices['price'] ?? null ) );
-		$on     = ! empty( $p['on_sale'] ) && ! $from;
-		$reg    = $on ? $fmt( $prices['regular_price'] ?? null ) : [ '', '' ];
-		$on     = $on && '' !== $reg[1] && $reg[1] !== $price[1];
+		$prices   = isset( $product['prices'] ) && is_array( $product['prices'] ) ? $product['prices'] : [];
+		$range    = isset( $prices['price_range'] ) && is_array( $prices['price_range'] ) ? $prices['price_range'] : [];
+		$is_range = isset( $range['min_amount'], $range['max_amount'] )
+			&& (string) $range['min_amount'] !== (string) $range['max_amount']
+			&& preg_match( self::MINOR_AMOUNT, (string) $range['min_amount'] );
+		$price    = self::format_price( $is_range ? $range['min_amount'] : ( $prices['price'] ?? null ), $prices );
+		// A sale shows the regular price only when there is one and it differs from the current price.
+		$on_sale = ! empty( $product['on_sale'] ) && ! $is_range;
+		$regular = $on_sale ? self::format_price( $prices['regular_price'] ?? null, $prices ) : self::format_price( null, $prices );
+		$on_sale = $on_sale && '' !== $regular['display'] && $regular['display'] !== $price['display'];
 		return [
 			'id'            => $id,
 			'name'          => $name,
 			'url'           => $url,
 			'image'         => $image,
-			'price'         => $price[1],
-			'amount'        => $price[0],
+			'price'         => $price['display'],
+			'amount'        => $price['amount'],
 			'currency'      => strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $prices['currency_code'] ?? '' ) ) ?? '' ),
-			'regular_price' => $on ? $reg[1] : '',
-			'on_sale'       => $on,
-			'price_from'    => (bool) $from,
+			'regular_price' => $on_sale ? $regular['display'] : '',
+			'on_sale'       => $on_sale,
+			'price_from'    => (bool) $is_range,
+		];
+	}
+
+	/**
+	 * Formats a Store API amount (an integer in minor units) with the store's own separators and
+	 * currency affixes. Both values are '' when the amount is not a plain number.
+	 *
+	 * @param mixed        $value  Amount in minor units.
+	 * @param array<mixed> $prices The product's `prices` object.
+	 * @return array{amount:string, display:string} The number alone, and with the currency symbol.
+	 */
+	private static function format_price( $value, array $prices ): array {
+		if ( ( ! is_string( $value ) && ! is_int( $value ) ) || ! preg_match( self::MINOR_AMOUNT, (string) $value ) ) {
+			return [
+				'amount'  => '',
+				'display' => '',
+			];
+		}
+		$decimals  = isset( $prices['currency_minor_unit'] ) && is_numeric( $prices['currency_minor_unit'] ) ? max( 0, min( 4, (int) $prices['currency_minor_unit'] ) ) : 2;
+		$decimal   = self::symbol( $prices['currency_decimal_separator'] ?? '.', '.' );
+		$thousands = self::symbol( $prices['currency_thousand_separator'] ?? ',', ',' );
+		$amount    = number_format( (int) $value / ( 10 ** $decimals ), $decimals, $decimal, $thousands );
+		return [
+			'amount'  => $amount,
+			'display' => self::text( $prices['currency_prefix'] ?? '', 8, false ) . $amount . self::text( $prices['currency_suffix'] ?? '', 8, false ),
 		];
 	}
 
@@ -577,7 +636,7 @@ final class Store {
 			// Currency affixes keep one space on the side the store gave it (wp_strip_all_tags trims).
 			$text = ( preg_match( '/^\s/u', $value ) ? ' ' : '' ) . $text . ( preg_match( '/\s$/u', $value ) ? ' ' : '' );
 		}
-		return function_exists( 'mb_substr' ) ? mb_substr( $text, 0, $max ) : substr( $text, 0, $max );
+		return mb_substr( $text, 0, $max );
 	}
 
 	/**
@@ -623,7 +682,7 @@ final class Store {
 		if ( ! empty( $parts['user'] ) || ! empty( $parts['pass'] ) || empty( $parts['host'] ) ) {
 			return false;
 		}
-		$key = strtolower( (string) $parts['scheme'] ) . '://' . strtolower( (string) $parts['host'] ) . ( isset( $parts['port'] ) ? ':' . (int) $parts['port'] : '' );
+		$key = strtolower( (string) $parts['scheme'] ) . '://' . self::authority( $parts );
 		if ( ! isset( $hosts[ $key ] ) ) {
 			$hosts[ $key ] = false !== wp_http_validate_url( $key . '/' );
 		}
@@ -674,24 +733,24 @@ final class Store {
 	/**
 	 * Normalizes a WooCommerce product object.
 	 *
-	 * @param \WC_Product $p Product.
+	 * @param \WC_Product $product Product.
 	 * @return array<string, mixed>
 	 */
-	private static function from_wc( \WC_Product $p ): array {
-		$image = (int) $p->get_image_id() > 0 ? (string) wp_get_attachment_image_url( (int) $p->get_image_id(), 'large' ) : '';
-		$plain = static fn( string $html ): string => trim( html_entity_decode( wp_strip_all_tags( $html ), ENT_QUOTES, 'UTF-8' ) );
-		$on    = $p->is_on_sale() && '' !== (string) $p->get_regular_price();
+	private static function from_wc( \WC_Product $product ): array {
+		$image   = (int) $product->get_image_id() > 0 ? (string) wp_get_attachment_image_url( (int) $product->get_image_id(), 'large' ) : '';
+		$plain   = static fn( string $html ): string => trim( html_entity_decode( wp_strip_all_tags( $html ), ENT_QUOTES, 'UTF-8' ) );
+		$on_sale = $product->is_on_sale() && '' !== (string) $product->get_regular_price();
 		return [
-			'id'            => (int) $p->get_id(),
-			'name'          => self::text( $p->get_name(), 200 ),
-			'url'           => esc_url_raw( (string) get_permalink( $p->get_id() ) ),
+			'id'            => (int) $product->get_id(),
+			'name'          => self::text( $product->get_name(), 200 ),
+			'url'           => esc_url_raw( (string) get_permalink( $product->get_id() ) ),
 			'image'         => esc_url_raw( $image ),
-			'price'         => $plain( wc_price( (float) $p->get_price() ) ),
-			'amount'        => (string) $p->get_price(),
+			'price'         => $plain( wc_price( (float) $product->get_price() ) ),
+			'amount'        => (string) $product->get_price(),
 			'currency'      => (string) get_woocommerce_currency(),
-			'regular_price' => $on ? $plain( wc_price( (float) $p->get_regular_price() ) ) : '',
-			'on_sale'       => $on,
-			'price_from'    => $p->is_type( 'variable' ),
+			'regular_price' => $on_sale ? $plain( wc_price( (float) $product->get_regular_price() ) ) : '',
+			'on_sale'       => $on_sale,
+			'price_from'    => $product->is_type( 'variable' ),
 		];
 	}
 }

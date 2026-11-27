@@ -5,12 +5,15 @@ import { __ } from '@wordpress/i18n';
 import { Button, Modal, TextControl } from '@wordpress/components';
 import { useState } from '@wordpress/element';
 import { useEditor, useEditorDispatch } from '../hooks';
+import { classes } from '../lib/classes';
 import { savePage } from '../lib/save';
+import { primaryShortcut } from '../lib/shortcut';
 import { boot } from '../boot';
 
-const LIVE = [ 'publish', 'future', 'private' ];
+/** Statuses under which the page has a public address to view and "Update" replaces "Publish". */
+const LIVE_STATUSES = [ 'publish', 'future', 'private' ];
 
-export function statusLabel( status: string ): string {
+function statusLabel( status: string ): string {
 	switch ( status ) {
 		case 'publish':
 			return __( 'Published', 'crazylinks' );
@@ -41,11 +44,12 @@ export default function TopBar( {
 	const redoable = useEditor( ( s ) => s.canRedo(), [] );
 	const warnings = useEditor( ( s ) => s.getWarnings(), [] );
 	const { setMeta, undo, redo } = useEditorDispatch();
-	const [ pending, setPending ] = useState< string | null | undefined >(
-		undefined
-	);
+	// The save waiting for the person to confirm the warnings, or null when none is.
+	const [ awaitingConfirm, setAwaitingConfirm ] = useState< {
+		status?: string;
+	} | null >( null );
 	const data = boot();
-	const live = LIVE.includes( meta.status );
+	const live = LIVE_STATUSES.includes( meta.status );
 	const busy = save.status === 'saving';
 	const canPublish = data.caps.publish_crazylinks_pages;
 
@@ -59,7 +63,7 @@ export default function TopBar( {
 	// Publishing or updating a live page with warnings asks first (drafts save without a prompt).
 	const publish = ( status?: string ) => {
 		if ( warnings.length > 0 ) {
-			setPending( status ?? null );
+			setAwaitingConfirm( { status } );
 			return;
 		}
 		savePage( status );
@@ -110,7 +114,7 @@ export default function TopBar( {
 				<Button
 					icon="undo"
 					label={ __( 'Undo', 'crazylinks' ) }
-					shortcut="⌘Z"
+					shortcut={ primaryShortcut( 'Z' ) }
 					disabled={ ! undoable }
 					accessibleWhenDisabled
 					onClick={ () => undo() }
@@ -118,7 +122,7 @@ export default function TopBar( {
 				<Button
 					icon="redo"
 					label={ __( 'Redo', 'crazylinks' ) }
-					shortcut="⇧⌘Z"
+					shortcut={ primaryShortcut( 'Z', true ) }
 					disabled={ ! redoable }
 					accessibleWhenDisabled
 					onClick={ () => redo() }
@@ -136,7 +140,10 @@ export default function TopBar( {
 				/>
 			</div>
 			<span
-				className={ `cl-topbar__note${ save.status === 'error' ? ' is-error' : '' }` }
+				className={ classes(
+					'cl-topbar__note',
+					save.status === 'error' && 'is-error'
+				) }
 				role="status"
 				aria-live="polite"
 			>
@@ -209,36 +216,35 @@ export default function TopBar( {
 					</>
 				) }
 			</div>
-			{ pending !== undefined && (
+			{ awaitingConfirm && (
 				<Modal
 					title={ __( 'Some things need a look', 'crazylinks' ) }
-					onRequestClose={ () => setPending( undefined ) }
-					className="cl-confirm"
+					onRequestClose={ () => setAwaitingConfirm( null ) }
+					className="cl-publish-confirm"
 				>
 					<p>
 						{ __(
-							'These images have no alternative text, so people using a screen reader will miss them:',
+							'People using a screen reader may miss parts of this page:',
 							'crazylinks'
 						) }
 					</p>
-					<ul className="cl-confirm__list">
+					<ul className="cl-publish-confirm__list">
 						{ warnings.map( ( w, i ) => (
 							<li key={ i }>{ w.message }</li>
 						) ) }
 					</ul>
-					<div className="cl-confirm__actions">
+					<div className="cl-publish-confirm__actions">
 						<Button
 							variant="tertiary"
-							onClick={ () => setPending( undefined ) }
+							onClick={ () => setAwaitingConfirm( null ) }
 						>
 							{ __( 'Go back and fix', 'crazylinks' ) }
 						</Button>
 						<Button
 							variant="primary"
 							onClick={ () => {
-								const status = pending ?? undefined;
-								setPending( undefined );
-								savePage( status );
+								setAwaitingConfirm( null );
+								savePage( awaitingConfirm.status );
 							} }
 						>
 							{ confirmLabel }

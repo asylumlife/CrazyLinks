@@ -31,11 +31,12 @@ final class ClickRedirect {
 	public const TYPES = [ 'link', 'image', 'payment', 'socials', 'product' ];
 
 	/**
-	 * Sends the response and exits.
+	 * Sends the redirect and exits. For an unknown page, block or item it marks the request as a
+	 * 404 and returns, so WordPress renders the theme's 404 template.
 	 *
 	 * @param mixed  $post     Queried object.
 	 * @param string $block_id Block id from the URL.
-	 * @param string $item_id  Item id from the URL (social icons), or ''.
+	 * @param string $item_id  Item id from the URL (a social icon or a listed product), or ''.
 	 */
 	public function handle( $post, string $block_id, string $item_id = '' ): void {
 		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
@@ -54,7 +55,7 @@ final class ClickRedirect {
 			global $wp_query;
 			$wp_query->set_404();
 			status_header( 404 );
-			return; // WordPress renders the theme's 404 template.
+			return;
 		}
 		header( 'Referrer-Policy: no-referrer-when-downgrade' );
 		if ( wp_redirect( $result['location'], 302, 'CrazyLinks' ) ) { // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- Target is a stored, policy-checked URL.
@@ -68,7 +69,7 @@ final class ClickRedirect {
 	 * @param \WP_Post|null $post     Page.
 	 * @param string        $block_id Block id.
 	 * @param Visitor       $visitor  Visitor.
-	 * @param string        $item_id  Item id inside the block (social icons), or ''.
+	 * @param string        $item_id  Item id inside the block (a social icon or a listed product), or ''.
 	 * @return array{status:int, location:string, event:string}
 	 */
 	public function resolve( ?\WP_Post $post, string $block_id, Visitor $visitor, string $item_id = '' ): array {
@@ -151,9 +152,10 @@ final class ClickRedirect {
 	 * @param \WP_Post             $post    Page.
 	 * @param array<string, mixed> $block   Block.
 	 * @param Visitor              $visitor Visitor.
-	 * @param string               $item_id Item id (social icons), '' otherwise.
+	 * @param string               $item_id Item id (a social icon or a listed product), or ''.
+	 * @return string logged | untracked | disabled | filtered | rate-limited | duplicate | error
 	 */
-	private function maybe_log( \WP_Post $post, array $block, Visitor $visitor, string $item_id = '' ): string {
+	private function maybe_log( \WP_Post $post, array $block, Visitor $visitor, string $item_id ): string {
 		if ( empty( $block['tracking'] ) ) {
 			return 'untracked';
 		}

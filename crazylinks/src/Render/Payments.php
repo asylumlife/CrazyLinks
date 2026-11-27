@@ -119,13 +119,7 @@ final class Payments {
 		if ( ! str_starts_with( strtolower( $url ), 'https://' ) ) {
 			return false;
 		}
-		$host = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
-		foreach ( $hosts as $allowed ) {
-			if ( $host === $allowed || str_ends_with( $host, '.' . $allowed ) ) {
-				return true;
-			}
-		}
-		return false;
+		return UrlPolicy::host_matches( $url, $hosts );
 	}
 
 	/**

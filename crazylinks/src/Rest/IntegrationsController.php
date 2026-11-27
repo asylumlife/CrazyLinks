@@ -27,6 +27,11 @@ defined( 'ABSPATH' ) || exit;
 final class IntegrationsController {
 
 	/**
+	 * Wrong webhook keys one IP may send per hour before it is refused outright.
+	 */
+	private const BAD_KEYS_PER_HOUR = 10;
+
+	/**
 	 * Routes.
 	 */
 	public function register_routes(): void {
@@ -34,13 +39,15 @@ final class IntegrationsController {
 			RestRoutes::NS,
 			'/integrations/audiences',
 			[
-				'methods'             => \WP_REST_Server::READABLE,
-				'callback'            => [ $this, 'audiences' ],
-				'permission_callback' => [ $this, 'admin_check' ],
-				'args'                => [
-					'refresh' => [
-						'type'    => 'boolean',
-						'default' => false,
+				[
+					'methods'             => \WP_REST_Server::READABLE,
+					'callback'            => [ $this, 'audiences' ],
+					'permission_callback' => [ $this, 'admin_check' ],
+					'args'                => [
+						'refresh' => [
+							'type'    => 'boolean',
+							'default' => false,
+						],
 					],
 				],
 			]
@@ -69,10 +76,7 @@ final class IntegrationsController {
 	 * @return true|\WP_Error
 	 */
 	public function admin_check() {
-		if ( current_user_can( 'manage_crazylinks' ) ) {
-			return true;
-		}
-		return new \WP_Error( 'crazylinks_forbidden', __( 'Sorry, you are not allowed to do that.', 'crazylinks' ), [ 'status' => rest_authorization_required_code() ] );
+		return current_user_can( 'manage_crazylinks' ) ? true : RestRoutes::forbidden();
 	}
 
 	/**
@@ -84,13 +88,19 @@ final class IntegrationsController {
 	public function audiences( $request ) {
 		$connected = Integrations::mailchimp_connected();
 		$list      = $connected ? Integrations::audiences( (bool) $request['refresh'] ) : [];
+		$error     = '';
+		if ( ! $connected ) {
+			$error = __( 'Mailchimp is not connected. Add the API key under CrazyLinks → Settings → Integrations.', 'crazylinks' );
+		} elseif ( is_wp_error( $list ) ) {
+			$error = $list->get_error_message();
+		}
 		return rest_ensure_response(
 			[
 				'adapter'   => Integrations::adapter_id(),
 				'available' => $connected && ! is_wp_error( $list ),
 				'default'   => Integrations::default_audience(),
 				'audiences' => is_wp_error( $list ) ? [] : $list,
-				'error'     => is_wp_error( $list ) ? $list->get_error_message() : ( $connected ? '' : __( 'Mailchimp is not connected. Add the API key under CrazyLinks → Settings → Integrations.', 'crazylinks' ) ),
+				'error'     => $error,
 			]
 		);
 	}
@@ -113,14 +123,14 @@ final class IntegrationsController {
 	public function webhook( $request ) {
 		$ip = Visitor::from_request()->abuse_key();
 		if ( ! RateLimiter::hit( 'mc_webhook', $ip, self::rate_limit(), MINUTE_IN_SECONDS ) ) {
-			return new \WP_Error( 'crazylinks_limited', __( 'Too many requests.', 'crazylinks' ), [ 'status' => 429 ] );
+			return self::limited();
 		}
 		$given  = $request->get_param( 'key' );
 		$secret = (string) get_option( Integrations::SECRET_OPTION, '' );
 		if ( '' === $secret || ! is_string( $given ) || ! hash_equals( $secret, $given ) ) {
-			// Guessing is slowed further: 10 wrong keys per IP per hour.
-			if ( ! RateLimiter::hit( 'mc_webhook_bad', $ip, 10, HOUR_IN_SECONDS ) ) {
-				return new \WP_Error( 'crazylinks_limited', __( 'Too many requests.', 'crazylinks' ), [ 'status' => 429 ] );
+			// Guessing is slowed further with a much lower limit for wrong keys.
+			if ( ! RateLimiter::hit( 'mc_webhook_bad', $ip, self::BAD_KEYS_PER_HOUR, HOUR_IN_SECONDS ) ) {
+				return self::limited();
 			}
 			return new \WP_Error( 'crazylinks_forbidden', __( 'Sorry, you are not allowed to do that.', 'crazylinks' ), [ 'status' => 403 ] );
 		}
@@ -135,6 +145,13 @@ final class IntegrationsController {
 		}
 		Sync::apply_webhook( $event );
 		return rest_ensure_response( [ 'ok' => true ] ); // Same answer whether or not the address is known.
+	}
+
+	/**
+	 * The 429 answer for a rate-limited webhook caller.
+	 */
+	private static function limited(): \WP_Error {
+		return new \WP_Error( 'crazylinks_limited', __( 'Too many requests.', 'crazylinks' ), [ 'status' => 429 ] );
 	}
 
 	/**

@@ -3,6 +3,9 @@
  */
 import type { AnalyticsSummary } from './api';
 
+/** The date range the click counts in the block list cover. */
+export const CLICKS_RANGE = '30d';
+
 /**
  * Per-block click counts from a summary.
  *

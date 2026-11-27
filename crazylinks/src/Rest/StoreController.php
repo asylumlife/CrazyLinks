@@ -25,26 +25,28 @@ final class StoreController {
 			RestRoutes::NS,
 			'/store/products',
 			[
-				'methods'             => \WP_REST_Server::READABLE,
-				'callback'            => [ $this, 'get_items' ],
-				'permission_callback' => [ $this, 'permissions_check' ],
-				'args'                => [
-					'search'   => [
-						'type'              => 'string',
-						'default'           => '',
-						'maxLength'         => 100,
-						'sanitize_callback' => static fn( $value ) => sanitize_text_field( (string) $value ),
-					],
-					'per_page' => [
-						'type'    => 'integer',
-						'default' => 10,
-						'minimum' => 1,
-						'maximum' => 50,
-					],
-					'include'  => [
-						'type'    => 'integer',
-						'default' => 0,
-						'minimum' => 0,
+				[
+					'methods'             => \WP_REST_Server::READABLE,
+					'callback'            => [ $this, 'get_items' ],
+					'permission_callback' => [ $this, 'permissions_check' ],
+					'args'                => [
+						'search'   => [
+							'type'              => 'string',
+							'default'           => '',
+							'maxLength'         => 100,
+							'sanitize_callback' => static fn( $value ) => sanitize_text_field( (string) $value ),
+						],
+						'per_page' => [
+							'type'    => 'integer',
+							'default' => 10,
+							'minimum' => 1,
+							'maximum' => 50,
+						],
+						'include'  => [
+							'type'    => 'integer',
+							'default' => 0,
+							'minimum' => 0,
+						],
 					],
 				],
 			]
@@ -57,10 +59,7 @@ final class StoreController {
 	 * @return true|\WP_Error
 	 */
 	public function permissions_check() {
-		if ( current_user_can( 'edit_crazylinks_pages' ) ) {
-			return true;
-		}
-		return new \WP_Error( 'crazylinks_forbidden', __( 'Sorry, you are not allowed to do that.', 'crazylinks' ), [ 'status' => rest_authorization_required_code() ] );
+		return current_user_can( 'edit_crazylinks_pages' ) ? true : RestRoutes::forbidden();
 	}
 
 	/**

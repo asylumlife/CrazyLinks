@@ -10,9 +10,12 @@ import {
 	ToggleControl,
 } from '@wordpress/components';
 import type { JsonValue } from '../types';
+import FieldError from './FieldError';
 import MediaField from './MediaField';
 import FocalPicker from './FocalPicker';
 import { useEditor, useEditorDispatch } from '../hooks';
+import { errorFor } from '../lib/errors';
+import { PROFILE_BIO_MAX, PROFILE_NAME_MAX } from '../lib/limits';
 
 export default function ProfileCard() {
 	const profile = useEditor( ( s ) => s.getDoc().profile, [] );
@@ -23,8 +26,11 @@ export default function ProfileCard() {
 		setSection( 'profile', [ key ], value );
 	const str = ( key: string ) =>
 		typeof profile[ key ] === 'string' ? ( profile[ key ] as string ) : '';
-	const err = ( key: string ) =>
-		errors.find( ( e ) => e.field === `/profile/${ key }` )?.message;
+	const errorAt = ( key: string ) => errorFor( errors, `/profile/${ key }` );
+	const nameError = errorAt( 'name' );
+	const nameWarning = warnings.find(
+		( w ) => w.field === '/profile/name'
+	)?.message;
 	const style = str( 'avatar_style' ) || 'circle';
 	const layout = str( 'header_layout' ) || 'centered';
 	const bio = str( 'bio' );
@@ -35,27 +41,29 @@ export default function ProfileCard() {
 			initialOpen={ ! profile.name }
 			className="cl-profile"
 		>
-			<TextControl
-				__next40pxDefaultSize
-				__nextHasNoMarginBottom
-				label={ __( 'Name', 'crazylinks' ) }
-				value={ str( 'name' ) }
-				maxLength={ 80 }
-				onChange={ ( v: string ) => set( 'name', v || undefined ) }
-				help={
-					err( 'name' ) ??
-					warnings.find( ( w ) => w.field === '/profile/name' )
-						?.message
-				}
-			/>
-			<TextareaControl
-				__nextHasNoMarginBottom
-				label={ __( 'Bio', 'crazylinks' ) }
-				value={ bio }
-				rows={ 3 }
-				onChange={ ( v: string ) => set( 'bio', v || undefined ) }
-				help={ `${ bio.length } / 280` }
-			/>
+			<div className="cl-field">
+				<TextControl
+					__next40pxDefaultSize
+					__nextHasNoMarginBottom
+					label={ __( 'Name', 'crazylinks' ) }
+					value={ str( 'name' ) }
+					maxLength={ PROFILE_NAME_MAX }
+					onChange={ ( v: string ) => set( 'name', v || undefined ) }
+					help={ nameError ? undefined : nameWarning }
+				/>
+				<FieldError message={ nameError } />
+			</div>
+			<div className="cl-field">
+				<TextareaControl
+					__nextHasNoMarginBottom
+					label={ __( 'Bio', 'crazylinks' ) }
+					value={ bio }
+					rows={ 3 }
+					onChange={ ( v: string ) => set( 'bio', v || undefined ) }
+					help={ `${ bio.length } / ${ PROFILE_BIO_MAX }` }
+				/>
+				<FieldError message={ errorAt( 'bio' ) } />
+			</div>
 			<MediaField
 				label={ __( 'Avatar', 'crazylinks' ) }
 				value={

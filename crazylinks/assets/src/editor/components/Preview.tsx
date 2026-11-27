@@ -5,7 +5,7 @@
  */
 import { __, _n, sprintf } from '@wordpress/i18n';
 import { Button, Spinner } from '@wordpress/components';
-import { useEffect, useRef, useState } from '@wordpress/element';
+import { useEffect, useMemo, useRef, useState } from '@wordpress/element';
 import { useEditor, useEditorDispatch } from '../hooks';
 import { withoutBlocks } from '../store/doc';
 import { api } from '../lib/api';
@@ -53,6 +53,36 @@ function previewNote(
 	);
 }
 
+/** Time the block list needs to open the selected block before it can be scrolled into view. */
+const SCROLL_TO_BLOCK_DELAY_MS = 50;
+
+/** Shape of a block id as the preview bridge sends it (26 characters). */
+const BLOCK_ID = /^[0-9A-Z]{26}$/;
+
+/**
+ * Ids of the blocks a list of errors points at.
+ *
+ * @param errors Mapped errors.
+ */
+function blockIdsOf( errors: Array< { blockId?: string } > ): Set< string > {
+	return new Set(
+		errors
+			.map( ( e ) => e.blockId )
+			.filter( ( blockId ): blockId is string => !! blockId )
+	);
+}
+
+/**
+ * Whether a preview request ended because a newer one replaced it (api-fetch reports an aborted
+ * request as `fetch_error`).
+ *
+ * @param e Thrown value.
+ */
+function isAborted( e: unknown ): boolean {
+	const err = e as { name?: string; code?: string } | null;
+	return err?.name === 'AbortError' || err?.code === 'fetch_error';
+}
+
 export default function Preview() {
 	const doc = useEditor( ( s ) => s.getDoc(), [] );
 	const local = useEditor( ( s ) => s.getLocalErrors(), [] );
@@ -67,26 +97,17 @@ export default function Preview() {
 	const frame = useRef< HTMLIFrameElement >( null );
 	const scroll = useRef( 0 );
 	const abort = useRef< AbortController | null >( null );
-	const incompleteCount = new Set( local.map( ( e ) => e.blockId ) ).size;
+	// Blocks with missing required fields are left out of the preview until they are complete.
+	const incomplete = useMemo( () => blockIdsOf( local ), [ local ] );
 
 	useEffect( () => {
 		const timer = window.setTimeout( () => {
-			const incomplete = new Set(
-				local
-					.map( ( e ) => e.blockId )
-					.filter( ( x ): x is string => !! x )
-			);
 			const sent = withoutBlocks( doc, incomplete );
 			abort.current?.abort();
-			const controller =
-				typeof AbortController !== 'undefined'
-					? new AbortController()
-					: null;
+			const controller = new AbortController();
 			abort.current = controller;
 			setLoading( true );
-			const signal = controller?.signal;
-			const isAbort = ( e: { name?: string; code?: string } ) =>
-				e?.name === 'AbortError' || e?.code === 'fetch_error';
+			const { signal } = controller;
 			( async () => {
 				try {
 					const res = await api.preview( sent, id, signal );
@@ -95,18 +116,14 @@ export default function Preview() {
 					setSkipped( 0 );
 					setErrors( [] );
 				} catch ( e ) {
-					if ( isAbort( e as { name?: string } ) ) {
+					if ( isAborted( e ) ) {
 						return;
 					}
 					const mapped = mapErrors( errorsFromResponse( e ), sent );
 					setErrors( mapped );
 					setProblems( mapped.length );
 					// Keep the rest of the page visible: render again without the blocks that failed.
-					const bad = new Set(
-						mapped
-							.map( ( m ) => m.blockId )
-							.filter( ( x ): x is string => !! x )
-					);
+					const bad = blockIdsOf( mapped );
 					if ( bad.size > 0 && mapped.every( ( m ) => m.blockId ) ) {
 						try {
 							const res = await api.preview(
@@ -117,6 +134,10 @@ export default function Preview() {
 							setSrcDoc( buildSrcDoc( res, scroll.current ) );
 							setSkipped( bad.size );
 						} catch {
+							// A newer request replaced this one: its result is the one to show.
+							if ( signal.aborted ) {
+								return;
+							}
 							setSkipped( 0 );
 						}
 					} else {
@@ -130,7 +151,7 @@ export default function Preview() {
 			} )();
 		}, PREVIEW_DEBOUNCE_MS );
 		return () => window.clearTimeout( timer );
-		// eslint-disable-next-line react-hooks/exhaustive-deps
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- `incomplete` is derived from `doc`, and the store's action creators are stable.
 	}, [ doc, id ] );
 
 	useEffect( () => {
@@ -152,14 +173,14 @@ export default function Preview() {
 			} else if (
 				data.type === 'select' &&
 				typeof data.id === 'string' &&
-				/^[0-9A-Z]{26}$/.test( data.id )
+				BLOCK_ID.test( data.id )
 			) {
 				selectBlock( data.id );
 				window.setTimeout( () => {
 					document
 						.querySelector( `[data-block-id="${ data.id }"]` )
 						?.scrollIntoView( { block: 'nearest' } );
-				}, 50 );
+				}, SCROLL_TO_BLOCK_DELAY_MS );
 			}
 		};
 		window.addEventListener( 'message', onMessage );
@@ -205,9 +226,9 @@ export default function Preview() {
 					{ loading && <Spinner /> }
 				</span>
 			</div>
-			{ ( problems > 0 || incompleteCount > 0 ) && (
+			{ ( problems > 0 || incomplete.size > 0 ) && (
 				<p className="cl-preview__note" role="status">
-					{ previewNote( problems, skipped, incompleteCount ) }
+					{ previewNote( problems, skipped, incomplete.size ) }
 				</p>
 			) }
 			<div className={ `cl-phone cl-phone--${ width }` }>

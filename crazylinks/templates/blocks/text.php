@@ -16,6 +16,6 @@ if ( '' === trim( $crazylinks_html ) ) {
 if ( ! str_contains( $crazylinks_html, '<p' ) ) {
 	$crazylinks_html = '<p>' . $crazylinks_html . '</p>';
 }
-$crazylinks_align = in_array( $props['align'] ?? '', [ 'left', 'center', 'right' ], true ) ? $props['align'] : 'center';
+$crazylinks_align = \CrazyLinks\Render\Renderer::choice( $props, 'align', [ 'left', 'center', 'right' ], 'center' );
 ?>
 <div class="cl-text cl-align-<?php echo esc_attr( $crazylinks_align ); ?>"><?php echo $crazylinks_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_kses above. ?></div>

@@ -14,12 +14,16 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Chart {
 
-	private const W = 720;
-	private const H = 240;
-	private const L = 44;
-	private const R = 12;
-	private const T = 12;
-	private const B = 30;
+	/**
+	 * Size of the drawing (SVG user units) and the padding around the plot area, which leaves room
+	 * for the axis labels.
+	 */
+	private const WIDTH      = 720;
+	private const HEIGHT     = 240;
+	private const PAD_LEFT   = 44;
+	private const PAD_RIGHT  = 12;
+	private const PAD_TOP    = 12;
+	private const PAD_BOTTOM = 30;
 
 	/**
 	 * A "nice" axis maximum at or above the value.
@@ -48,23 +52,23 @@ final class Chart {
 	public static function svg( array $series ): string {
 		$n    = count( $series );
 		$peak = 1;
-		foreach ( $series as $d ) {
-			$peak = max( $peak, (int) $d['views'], (int) $d['clicks'] );
+		foreach ( $series as $point ) {
+			$peak = max( $peak, (int) $point['views'], (int) $point['clicks'] );
 		}
 		$top    = self::nice_max( $peak );
-		$plot_w = self::W - self::L - self::R;
-		$plot_h = self::H - self::T - self::B;
-		$x      = static fn( int $i ): float => self::L + ( $n > 1 ? $i / ( $n - 1 ) : 0.5 ) * $plot_w;
-		$y      = static fn( int $v ): float => self::T + $plot_h - ( $v / $top ) * $plot_h;
+		$plot_w = self::WIDTH - self::PAD_LEFT - self::PAD_RIGHT;
+		$plot_h = self::HEIGHT - self::PAD_TOP - self::PAD_BOTTOM;
+		$x      = static fn( int $i ): float => self::PAD_LEFT + ( $n > 1 ? $i / ( $n - 1 ) : 0.5 ) * $plot_w;
+		$y      = static fn( int $v ): float => self::PAD_TOP + $plot_h - ( $v / $top ) * $plot_h;
 
 		$views  = [];
 		$clicks = [];
-		foreach ( array_values( $series ) as $i => $d ) {
-			$views[]  = round( $x( $i ), 1 ) . ',' . round( $y( (int) $d['views'] ), 1 );
-			$clicks[] = round( $x( $i ), 1 ) . ',' . round( $y( (int) $d['clicks'] ), 1 );
+		foreach ( array_values( $series ) as $i => $point ) {
+			$views[]  = round( $x( $i ), 1 ) . ',' . round( $y( (int) $point['views'] ), 1 );
+			$clicks[] = round( $x( $i ), 1 ) . ',' . round( $y( (int) $point['clicks'] ), 1 );
 		}
 
-		$out  = '<svg class="cl-chart" viewBox="0 0 ' . self::W . ' ' . self::H . '" role="img" aria-labelledby="cl-chart-title cl-chart-desc" preserveAspectRatio="xMidYMid meet">';
+		$out  = '<svg class="cl-chart" viewBox="0 0 ' . self::WIDTH . ' ' . self::HEIGHT . '" role="img" aria-labelledby="cl-chart-title cl-chart-desc" preserveAspectRatio="xMidYMid meet">';
 		$out .= '<title id="cl-chart-title">' . esc_html__( 'Daily page views and link clicks', 'crazylinks' ) . '</title>';
 		$out .= '<desc id="cl-chart-desc">' . esc_html(
 			sprintf(
@@ -76,19 +80,19 @@ final class Chart {
 			)
 		) . '</desc>';
 
-		foreach ( [ 0, 0.5, 1 ] as $f ) {
-			$value = (int) round( $top * $f );
+		foreach ( [ 0, 0.5, 1 ] as $fraction ) {
+			$value = (int) round( $top * $fraction );
 			$gy    = round( $y( $value ), 1 );
-			$out  .= '<line class="cl-chart__grid" x1="' . self::L . '" x2="' . ( self::W - self::R ) . '" y1="' . $gy . '" y2="' . $gy . '"/>';
-			$out  .= '<text class="cl-chart__label" x="' . ( self::L - 6 ) . '" y="' . ( $gy + 4 ) . '" text-anchor="end">' . esc_html( number_format_i18n( $value ) ) . '</text>';
+			$out  .= '<line class="cl-chart__grid" x1="' . self::PAD_LEFT . '" x2="' . ( self::WIDTH - self::PAD_RIGHT ) . '" y1="' . $gy . '" y2="' . $gy . '"/>';
+			$out  .= '<text class="cl-chart__label" x="' . ( self::PAD_LEFT - 6 ) . '" y="' . ( $gy + 4 ) . '" text-anchor="end">' . esc_html( number_format_i18n( $value ) ) . '</text>';
 		}
 		if ( $n ) {
 			$ticks = array_unique( [ 0, intdiv( $n - 1, 2 ), $n - 1 ] );
 			foreach ( $ticks as $i ) {
 				$anchor = 0 === $i ? 'start' : ( $n - 1 === $i ? 'end' : 'middle' );
-				$out   .= '<text class="cl-chart__label" x="' . round( $x( $i ), 1 ) . '" y="' . ( self::H - 8 ) . '" text-anchor="' . $anchor . '">' . esc_html( $series[ $i ]['date'] ) . '</text>';
+				$out   .= '<text class="cl-chart__label" x="' . round( $x( $i ), 1 ) . '" y="' . ( self::HEIGHT - 8 ) . '" text-anchor="' . $anchor . '">' . esc_html( $series[ $i ]['date'] ) . '</text>';
 			}
-			$base = self::T + $plot_h;
+			$base = self::PAD_TOP + $plot_h;
 			$out .= '<polygon class="cl-chart__area" points="' . round( $x( 0 ), 1 ) . ',' . $base . ' ' . implode( ' ', $views ) . ' ' . round( $x( $n - 1 ), 1 ) . ',' . $base . '"/>';
 			$out .= '<polyline class="cl-chart__line cl-chart__line--views" points="' . implode( ' ', $views ) . '"/>';
 			$out .= '<polyline class="cl-chart__line cl-chart__line--clicks" points="' . implode( ' ', $clicks ) . '"/>';

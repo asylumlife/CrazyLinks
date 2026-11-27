@@ -99,48 +99,19 @@ final class AiLog {
 	}
 
 	/**
-	 * Applied rows by revision id (for the history badge).
-	 *
-	 * @param int[] $revision_ids Revision ids.
-	 * @return array<int, array{source:string, model:string, user_id:int}>
-	 */
-	public static function by_revisions( array $revision_ids ): array {
-		global $wpdb;
-		$ids = array_values( array_filter( array_map( 'intval', $revision_ids ) ) );
-		if ( ! $ids ) {
-			return [];
-		}
-		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Plugin table bound with %i; the %d list is built from intval'd ids above.
-		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT revision_id, source, model, user_id FROM %i WHERE applied = 1 AND revision_id IN ({$placeholders})", array_merge( [ self::table() ], $ids ) ), ARRAY_A );
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, PluginCheck.Security.DirectDB.UnescapedDBParameter
-		$out = [];
-		foreach ( $rows as $row ) {
-			$out[ (int) $row['revision_id'] ] = [
-				'source'  => (string) $row['source'],
-				'model'   => (string) $row['model'],
-				'user_id' => (int) $row['user_id'],
-			];
-		}
-		return $out;
-	}
-
-	/**
-	 * Proposals and suggestions since a time (for the status screen).
+	 * Logged proposals and suggestions since a time, as shown on the status screen. Operations sent
+	 * by external agents and failed calls that used no tokens are not in this count, so it can be
+	 * lower than what the rate limiter has counted.
 	 *
 	 * @param int      $since   Unix time.
-	 * @param int|null $user_id Limit to one user.
+	 * @param int|null $user_id Limit to one user (null for the whole site).
 	 */
 	public static function count_since( int $since, ?int $user_id = null ): int {
 		global $wpdb;
 		$from = gmdate( 'Y-m-d H:i:s', $since );
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin table; status counts must be live.
-		if ( null === $user_id ) {
-			$n = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE created_at >= %s AND kind IN ('propose','suggest')", self::table(), $from ) );
-		} else {
-			$n = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE created_at >= %s AND user_id = %d AND kind IN ('propose','suggest')", self::table(), $from, $user_id ) );
-		}
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$user = (int) $user_id; // 0 switches the user condition off.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin table; status counts must be live.
+		$n = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE created_at >= %s AND kind IN ('propose','suggest') AND ( 0 = %d OR user_id = %d )", self::table(), $from, $user, $user ) );
 		return (int) $n;
 	}
 

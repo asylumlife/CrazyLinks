@@ -4,7 +4,7 @@
  *
  * @package CrazyLinks
  *
- * @var array<string, mixed>               $doc
+ * @var array<string, mixed>               $doc      The whole document; not used here, available to overriding templates.
  * @var \CrazyLinks\Render\Tokens          $tokens
  * @var \CrazyLinks\Render\RenderContext   $ctx
  * @var array<string, mixed>               $profile

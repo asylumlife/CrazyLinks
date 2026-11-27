@@ -20,7 +20,13 @@ $crazylinks_url    = $ctx->href( [ 'tracking' => false ], (string) ( $props['url
 $crazylinks_repeat = [];
 if ( 'weekly' === ( $props['repeat'] ?? 'none' ) ) {
 	// Weekly: count down to the next occurrence; during one, show the after-the-end text and link.
-	$crazylinks_repeat = \CrazyLinks\Render\Schedule::countdown_occurrences( $crazylinks_target, array_map( 'strval', (array) ( $props['repeat_days'] ?? [] ) ), (int) ( $props['live_minutes'] ?? 60 ), $ctx->now, $ctx->tz );
+	$crazylinks_repeat = \CrazyLinks\Render\Schedule::countdown_occurrences(
+		$crazylinks_target,
+		array_map( 'strval', (array) ( $props['repeat_days'] ?? [] ) ),
+		(int) ( $props['live_minutes'] ?? 60 ),
+		$ctx->now,
+		$ctx->tz
+	);
 	if ( ! $crazylinks_repeat ) {
 		return;
 	}
@@ -42,7 +48,8 @@ $crazylinks_units = [
 if ( $crazylinks_done && '' === $crazylinks_text && '' === $crazylinks_url ) {
 	return;
 }
-$crazylinks_size = in_array( $props['size'] ?? '', [ 'small', 'medium' ], true ) ? (string) $props['size'] : 'large';
+$crazylinks_size       = \CrazyLinks\Render\Renderer::choice( $props, 'size', [ 'small', 'medium' ], 'large' );
+$crazylinks_link_label = '' !== (string) ( $props['link_label'] ?? '' ) ? (string) $props['link_label'] : __( 'Continue', 'crazylinks' );
 // Upcoming occurrences as "start/end" Unix times, so a cached page rolls over without a reload.
 $crazylinks_list = implode( ',', array_map( static fn( $o ) => $o[0] . '/' . $o[1], $crazylinks_repeat ) );
 ?>
@@ -61,7 +68,7 @@ $crazylinks_list = implode( ',', array_map( static fn( $o ) => $o[0] . '/' . $o[
 	<div class="cl-countdown__done"<?php echo $crazylinks_done ? '' : ' hidden'; ?>>
 		<p class="cl-countdown__ended"><?php echo esc_html( '' !== $crazylinks_text ? $crazylinks_text : __( 'This countdown has ended.', 'crazylinks' ) ); ?></p>
 		<?php if ( '' !== $crazylinks_url ) : ?>
-			<a class="cl-link cl-countdown__link" href="<?php echo esc_url( $crazylinks_url, \CrazyLinks\Schema\UrlPolicy::LINK_SCHEMES ); ?>"><span class="cl-link__body"><span class="cl-link__title"><?php echo esc_html( '' !== (string) ( $props['link_label'] ?? '' ) ? (string) $props['link_label'] : __( 'Continue', 'crazylinks' ) ); ?></span></span></a>
+			<a class="cl-link cl-countdown__link" href="<?php echo esc_url( $crazylinks_url, \CrazyLinks\Schema\UrlPolicy::LINK_SCHEMES ); ?>"><span class="cl-link__body"><span class="cl-link__title"><?php echo esc_html( $crazylinks_link_label ); ?></span></span></a>
 		<?php endif; ?>
 	</div>
 </div>

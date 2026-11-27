@@ -7,12 +7,26 @@
 
 namespace CrazyLinks\Ai;
 
+use CrazyLinks\Cli\AiCommand;
+use CrazyLinks\Cli\McpCommand;
+use CrazyLinks\Rest\RestRoutes;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
  * WP-CLI `wp crazylinks ai` and `wp crazylinks mcp`, the "AI" badge in the page history, and log pruning on the daily cron.
  */
 final class Bootstrap {
+
+	/**
+	 * Id of the personal-data exporter, eraser and export group.
+	 */
+	private const PRIVACY_ID = 'crazylinks-ai';
+
+	/**
+	 * Log rows per personal-data export step.
+	 */
+	private const EXPORT_PAGE_SIZE = 100;
 
 	/**
 	 * Hooks.
@@ -33,8 +47,8 @@ final class Bootstrap {
 			add_action(
 				'crazylinks_loaded',
 				static function (): void {
-					\WP_CLI::add_command( 'crazylinks ai', \CrazyLinks\Cli\AiCommand::class );
-					\WP_CLI::add_command( 'crazylinks mcp', \CrazyLinks\Cli\McpCommand::class );
+					\WP_CLI::add_command( 'crazylinks ai', AiCommand::class );
+					\WP_CLI::add_command( 'crazylinks mcp', McpCommand::class );
 				}
 			);
 		}
@@ -55,7 +69,7 @@ final class Bootstrap {
 			return $response;
 		}
 		$route = (string) $request->get_route();
-		if ( ! preg_match( '#^/crazylinks/v1/pages/\d+/revisions(/\d+)?$#', $route, $m ) ) {
+		if ( ! preg_match( '#^/' . preg_quote( RestRoutes::NS, '#' ) . '/pages/\d+/revisions(/\d+)?$#', $route, $m ) ) {
 			return $response;
 		}
 		$data = $response->get_data();
@@ -90,14 +104,21 @@ final class Bootstrap {
 	}
 
 	/**
+	 * Name of the AI history in the personal-data tools.
+	 */
+	private static function privacy_label(): string {
+		return __( 'CrazyLinks AI requests', 'crazylinks' );
+	}
+
+	/**
 	 * Registers the AI history exporter.
 	 *
 	 * @param array<string, mixed> $exporters Exporters.
 	 * @return array<string, mixed>
 	 */
 	public function register_exporter( $exporters ) {
-		$exporters['crazylinks-ai'] = [
-			'exporter_friendly_name' => __( 'CrazyLinks AI requests', 'crazylinks' ),
+		$exporters[ self::PRIVACY_ID ] = [
+			'exporter_friendly_name' => self::privacy_label(),
 			'callback'               => [ self::class, 'export' ],
 		];
 		return $exporters;
@@ -110,8 +131,8 @@ final class Bootstrap {
 	 * @return array<string, mixed>
 	 */
 	public function register_eraser( $erasers ) {
-		$erasers['crazylinks-ai'] = [
-			'eraser_friendly_name' => __( 'CrazyLinks AI requests', 'crazylinks' ),
+		$erasers[ self::PRIVACY_ID ] = [
+			'eraser_friendly_name' => self::privacy_label(),
 			'callback'             => [ self::class, 'erase' ],
 		];
 		return $erasers;
@@ -132,13 +153,13 @@ final class Bootstrap {
 				'done' => true,
 			];
 		}
-		$rows = AiLog::for_user( (int) $user->ID, 100, ( max( 1, (int) $page ) - 1 ) * 100 );
+		$rows = AiLog::for_user( (int) $user->ID, self::EXPORT_PAGE_SIZE, ( max( 1, (int) $page ) - 1 ) * self::EXPORT_PAGE_SIZE );
 		$data = [];
 		foreach ( $rows as $row ) {
 			$data[] = [
-				'group_id'    => 'crazylinks-ai',
-				'group_label' => __( 'CrazyLinks AI requests', 'crazylinks' ),
-				'item_id'     => 'crazylinks-ai-' . $row['id'],
+				'group_id'    => self::PRIVACY_ID,
+				'group_label' => self::privacy_label(),
+				'item_id'     => self::PRIVACY_ID . '-' . $row['id'],
 				'data'        => [
 					[
 						'name'  => __( 'Date', 'crazylinks' ),
@@ -161,7 +182,7 @@ final class Bootstrap {
 		}
 		return [
 			'data' => $data,
-			'done' => count( $rows ) < 100,
+			'done' => count( $rows ) < self::EXPORT_PAGE_SIZE,
 		];
 	}
 

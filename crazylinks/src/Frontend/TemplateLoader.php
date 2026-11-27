@@ -69,7 +69,9 @@ final class TemplateLoader {
 	}
 
 	/**
-	 * Handles /go/ redirects and view logging for singular link pages.
+	 * Prepares a singular link page request: hands /go/ URLs to the click redirect, then for a
+	 * page view applies the password lock, logs the view, sets the cache policy, isolates the
+	 * standalone document and hooks the robots, canonical, title and body-class output.
 	 */
 	public function template_redirect(): void {
 		self::$post    = null;
@@ -93,9 +95,7 @@ final class TemplateLoader {
 
 		if ( self::$locked ) {
 			// Only the password form is shown: no view is logged and nothing is cached (SPEC §12).
-			if ( ! defined( 'DONOTCACHEPAGE' ) ) {
-				define( 'DONOTCACHEPAGE', true ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- Standard page-cache constant.
-			}
+			self::no_page_cache();
 			add_filter( 'wp_robots', 'wp_robots_no_robots' );
 		} elseif ( ! is_preview() && 'publish' === $post->post_status ) {
 			EventLogger::log_view( $post );
@@ -122,7 +122,7 @@ final class TemplateLoader {
 	 * @param array<string, mixed> $doc  Document.
 	 */
 	private function schedule_cache_policy( \WP_Post $post, array $doc ): void {
-		$ttl = self::schedule_max_age( $doc, time() );
+		$ttl = Schedule::page_ttl( $doc, time(), wp_timezone() );
 		if ( null === $ttl ) {
 			return;
 		}
@@ -131,17 +131,6 @@ final class TemplateLoader {
 		if ( ! is_user_logged_in() && '' === (string) $post->post_password && ! headers_sent() ) {
 			header( 'Cache-Control: public, max-age=' . $ttl );
 		}
-	}
-
-	/**
-	 * Seconds a schedule-dependent page may be cached (60 s to 24 h, until the next schedule
-	 * boundary), or null when no visible block has a schedule that can still change.
-	 *
-	 * @param array<string, mixed> $doc Document.
-	 * @param int                  $now Unix time.
-	 */
-	public static function schedule_max_age( array $doc, int $now ): ?int {
-		return Schedule::page_ttl( $doc, $now, wp_timezone() );
 	}
 
 	/**
@@ -158,13 +147,6 @@ final class TemplateLoader {
 	 */
 	public static function schedule_cache_max_age(): ?int {
 		return self::$max_age;
-	}
-
-	/**
-	 * Whether the current page shows only the password form.
-	 */
-	public static function is_locked(): bool {
-		return self::$locked;
 	}
 
 	/**

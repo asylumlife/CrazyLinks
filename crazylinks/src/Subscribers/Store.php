@@ -36,6 +36,11 @@ final class Store {
 	private const UPDATABLE = [ 'status', 'consent_text', 'consent_at', 'confirmed_at', 'block_id', 'destination', 'audience_id', 'sync_status', 'sync_attempts', 'sync_error', 'synced_at', 'external_id' ];
 
 	/**
+	 * Rows each() reads per query.
+	 */
+	private const EACH_BATCH = 500;
+
+	/**
 	 * Table name.
 	 */
 	public static function table(): string {
@@ -74,6 +79,15 @@ final class Store {
 	 */
 	public static function now(): string {
 		return gmdate( 'Y-m-d H:i:s' );
+	}
+
+	/**
+	 * Unix timestamp of a stored (UTC, MySQL format) datetime; 0 when it cannot be parsed.
+	 *
+	 * @param string $mysql_utc Datetime as stored.
+	 */
+	public static function timestamp( string $mysql_utc ): int {
+		return (int) strtotime( $mysql_utc . ' UTC' );
 	}
 
 	/**
@@ -185,7 +199,7 @@ final class Store {
 			return 0;
 		}
 		$in = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Variable-length %d list built from intval'd ids above; table is bound with %i.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Variable-length %d list built from intval'd ids above; table is bound with %i.
 		return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE id IN ({$in})", array_merge( [ self::table() ], $ids ) ) );
 	}
 
@@ -203,7 +217,7 @@ final class Store {
 	}
 
 	/**
-	 * Builds the WHERE clause shared by query(), count and export.
+	 * Builds the WHERE clause shared by query() and each().
 	 *
 	 * @param array<string, mixed> $args page_id, status, sync, search.
 	 * @return array{0:string, 1:array<int, mixed>}
@@ -234,7 +248,7 @@ final class Store {
 	/**
 	 * A page of rows.
 	 *
-	 * @param array<string, mixed> $args page_id, status, search, orderby (email|status|created_at|consent_at|page_id), order, per_page, paged.
+	 * @param array<string, mixed> $args page_id, status, sync, search, orderby (email|status|created_at|consent_at|page_id|id), order, per_page, paged.
 	 * @return array{items: array<int, array<string, mixed>>, total: int}
 	 */
 	public static function query( array $args = [] ): array {
@@ -245,7 +259,7 @@ final class Store {
 		$per_page           = max( 1, min( 500, (int) ( $args['per_page'] ?? 20 ) ) );
 		$offset             = max( 0, ( (int) ( $args['paged'] ?? 1 ) - 1 ) * $per_page );
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $where is built from fixed placeholder fragments in where(); $orderby and $order come from allowlists above; the table is bound with %i.
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $where is built from fixed placeholder fragments in where(); $orderby and $order come from allowlists above; the table is bound with %i.
 		$total = (int) $wpdb->get_var(
 			$wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE {$where}", array_merge( [ self::table() ], $params ) )
 		);
@@ -256,7 +270,7 @@ final class Store {
 			),
 			ARRAY_A
 		);
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
 		return [
 			'items' => $items,
 			'total' => $total,
@@ -266,7 +280,7 @@ final class Store {
 	/**
 	 * Every matching row in id order, in batches (for streaming exports).
 	 *
-	 * @param array<string, mixed> $args page_id, status, search.
+	 * @param array<string, mixed> $args page_id, status, sync, search.
 	 * @return \Generator<int, array<string, mixed>>
 	 */
 	public static function each( array $args = [] ): \Generator {
@@ -274,20 +288,20 @@ final class Store {
 		[ $where, $params ] = self::where( $args );
 		$last               = 0;
 		do {
-			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $where is built from fixed placeholder fragments in where(); the table is bound with %i.
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $where is built from fixed placeholder fragments in where(); the table is bound with %i.
 			$rows = (array) $wpdb->get_results(
 				$wpdb->prepare(
-					'SELECT ' . self::COLUMNS . " FROM %i WHERE {$where} AND id > %d ORDER BY id ASC LIMIT 500",
-					array_merge( [ self::table() ], $params, [ $last ] )
+					'SELECT ' . self::COLUMNS . " FROM %i WHERE {$where} AND id > %d ORDER BY id ASC LIMIT %d",
+					array_merge( [ self::table() ], $params, [ $last, self::EACH_BATCH ] )
 				),
 				ARRAY_A
 			);
-			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
 			foreach ( $rows as $row ) {
 				$last = (int) $row['id'];
 				yield $row;
 			}
-			$more = 500 === count( $rows );
+			$more = self::EACH_BATCH === count( $rows );
 		} while ( $more );
 	}
 
@@ -312,9 +326,6 @@ final class Store {
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		return $out;
 	}
-
-	// The SELECT column list below is the COLUMNS constant (the file-level rule, re-enabled by query() and each()).
-	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared
 
 	/**
 	 * Rows for an address in one service audience (webhook updates).
@@ -374,24 +385,6 @@ final class Store {
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table; admin counts must be live.
 		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status = 'confirmed' AND sync_status <> 'sent'", self::table() ) );
-	}
-
-	/**
-	 * Rows per sync state.
-	 *
-	 * @return array<string, int>
-	 */
-	public static function sync_counts(): array {
-		global $wpdb;
-		$out = array_fill_keys( self::SYNC_STATUSES, 0 );
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table; admin counts must be live.
-		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT sync_status, COUNT(*) AS n FROM %i WHERE sync_status <> '' GROUP BY sync_status", self::table() ), ARRAY_A );
-		foreach ( $rows as $row ) {
-			if ( isset( $out[ (string) $row['sync_status'] ] ) ) {
-				$out[ (string) $row['sync_status'] ] = (int) $row['n'];
-			}
-		}
-		return $out;
 	}
 
 	/**

@@ -30,8 +30,8 @@ if ( ! empty( $props['category'] ) && is_object_in_taxonomy( $crazylinks_type, '
 	$crazylinks_args['cat'] = (int) $props['category'];
 }
 $crazylinks_posts = get_posts( $crazylinks_args );
-// The list changes without the page being saved, so a cached copy lives at most 15 minutes.
-$ctx->note_boundary( $ctx->now + 15 * MINUTE_IN_SECONDS );
+// The list changes without the page being saved, so a cached copy is short-lived.
+$ctx->note_boundary( $ctx->now + \CrazyLinks\Render\Cache::EXTERNAL_DATA_TTL );
 if ( ! $crazylinks_posts ) {
 	return;
 }
@@ -47,7 +47,7 @@ $crazylinks_featured = 'featured' === ( $props['display'] ?? 'classic' );
 			[
 				'class' => 'cl-post__img',
 				'alt'   => '',
-				'sizes' => $crazylinks_featured ? '(max-width: 480px) 100vw, 480px' : '64px',
+				'sizes' => $crazylinks_featured ? \CrazyLinks\Render\ImageSizes::FULL_WIDTH_SIZES : '64px',
 			]
 		);
 		?>

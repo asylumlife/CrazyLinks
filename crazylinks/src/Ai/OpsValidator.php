@@ -7,8 +7,11 @@
 
 namespace CrazyLinks\Ai;
 
+use CrazyLinks\Render\Themes;
 use CrazyLinks\Schema\SchemaValidator;
 use CrazyLinks\Schema\UrlPolicy;
+use CrazyLinks\Subscribers\Integrations;
+use CrazyLinks\Woo\Store;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -196,16 +199,16 @@ final class OpsValidator {
 			case 'set_design':
 				$bg = (array) ( $op['design']['background'] ?? [] );
 				if ( ! empty( $bg['image'] ) && ! self::is_attachment( (int) $bg['image'], 'image' ) ) {
-					$errors[] = self::err( $path . '/design/background/image', __( 'Image ids must be images in this site\'s media library.', 'crazylinks' ) );
+					$errors[] = self::image_error( $path . '/design/background/image' );
 				}
-				if ( isset( $op['design']['theme'] ) && '' !== $op['design']['theme'] && ! array_key_exists( (string) $op['design']['theme'], \CrazyLinks\Render\Themes::all() ) ) {
+				if ( isset( $op['design']['theme'] ) && '' !== $op['design']['theme'] && ! array_key_exists( (string) $op['design']['theme'], Themes::all() ) ) {
 					$errors[] = self::err( $path . '/design/theme', __( 'Unknown theme preset.', 'crazylinks' ) );
 				}
 				break;
 			case 'set_profile':
 				foreach ( [ 'avatar', 'banner' ] as $key ) {
 					if ( ! empty( $op['profile'][ $key ] ) && ! self::is_attachment( (int) $op['profile'][ $key ], 'image' ) ) {
-						$errors[] = self::err( $path . '/profile/' . $key, __( 'Image ids must be images in this site\'s media library.', 'crazylinks' ) );
+						$errors[] = self::image_error( $path . '/profile/' . $key );
 					}
 				}
 				break;
@@ -233,7 +236,7 @@ final class OpsValidator {
 				$errors[] = self::err( $path . '/items/' . $n . '/url', __( 'URL is not allowed. Use http, https, mailto, tel or sms.', 'crazylinks' ) );
 			}
 			if ( 'gallery' === $type && is_array( $item ) && ! self::is_attachment( (int) ( $item['image'] ?? 0 ), 'image' ) ) {
-				$errors[] = self::err( $path . '/items/' . $n . '/image', __( 'Image ids must be images in this site\'s media library.', 'crazylinks' ) );
+				$errors[] = self::image_error( $path . '/items/' . $n . '/image' );
 			}
 		}
 		if ( isset( $props['deep_link'] ) && preg_match( '/^\s*(javascript|data|vbscript|file|blob|about):/i', (string) $props['deep_link'] ) ) {
@@ -257,12 +260,12 @@ final class OpsValidator {
 				}
 			}
 		}
-		if ( 'product' === $type && ! empty( $props['product_id'] ) && \CrazyLinks\Woo\Store::is_available() && null === \CrazyLinks\Woo\Store::product( (int) $props['product_id'] ) ) {
+		if ( 'product' === $type && ! empty( $props['product_id'] ) && Store::is_available() && null === Store::product( (int) $props['product_id'] ) ) {
 			$errors[] = self::err( $path . '/product_id', __( 'Unknown product, or the store did not answer. Use the search-products ability to find a product id.', 'crazylinks' ) );
 		}
 		if ( 'email_capture' === $type && ! empty( $props['audience_id'] ) ) {
-			$known = array_column( \CrazyLinks\Subscribers\Integrations::cached_audiences(), 'id' );
-			$known = array_filter( array_merge( $known, [ \CrazyLinks\Subscribers\Integrations::default_audience() ] ) );
+			$known = array_column( Integrations::cached_audiences(), 'id' );
+			$known = array_filter( array_merge( $known, [ Integrations::default_audience() ] ) );
 			if ( ! in_array( (string) $props['audience_id'], $known, true ) ) {
 				$errors[] = self::err( $path . '/audience_id', __( 'Unknown Mailchimp audience. Use one of the audiences configured on this site, or leave audience_id out for the site default.', 'crazylinks' ) );
 			}
@@ -345,6 +348,16 @@ final class OpsValidator {
 			$errors[ $n ]['path'] = $prefix . ( '/' === $e['path'] ? '' : $e['path'] );
 		}
 		return $errors;
+	}
+
+	/**
+	 * The error for an id that is not an image in the media library.
+	 *
+	 * @param string $path Path of the id.
+	 * @return array{path:string, message:string}
+	 */
+	private static function image_error( string $path ): array {
+		return self::err( $path, __( 'Image ids must be images in this site\'s media library.', 'crazylinks' ) );
 	}
 
 	/**

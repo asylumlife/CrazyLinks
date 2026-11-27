@@ -29,6 +29,11 @@ final class RateLimiter {
 	private const SWEEP_ODDS = 50;
 
 	/**
+	 * Most expired rows one opportunistic sweep deletes.
+	 */
+	private const SWEEP_BATCH = 500;
+
+	/**
 	 * Limiter table name.
 	 */
 	public static function table(): string {
@@ -50,20 +55,20 @@ final class RateLimiter {
 		$now     = time();
 		$slot    = intdiv( $now, $window );
 		$expires = ( $slot + 1 ) * $window;
-		$k       = md5( 'rl|' . $bucket . '|' . $key . '|' . $slot );
+		$row_key = md5( 'rl|' . $bucket . '|' . $key . '|' . $slot );
 
 		if ( wp_using_ext_object_cache() ) {
-			wp_cache_add( $k, 0, self::GROUP, $expires - $now + 1 );
-			$count = wp_cache_incr( $k, 1, self::GROUP );
+			wp_cache_add( $row_key, 0, self::GROUP, $expires - $now + 1 );
+			$count = wp_cache_incr( $row_key, 1, self::GROUP );
 			return false === $count || $count <= $limit;
 		}
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Per-request rate-limit counter; caching it would defeat its purpose.
-		$ok = $wpdb->query( $wpdb->prepare( 'INSERT INTO %i (k, hits, expires) VALUES (%s, 1, %d) ON DUPLICATE KEY UPDATE hits = hits + 1', self::table(), $k, $expires ) );
+		$ok = $wpdb->query( $wpdb->prepare( 'INSERT INTO %i (k, hits, expires) VALUES (%s, 1, %d) ON DUPLICATE KEY UPDATE hits = hits + 1', self::table(), $row_key, $expires ) );
 		if ( false === $ok ) {
 			return true;
 		}
-		$count = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT hits FROM %i WHERE k = %s', self::table(), $k ) );
+		$count = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT hits FROM %i WHERE k = %s', self::table(), $row_key ) );
 		// phpcs:enable
 		self::maybe_sweep( $now );
 		return $count <= $limit;
@@ -79,14 +84,14 @@ final class RateLimiter {
 		global $wpdb;
 		$now     = time();
 		$expires = $now + max( 1, $window );
-		$k       = md5( 'dd|' . $key );
+		$row_key = md5( 'dd|' . $key );
 
 		if ( wp_using_ext_object_cache() ) {
-			return (bool) wp_cache_add( $k, 1, self::GROUP, max( 1, $window ) );
+			return (bool) wp_cache_add( $row_key, 1, self::GROUP, max( 1, $window ) );
 		}
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Per-request rate-limit state; caching it would defeat its purpose.
-		$inserted = $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (k, hits, expires) VALUES (%s, 1, %d)', self::table(), $k, $expires ) );
+		$inserted = $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (k, hits, expires) VALUES (%s, 1, %d)', self::table(), $row_key, $expires ) );
 		if ( false === $inserted ) {
 			return true;
 		}
@@ -95,7 +100,7 @@ final class RateLimiter {
 			return true;
 		}
 		// The key exists: it counts as new only if its window has passed.
-		$renewed = $wpdb->query( $wpdb->prepare( 'UPDATE %i SET expires = %d, hits = 1 WHERE k = %s AND expires <= %d', self::table(), $expires, $k, $now ) );
+		$renewed = $wpdb->query( $wpdb->prepare( 'UPDATE %i SET expires = %d, hits = 1 WHERE k = %s AND expires <= %d', self::table(), $expires, $row_key, $now ) );
 		// phpcs:enable
 		return 1 === (int) $renewed;
 	}
@@ -107,7 +112,7 @@ final class RateLimiter {
 	 */
 	private static function maybe_sweep( int $now ): void {
 		if ( 1 === wp_rand( 1, self::SWEEP_ODDS ) ) {
-			self::sweep( $now, 500 );
+			self::sweep( $now, self::SWEEP_BATCH );
 		}
 	}
 

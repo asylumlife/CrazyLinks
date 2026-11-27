@@ -12,6 +12,7 @@ import {
 import { useState } from '@wordpress/element';
 import { useEditor, useEditorDispatch } from '../hooks';
 import { coerceDoc } from '../store/doc';
+import { isPlainObject } from '../lib/paths';
 import { boot } from '../boot';
 
 export default function JsonPanel( { onClose }: { onClose: () => void } ) {
@@ -23,11 +24,7 @@ export default function JsonPanel( { onClose }: { onClose: () => void } ) {
 	const apply = () => {
 		try {
 			const parsed: unknown = JSON.parse( text );
-			if (
-				! parsed ||
-				typeof parsed !== 'object' ||
-				Array.isArray( parsed )
-			) {
+			if ( ! isPlainObject( parsed ) ) {
 				throw new Error(
 					__( 'The document must be a JSON object.', 'crazylinks' )
 				);

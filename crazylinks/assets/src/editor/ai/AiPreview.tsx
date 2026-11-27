@@ -7,13 +7,14 @@ import { useEffect, useState } from '@wordpress/element';
 import { api } from '../lib/api';
 import { buildSrcDoc } from '../lib/preview';
 import type { PageDoc } from '../types';
+import type { PreviewView } from './types';
 
 interface Props {
 	before: PageDoc;
 	after: PageDoc;
 	pageId: number;
-	view: 'after' | 'before';
-	onView: ( view: 'after' | 'before' ) => void;
+	view: PreviewView;
+	onView: ( view: PreviewView ) => void;
 }
 
 export default function AiPreview( {

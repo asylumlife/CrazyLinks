@@ -94,6 +94,9 @@ export interface Suggestions {
 
 export type AiStatus = 'idle' | 'proposing' | 'applying' | 'suggesting';
 
+/** Which side of a proposal's before/after preview is showing. */
+export type PreviewView = 'after' | 'before';
+
 export interface AiState {
 	mode: AiMode;
 	instruction: string;
@@ -103,6 +106,6 @@ export interface AiState {
 	history: HistoryEntry[];
 	current: string | null;
 	answers: Record< number, string >;
-	view: 'after' | 'before';
+	view: PreviewView;
 	suggestions: Suggestions | null;
 }

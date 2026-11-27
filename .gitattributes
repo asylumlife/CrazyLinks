@@ -1,0 +1,17 @@
+# Normalise line endings; the plugin's own files use LF (see crazylinks/.editorconfig).
+* text=auto eol=lf
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.zip binary
+*.woff2 binary
+
+# Generated files: collapsed in GitHub diffs and left out of the language statistics.
+crazylinks/assets/build/** linguist-generated
+crazylinks/schemas/ai-ops.v1.json linguist-generated
+crazylinks/languages/*.pot linguist-generated
+crazylinks/composer.lock linguist-generated
+crazylinks/package-lock.json linguist-generated

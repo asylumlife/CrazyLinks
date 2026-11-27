@@ -3,6 +3,7 @@
  * One nesting level only: groups never go inside groups.
  */
 import type { Block } from '../types';
+import { siblingsIn } from '../store/doc';
 
 /** Id prefix of the "end of group" drop zones. */
 export const DROP_PREFIX = 'drop:';
@@ -13,11 +14,6 @@ export interface DropTarget {
 	/** Position among the target list's blocks, with the moved block already removed from it. */
 	index: number;
 }
-
-const siblingsOf = ( blocks: Block[], parentId: string | null ): Block[] =>
-	blocks
-		.filter( ( b ) => b.parent_id === parentId )
-		.sort( ( a, b ) => a.order - b.order );
 
 /**
  * Where a block lands when dropped on `overId`.
@@ -49,12 +45,12 @@ export function resolveDrop(
 		if ( ! group || group.type !== 'group' || active.type === 'group' ) {
 			return null;
 		}
-		const rest = siblingsOf( blocks, group.id ).filter(
+		const rest = siblingsIn( blocks, group.id ).filter(
 			( b ) => b.id !== activeId
 		);
 		const lastAlready =
 			active.parent_id === group.id &&
-			siblingsOf( blocks, group.id ).at( -1 )?.id === activeId;
+			siblingsIn( blocks, group.id ).at( -1 )?.id === activeId;
 		return lastAlready ? null : { parentId: group.id, index: rest.length };
 	}
 
@@ -73,7 +69,7 @@ export function resolveDrop(
 		parentId = null;
 		anchor = parent;
 	}
-	const list = siblingsOf( blocks, parentId );
+	const list = siblingsIn( blocks, parentId );
 	const rest = list.filter( ( b ) => b.id !== activeId );
 	const at = rest.findIndex( ( b ) => b.id === anchor.id );
 	if ( at < 0 ) {

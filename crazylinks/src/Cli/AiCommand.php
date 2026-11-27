@@ -31,11 +31,12 @@ final class AiCommand {
 	 */
 	public function status( $args, $assoc_args ): void {
 		unset( $args, $assoc_args );
-		$reason = Status::reason();
-		$budget = Limits::budget_state();
+		$reason    = Status::reason();
+		$budget    = Limits::budget_state();
+		$providers = implode( ', ', Status::providers() );
 		WP_CLI::line( 'WordPress AI client: ' . ( Status::client_exists() ? 'yes' : 'no' ) );
 		WP_CLI::line( 'Provider ready:      ' . ( Status::provider_ready() ? 'yes' : 'no' ) );
-		WP_CLI::line( 'Providers:           ' . ( implode( ', ', Status::providers() ) ? implode( ', ', Status::providers() ) : '(none)' ) );
+		WP_CLI::line( 'Providers:           ' . ( '' !== $providers ? $providers : '(none)' ) );
 		WP_CLI::line( 'Plugin setting:      ' . ( Status::enabled() ? 'on' : 'off' ) );
 		WP_CLI::line( 'Edit models:         ' . implode( ', ', Status::models( 'edit' ) ) );
 		WP_CLI::line( 'Suggestion models:   ' . implode( ', ', Status::models( 'suggest' ) ) );
@@ -89,7 +90,7 @@ final class AiCommand {
 		}
 		$cases = (array) $set['cases'];
 		if ( ! empty( $assoc_args['case'] ) ) {
-			$cases = array_values( array_filter( $cases, static fn( $c ) => ( $c['id'] ?? '' ) === $assoc_args['case'] ) );
+			$cases = array_values( array_filter( $cases, static fn( $item ) => ( $item['id'] ?? '' ) === $assoc_args['case'] ) );
 		}
 		if ( ! empty( $assoc_args['limit'] ) ) {
 			$cases = array_slice( $cases, 0, max( 1, (int) $assoc_args['limit'] ) );
@@ -98,13 +99,13 @@ final class AiCommand {
 		$tokens = 0;
 		foreach ( $cases as $item ) {
 			if ( $offline ) {
-				$r = Evals::replay( $set, $item );
+				$result = Evals::replay( $set, $item );
 			} else {
-				$r       = Evals::live( $set, $item, $grade );
-				$tokens += $r['tokens'];
+				$result  = Evals::live( $set, $item, $grade );
+				$tokens += $result['tokens'];
 			}
-			$pass += $r['pass'] ? 1 : 0;
-			WP_CLI::line( sprintf( '%s  %-28s %s', $r['pass'] ? 'PASS' : 'FAIL', (string) $item['id'], $r['pass'] ? '' : $r['message'] ) );
+			$pass += $result['pass'] ? 1 : 0;
+			WP_CLI::line( sprintf( '%s  %-28s %s', $result['pass'] ? 'PASS' : 'FAIL', (string) $item['id'], $result['pass'] ? '' : $result['message'] ) );
 		}
 		$total = count( $cases );
 		$rate  = $total ? round( 100 * $pass / $total, 1 ) : 0;

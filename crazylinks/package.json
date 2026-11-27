@@ -1,14 +1,17 @@
 {
   "name": "crazylinks",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "private": true,
   "description": "CrazyLinks admin page editor (React).",
   "license": "GPL-2.0-or-later",
   "scripts": {
     "build": "wp-scripts build assets/src/editor/index.tsx --output-path=assets/build/editor",
     "start": "wp-scripts start assets/src/editor/index.tsx --output-path=assets/build/editor",
+    "check": "npm run typecheck && npm run lint && npm run test",
+    "lint": "npm run lint:js && npm run lint:css",
     "lint:js": "wp-scripts lint-js assets/src/editor tests/js tests/e2e",
     "lint:css": "wp-scripts lint-style \"assets/src/editor/**/*.scss\"",
+    "test": "npm run test:unit",
     "test:unit": "wp-scripts test-unit-js run --config tests/js/vitest.config.mts",
     "test:e2e": "playwright test --config tests/e2e/playwright.config.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
@@ -32,8 +35,7 @@
     "@wordpress/data": "11.1.0",
     "@wordpress/dom-ready": "5.1.0",
     "@wordpress/element": "10.1.0",
-    "@wordpress/i18n": "7.1.0",
-    "@wordpress/icons": "20.0.0"
+    "@wordpress/i18n": "7.1.0"
   },
   "overrides": {
     "serialize-javascript": "7.1.3",

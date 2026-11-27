@@ -22,6 +22,13 @@ final class PagesController extends \WP_REST_Controller {
 	public const STATUSES = [ 'draft', 'pending', 'private', 'publish', 'future' ];
 
 	/**
+	 * Non-blocking warnings from the last validation in this request (e.g. missing alt text).
+	 *
+	 * @var array<int, array<string, string>>
+	 */
+	private array $last_warnings = [];
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {
@@ -92,17 +99,26 @@ final class PagesController extends \WP_REST_Controller {
 	}
 
 	/**
-	 * The page post or an error.
+	 * WP_Query arguments for the link pages the current user can edit, most recently changed first.
+	 * Callers add the status and paging.
 	 *
-	 * @param int $id Id.
-	 * @return \WP_Post|\WP_Error
+	 * @param string $search Search term ('' for none).
+	 * @return array<string, mixed>
 	 */
-	private function get_page( int $id ) {
-		$post = get_post( $id );
-		if ( ! $post instanceof \WP_Post || PostType::NAME !== $post->post_type ) {
-			return new \WP_Error( 'crazylinks_not_found', __( 'Link page not found.', 'crazylinks' ), [ 'status' => 404 ] );
+	public static function editable_query_args( string $search = '' ): array {
+		$args = [
+			'post_type' => PostType::NAME,
+			'perm'      => 'editable',
+			'orderby'   => 'modified',
+			'order'     => 'DESC',
+		];
+		if ( ! empty( $search ) ) {
+			$args['s'] = $search;
 		}
-		return $post;
+		if ( ! current_user_can( 'edit_others_crazylinks_pages' ) ) {
+			$args['author'] = get_current_user_id();
+		}
+		return $args;
 	}
 
 	/**
@@ -113,7 +129,7 @@ final class PagesController extends \WP_REST_Controller {
 	 */
 	public function get_items_permissions_check( $request ) {
 		unset( $request );
-		return current_user_can( 'edit_crazylinks_pages' ) ? true : $this->forbidden();
+		return current_user_can( 'edit_crazylinks_pages' ) ? true : RestRoutes::forbidden();
 	}
 
 	/**
@@ -123,21 +139,11 @@ final class PagesController extends \WP_REST_Controller {
 	 * @return \WP_REST_Response
 	 */
 	public function get_items( $request ) {
-		$args = [
-			'post_type'      => PostType::NAME,
+		$args  = self::editable_query_args( (string) $request['search'] ) + [
 			'post_status'    => $request['status'] ? (string) $request['status'] : 'any',
 			'posts_per_page' => (int) $request['per_page'],
 			'paged'          => (int) $request['page'],
-			'perm'           => 'editable',
-			'orderby'        => 'modified',
-			'order'          => 'DESC',
 		];
-		if ( ! empty( $request['search'] ) ) {
-			$args['s'] = (string) $request['search'];
-		}
-		if ( ! current_user_can( 'edit_others_crazylinks_pages' ) ) {
-			$args['author'] = get_current_user_id();
-		}
 		$query = new \WP_Query( $args );
 		$items = [];
 		foreach ( $query->posts as $post ) {
@@ -158,11 +164,11 @@ final class PagesController extends \WP_REST_Controller {
 	 * @return true|\WP_Error
 	 */
 	public function get_item_permissions_check( $request ) {
-		$post = $this->get_page( (int) $request['id'] );
+		$post = RestRoutes::link_page_or_denied( (int) $request['id'] );
 		if ( is_wp_error( $post ) ) {
 			return $post;
 		}
-		return current_user_can( 'edit_post', $post->ID ) ? true : $this->forbidden();
+		return current_user_can( 'edit_post', $post->ID ) ? true : RestRoutes::forbidden();
 	}
 
 	/**
@@ -172,7 +178,7 @@ final class PagesController extends \WP_REST_Controller {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public function get_item( $request ) {
-		$post = $this->get_page( (int) $request['id'] );
+		$post = RestRoutes::link_page( (int) $request['id'] );
 		return is_wp_error( $post ) ? $post : $this->prepare_item_for_response( $post, $request );
 	}
 
@@ -184,7 +190,7 @@ final class PagesController extends \WP_REST_Controller {
 	 */
 	public function create_item_permissions_check( $request ) {
 		if ( ! current_user_can( 'edit_crazylinks_pages' ) ) {
-			return $this->forbidden();
+			return RestRoutes::forbidden();
 		}
 		return $this->check_status_permission( (string) ( $request['status'] ?? 'draft' ) );
 	}
@@ -208,7 +214,7 @@ final class PagesController extends \WP_REST_Controller {
 			'post_author'  => get_current_user_id(),
 		];
 		if ( ! empty( $request['slug'] ) ) {
-			$postarr['post_name'] = sanitize_title( (string) $request['slug'] );
+			$postarr['post_name'] = (string) $request['slug']; // Sanitized by the argument schema.
 		}
 		$id = wp_insert_post( $postarr, true );
 		if ( is_wp_error( $id ) ) {
@@ -228,12 +234,12 @@ final class PagesController extends \WP_REST_Controller {
 	 * @return true|\WP_Error
 	 */
 	public function update_item_permissions_check( $request ) {
-		$post = $this->get_page( (int) $request['id'] );
+		$post = RestRoutes::link_page_or_denied( (int) $request['id'] );
 		if ( is_wp_error( $post ) ) {
 			return $post;
 		}
 		if ( ! current_user_can( 'edit_post', $post->ID ) ) {
-			return $this->forbidden();
+			return RestRoutes::forbidden();
 		}
 		if ( isset( $request['status'] ) && $request['status'] !== $post->post_status ) {
 			return $this->check_status_permission( (string) $request['status'] );
@@ -248,7 +254,7 @@ final class PagesController extends \WP_REST_Controller {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public function update_item( $request ) {
-		$post = $this->get_page( (int) $request['id'] );
+		$post = RestRoutes::link_page( (int) $request['id'] );
 		if ( is_wp_error( $post ) ) {
 			return $post;
 		}
@@ -267,7 +273,7 @@ final class PagesController extends \WP_REST_Controller {
 			$postarr['post_status'] = (string) $request['status'];
 		}
 		if ( isset( $request['slug'] ) ) {
-			$postarr['post_name'] = sanitize_title( (string) $request['slug'] );
+			$postarr['post_name'] = (string) $request['slug']; // Sanitized by the argument schema.
 		}
 		$id = wp_update_post( $postarr, true ); // Values above are already slashed.
 		if ( is_wp_error( $id ) ) {
@@ -298,11 +304,11 @@ final class PagesController extends \WP_REST_Controller {
 	 * @return true|\WP_Error
 	 */
 	public function delete_item_permissions_check( $request ) {
-		$post = $this->get_page( (int) $request['id'] );
+		$post = RestRoutes::link_page_or_denied( (int) $request['id'] );
 		if ( is_wp_error( $post ) ) {
 			return $post;
 		}
-		return current_user_can( 'delete_post', $post->ID ) ? true : $this->forbidden();
+		return current_user_can( 'delete_post', $post->ID ) ? true : RestRoutes::forbidden();
 	}
 
 	/**
@@ -312,9 +318,12 @@ final class PagesController extends \WP_REST_Controller {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public function delete_item( $request ) {
-		$post = $this->get_page( (int) $request['id'] );
+		$post = RestRoutes::link_page( (int) $request['id'] );
 		if ( is_wp_error( $post ) ) {
 			return $post;
+		}
+		if ( ! $request['force'] && 'trash' === $post->post_status ) {
+			return new \WP_Error( 'crazylinks_already_trashed', __( 'The page is already in the trash.', 'crazylinks' ), [ 'status' => 410 ] );
 		}
 		$previous = $this->prepare_item_for_response( $post, $request )->get_data();
 		$result   = $request['force'] ? wp_delete_post( $post->ID, true ) : wp_trash_post( $post->ID );
@@ -382,7 +391,7 @@ final class PagesController extends \WP_REST_Controller {
 					'type'        => 'string',
 					'description' => __( 'Internal page name.', 'crazylinks' ),
 					'context'     => [ 'view', 'edit' ],
-					'arg_options' => [ 'sanitize_callback' => 'sanitize_text_field' ],
+					'arg_options' => [ 'sanitize_callback' => static fn( $value ) => sanitize_text_field( (string) $value ) ],
 				],
 				'slug'     => [
 					'type'        => 'string',
@@ -443,23 +452,15 @@ final class PagesController extends \WP_REST_Controller {
 	 * @return array<string, mixed>
 	 */
 	public function get_collection_params() {
-		$params           = parent::get_collection_params();
-		$params['status'] = [
+		$params                       = parent::get_collection_params();
+		$params['status']             = [
 			'type'        => 'string',
 			'enum'        => array_merge( self::STATUSES, [ 'trash' ] ),
 			'description' => __( 'Limit to a status.', 'crazylinks' ),
 		];
-		unset( $params['context']['default'] );
 		$params['context']['default'] = 'view';
 		return $params;
 	}
-
-	/**
-	 * Non-blocking warnings from the last validation in this request (e.g. missing alt text).
-	 *
-	 * @var array<int, array<string, string>>
-	 */
-	private array $last_warnings = [];
 
 	/**
 	 * Validates the `page` param (or returns an empty document on create without one).
@@ -498,12 +499,5 @@ final class PagesController extends \WP_REST_Controller {
 			return new \WP_Error( 'crazylinks_cannot_publish', __( 'You are not allowed to publish link pages.', 'crazylinks' ), [ 'status' => rest_authorization_required_code() ] );
 		}
 		return true;
-	}
-
-	/**
-	 * Generic forbidden error.
-	 */
-	private function forbidden(): \WP_Error {
-		return new \WP_Error( 'crazylinks_forbidden', __( 'Sorry, you are not allowed to do that.', 'crazylinks' ), [ 'status' => rest_authorization_required_code() ] );
 	}
 }

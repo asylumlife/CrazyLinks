@@ -58,7 +58,16 @@ final class SubscribersPage {
 	}
 
 	/**
-	 * Screen styles.
+	 * URL of the screen.
+	 *
+	 * @param array<string, mixed> $args Extra query args.
+	 */
+	public static function url( array $args = [] ): string {
+		return add_query_arg( $args, admin_url( 'edit.php?post_type=' . PostType::NAME . '&page=' . self::SLUG ) );
+	}
+
+	/**
+	 * Loads the screen's style (shared with the Analytics screen), on this screen only.
 	 *
 	 * @param string $hook Current admin page.
 	 */
@@ -83,13 +92,13 @@ final class SubscribersPage {
 		if ( 'backfill' === $action ) {
 			check_admin_referer( 'crazylinks_subscribers_backfill' );
 			$started = Sync::backfill_start();
+			// For a backfill `cl_n` is 1 when it started and 0 when it could not.
 			wp_safe_redirect(
-				add_query_arg(
+				self::url(
 					[
 						'cl_done' => 'backfill',
 						'cl_n'    => is_wp_error( $started ) ? 0 : 1,
-					],
-					admin_url( 'edit.php?post_type=' . PostType::NAME . '&page=' . self::SLUG )
+					]
 				)
 			);
 			exit;
@@ -105,24 +114,29 @@ final class SubscribersPage {
 			$ids = isset( $_REQUEST['subscriber'] ) ? array_map( 'absint', (array) wp_unslash( $_REQUEST['subscriber'] ) ) : [];
 		}
 		// phpcs:enable
-		$ids = array_values( array_filter( $ids ) );
-		$n   = 0;
+		$ids   = array_values( array_filter( $ids ) );
+		$count = 0;
 		if ( 'delete' === $action ) {
-			$n = Store::delete( $ids );
+			$count = Store::delete( $ids );
 		} elseif ( 'retry_sync' === $action ) {
-			$n = Sync::retry( $ids );
+			$count = Sync::retry( $ids );
 		} else {
 			foreach ( $ids as $id ) {
-				$n += Service::resend( $id ) ? 1 : 0;
+				$count += Service::resend( $id ) ? 1 : 0;
 			}
 		}
+		$referer = wp_get_referer();
+		$return  = remove_query_arg(
+			[ 'action', 'action2', 'subscriber', '_wpnonce', '_wp_http_referer', 'cl_done', 'cl_n' ],
+			$referer ? $referer : self::url()
+		);
 		wp_safe_redirect(
 			add_query_arg(
 				[
 					'cl_done' => $action,
-					'cl_n'    => $n,
+					'cl_n'    => $count,
 				],
-				remove_query_arg( [ 'action', 'action2', 'subscriber', '_wpnonce', '_wp_http_referer', 'cl_done', 'cl_n' ], wp_get_referer() ? wp_get_referer() : admin_url( 'edit.php?post_type=' . PostType::NAME . '&page=' . self::SLUG ) )
+				$return
 			)
 		);
 		exit;
@@ -138,42 +152,19 @@ final class SubscribersPage {
 		$table = new ListTable();
 		$table->prepare_items();
 		echo '<div class="wrap"><h1 class="wp-heading-inline">' . esc_html__( 'Subscribers', 'crazylinks' ) . '</h1><hr class="wp-header-end">';
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Result notice only.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Result notice only.
 		if ( isset( $_GET['cl_done'], $_GET['cl_n'] ) ) {
-			$n    = absint( $_GET['cl_n'] );
-			$done = sanitize_key( wp_unslash( $_GET['cl_done'] ) );
-			$ok   = true;
-			if ( 'delete' === $done ) {
-				/* translators: %d: number of subscribers. */
-				$text = _n( '%d subscriber deleted.', '%d subscribers deleted.', $n, 'crazylinks' );
-			} elseif ( 'retry_sync' === $done ) {
-				/* translators: %d: number of subscribers. */
-				$text = _n( '%d subscriber sent to Mailchimp.', '%d subscribers sent to Mailchimp.', $n, 'crazylinks' );
-			} elseif ( 'backfill' === $done ) {
-				$ok   = $n > 0;
-				$text = $ok ? __( 'Backfill started. Confirmed subscribers are sent to Mailchimp in batches in the background.', 'crazylinks' ) : __( 'Backfill could not start: connect Mailchimp and choose a default audience under Settings → Integrations first.', 'crazylinks' );
-			} else {
-				/* translators: %d: number of emails. */
-				$text = _n( '%d confirmation email sent.', '%d confirmation emails sent.', $n, 'crazylinks' );
-			}
-			echo '<div class="notice notice-' . ( $ok ? 'success' : 'error' ) . ' is-dismissible"><p>' . esc_html( sprintf( $text, $n ) ) . '</p></div>';
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Result notice only.
+			$this->result_notice( sanitize_key( wp_unslash( $_GET['cl_done'] ) ), absint( $_GET['cl_n'] ) );
 		}
-		$state = Sync::backfill_state();
-		if ( $state && ( $state['running'] || $state['finished'] > time() - DAY_IN_SECONDS ) ) {
-			$text = $state['running']
-				/* translators: 1: rows handled, 2: total rows, 3: rows that failed. */
-				? sprintf( __( 'Backfill to Mailchimp in progress: %1$s of %2$s handled (%3$s failed). Reload to update.', 'crazylinks' ), number_format_i18n( $state['sent'] + $state['failed'] ), number_format_i18n( $state['total'] ), number_format_i18n( $state['failed'] ) )
-				/* translators: 1: rows sent, 2: rows that failed. */
-				: sprintf( __( 'Backfill to Mailchimp finished: %1$s sent, %2$s failed (see the Sync column).', 'crazylinks' ), number_format_i18n( $state['sent'] ), number_format_i18n( $state['failed'] ) );
-			echo '<div class="notice notice-info"><p>' . esc_html( $text ) . '</p></div>';
-		}
-		// phpcs:enable
+		$this->backfill_notice();
 		$table->views();
 		echo '<form method="get">';
-		echo '<input type="hidden" name="post_type" value="' . esc_attr( PostType::NAME ) . '"><input type="hidden" name="page" value="' . esc_attr( self::SLUG ) . '">';
-		$f = ListTable::filters();
-		if ( '' !== $f['status'] ) {
-			echo '<input type="hidden" name="status" value="' . esc_attr( $f['status'] ) . '">';
+		echo '<input type="hidden" name="post_type" value="' . esc_attr( PostType::NAME ) . '">';
+		echo '<input type="hidden" name="page" value="' . esc_attr( self::SLUG ) . '">';
+		$filters = ListTable::filters();
+		if ( '' !== $filters['status'] ) {
+			echo '<input type="hidden" name="status" value="' . esc_attr( $filters['status'] ) . '">';
 		}
 		$table->search_box( __( 'Search emails', 'crazylinks' ), 'crazylinks-subscriber' );
 		$table->display();
@@ -181,27 +172,87 @@ final class SubscribersPage {
 	}
 
 	/**
+	 * Notice for the action handle_actions() just finished. Unknown actions print nothing.
+	 *
+	 * @param string $done  Action: delete | retry_sync | resend | backfill.
+	 * @param int    $count Rows affected (for a backfill: 1 when it started, 0 when it could not).
+	 */
+	private function result_notice( string $done, int $count ): void {
+		$ok = true;
+		switch ( $done ) {
+			case 'delete':
+				/* translators: %d: number of subscribers. */
+				$text = _n( '%d subscriber deleted.', '%d subscribers deleted.', $count, 'crazylinks' );
+				break;
+			case 'retry_sync':
+				/* translators: %d: number of subscribers. */
+				$text = _n( '%d subscriber sent to Mailchimp.', '%d subscribers sent to Mailchimp.', $count, 'crazylinks' );
+				break;
+			case 'resend':
+				/* translators: %d: number of emails. */
+				$text = _n( '%d confirmation email sent.', '%d confirmation emails sent.', $count, 'crazylinks' );
+				break;
+			case 'backfill':
+				$ok   = $count > 0;
+				$text = $ok
+					? __( 'Backfill started. Confirmed subscribers are sent to Mailchimp in batches in the background.', 'crazylinks' )
+					: __( 'Backfill could not start: connect Mailchimp and choose a default audience under Settings → Integrations first.', 'crazylinks' );
+				break;
+			default:
+				return;
+		}
+		echo '<div class="notice notice-' . ( $ok ? 'success' : 'error' ) . ' is-dismissible"><p>' . esc_html( sprintf( $text, $count ) ) . '</p></div>';
+	}
+
+	/**
+	 * Progress of a running backfill, or the outcome of one that finished within the last day.
+	 */
+	private function backfill_notice(): void {
+		$state = Sync::backfill_state();
+		if ( ! $state || ( ! $state['running'] && $state['finished'] <= time() - DAY_IN_SECONDS ) ) {
+			return;
+		}
+		if ( $state['running'] ) {
+			$text = sprintf(
+				/* translators: 1: rows handled, 2: total rows, 3: rows that failed. */
+				__( 'Backfill to Mailchimp in progress: %1$s of %2$s handled (%3$s failed). Reload to update.', 'crazylinks' ),
+				number_format_i18n( $state['sent'] + $state['failed'] ),
+				number_format_i18n( $state['total'] ),
+				number_format_i18n( $state['failed'] )
+			);
+		} else {
+			$text = sprintf(
+				/* translators: 1: rows sent, 2: rows that failed. */
+				__( 'Backfill to Mailchimp finished: %1$s sent, %2$s failed (see the Sync column).', 'crazylinks' ),
+				number_format_i18n( $state['sent'] ),
+				number_format_i18n( $state['failed'] )
+			);
+		}
+		echo '<div class="notice notice-info"><p>' . esc_html( $text ) . '</p></div>';
+	}
+
+	/**
 	 * Nonce-protected link that starts a backfill.
 	 */
 	public static function backfill_url(): string {
-		return wp_nonce_url( admin_url( 'edit.php?post_type=' . PostType::NAME . '&page=' . self::SLUG . '&action=backfill' ), 'crazylinks_subscribers_backfill' );
+		return wp_nonce_url( self::url( [ 'action' => 'backfill' ] ), 'crazylinks_subscribers_backfill' );
 	}
 
 	/**
 	 * Nonce-protected CSV link honouring the current filters.
 	 *
-	 * @param array{page_id:int, status:string, search:string, sync?:string} $f Filters.
+	 * @param array{page_id:int, status:string, search:string, sync?:string} $filters Filters.
 	 */
-	public static function export_url( array $f ): string {
+	public static function export_url( array $filters ): string {
 		return wp_nonce_url(
 			add_query_arg(
 				array_filter(
 					[
 						'action'  => 'crazylinks_subscribers_csv',
-						'page_id' => $f['page_id'],
-						'status'  => $f['status'],
-						's'       => $f['search'],
-						'sync'    => $f['sync'] ?? '',
+						'page_id' => $filters['page_id'],
+						'status'  => $filters['status'],
+						's'       => $filters['search'],
+						'sync'    => $filters['sync'] ?? '',
 					]
 				),
 				admin_url( 'admin-post.php' )
@@ -219,9 +270,10 @@ final class SubscribersPage {
 		}
 		check_admin_referer( 'crazylinks_subscribers_csv' );
 		Csv::send_headers( 'crazylinks-subscribers-' . gmdate( 'Y-m-d' ) . '.csv' );
-		echo Csv::line( Csv::SUBSCRIBER_HEADER ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CSV, not HTML.
+		Csv::output( [ Csv::SUBSCRIBER_HEADER ] );
+		// One row at a time, so a large list is streamed and never held in memory.
 		foreach ( Store::each( ListTable::filters() ) as $row ) {
-			echo Csv::line( Csv::subscriber_row( $row ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			Csv::output( [ Csv::subscriber_row( $row ) ] );
 		}
 		exit;
 	}

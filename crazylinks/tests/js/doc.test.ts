@@ -132,20 +132,41 @@ describe( 'document operations', () => {
 		expect( d.blocks.map( ( b ) => b.id ) ).toEqual( [ ok.id ] );
 	} );
 
-	it( 'lists referenced attachments', () => {
-		const d: PageDoc = {
-			...D.emptyDoc(),
-			profile: { avatar: 3, banner: 4 },
-			design: { background: { image: 5 } },
-			settings: { seo: { image: 6 } },
-			blocks: [
-				block( 'gallery', {
-					props: { items: [ { image: 7 }, { image: 7 } ] },
-				} ),
-				block( 'image', { props: { image: 8 } } ),
-			],
-		};
-		expect( D.mediaIds( d ).sort() ).toEqual( [ 3, 4, 5, 6, 7, 8 ] );
+	it( 'lists the blocks under one parent in order', () => {
+		const g = block( 'group', { order: 1 } );
+		const first = block( 'link', { parent_id: g.id, order: 0 } );
+		const second = block( 'link', { parent_id: g.id, order: 1 } );
+		const top = block( 'divider', { order: 0 } );
+		const blocks = [ second, g, top, first ];
+		expect( D.siblingsIn( blocks, g.id ).map( ( b ) => b.id ) ).toEqual( [
+			first.id,
+			second.id,
+		] );
+		expect( D.siblingsIn( blocks, null ).map( ( b ) => b.id ) ).toEqual( [
+			top.id,
+			g.id,
+		] );
+	} );
+
+	it( 'knows whether a block is scheduled', () => {
+		const plain = block( 'link' );
+		expect( D.isScheduled( plain ) ).toBe( false );
+		expect(
+			D.isScheduled( {
+				...plain,
+				schedule: { start: '2026-01-01T00:00:00Z', end: null },
+			} )
+		).toBe( true );
+		expect(
+			D.isScheduled( {
+				...plain,
+				schedule: {
+					start: null,
+					end: null,
+					weekly: { days: [ 1 ], start: '09:00', end: '17:00' },
+				},
+			} )
+		).toBe( true );
 	} );
 
 	it( 'detects empty documents', () => {

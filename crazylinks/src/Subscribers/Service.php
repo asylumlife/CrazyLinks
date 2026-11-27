@@ -19,6 +19,11 @@ defined( 'ABSPATH' ) || exit;
 final class Service {
 
 	/**
+	 * Seconds during which a repeated sign-up for a pending address does not send again.
+	 */
+	private const RESEND_COOLDOWN = 5 * MINUTE_IN_SECONDS;
+
+	/**
 	 * Seconds a confirmation link stays valid.
 	 */
 	public static function confirm_ttl(): int {
@@ -113,8 +118,7 @@ final class Service {
 			return $handled;
 		}
 		if ( null !== $handled && false !== $handled ) {
-			$status = is_array( $handled ) && 'pending' === ( $handled['status'] ?? '' ) ? 'pending' : 'confirmed';
-			return $status;
+			return is_array( $handled ) && 'pending' === ( $handled['status'] ?? '' ) ? 'pending' : 'confirmed';
 		}
 
 		$consent = mb_substr( (string) ( $block['props']['consent_text'] ?? '' ), 0, 500 );
@@ -157,7 +161,7 @@ final class Service {
 		if ( 'confirmed' === $existing['status'] ) {
 			return $response; // Already on the list: nothing to do, nothing to reveal.
 		}
-		if ( 'pending' === $existing['status'] && $doi && time() - (int) strtotime( (string) $existing['updated_at'] . ' UTC' ) < 5 * MINUTE_IN_SECONDS ) {
+		if ( 'pending' === $existing['status'] && $doi && time() - Store::timestamp( (string) $existing['updated_at'] ) < self::RESEND_COOLDOWN ) {
 			return $response; // A confirmation went out moments ago.
 		}
 		// Pending (and the owner turned double opt-in off) or unsubscribed and signing up again: fresh consent and token.
@@ -234,7 +238,7 @@ final class Service {
 			}
 			return 'pending';
 		}
-		if ( 'pending' === $existing['status'] && Adapters\Mailchimp::ID === $existing['destination'] && time() - (int) strtotime( (string) $existing['updated_at'] . ' UTC' ) < 5 * MINUTE_IN_SECONDS ) {
+		if ( 'pending' === $existing['status'] && Adapters\Mailchimp::ID === $existing['destination'] && time() - Store::timestamp( (string) $existing['updated_at'] ) < self::RESEND_COOLDOWN ) {
 			return 'pending'; // Pushed moments ago; Mailchimp's confirmation is on its way.
 		}
 		Store::update(
@@ -322,7 +326,7 @@ final class Service {
 				'row'    => $row,
 			];
 		}
-		if ( time() - (int) strtotime( (string) $row['updated_at'] . ' UTC' ) > self::confirm_ttl() ) {
+		if ( time() - Store::timestamp( (string) $row['updated_at'] ) > self::confirm_ttl() ) {
 			return [
 				'result' => 'expired',
 				'row'    => $row,
@@ -375,7 +379,7 @@ final class Service {
 			return false;
 		}
 		$token = Store::new_token();
-		Store::update( $id, [ 'token' => $token ] ); // Also restarts the 7 day window.
+		Store::update( $id, [ 'token' => $token ] ); // Also restarts the confirmation window.
 		return Mailer::send_confirmation( $row, $token );
 	}
 }

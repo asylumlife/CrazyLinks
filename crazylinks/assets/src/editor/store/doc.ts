@@ -4,6 +4,7 @@
  * renumbered per parent), the same order PageValidator::reorder() stores.
  */
 import type {
+	Animation,
 	Block,
 	BlockType,
 	JsonObject,
@@ -11,6 +12,7 @@ import type {
 	WeeklyWindow,
 } from '../types';
 import { blockDef } from '../registry/blocks';
+import { asObject, isPlainObject } from '../lib/paths';
 import { ulid } from '../lib/ulid';
 
 export const emptyDoc = (): PageDoc => ( {
@@ -27,20 +29,13 @@ export const emptyDoc = (): PageDoc => ( {
  * @param input Anything.
  */
 export function coerceDoc( input: unknown ): PageDoc {
-	const src =
-		input && typeof input === 'object' && ! Array.isArray( input )
-			? ( input as Record< string, unknown > )
-			: {};
-	const obj = ( v: unknown ): JsonObject =>
-		v && typeof v === 'object' && ! Array.isArray( v )
-			? ( v as JsonObject )
-			: {};
+	const src: Record< string, unknown > = isPlainObject( input ) ? input : {};
 	const blocks = Array.isArray( src.blocks ) ? src.blocks : [];
 	return normalize( {
 		schema: 1,
-		profile: obj( src.profile ),
-		design: obj( src.design ),
-		settings: obj( src.settings ),
+		profile: asObject( src.profile ),
+		design: asObject( src.design ),
+		settings: asObject( src.settings ),
 		blocks: blocks
 			.filter(
 				( b ): b is Record< string, unknown > =>
@@ -51,10 +46,12 @@ export function coerceDoc( input: unknown ): PageDoc {
 }
 
 function fillBlock( b: Record< string, unknown >, i: number ): Block {
-	const schedule =
+	const schedule: Record< string, unknown > =
 		b.schedule && typeof b.schedule === 'object'
 			? ( b.schedule as Record< string, unknown > )
 			: {};
+	// Only the window's shape is checked here; the server validates its days and times.
+	const weekly = schedule.weekly as WeeklyWindow | undefined;
 	return {
 		...( b as unknown as Block ),
 		id: typeof b.id === 'string' && b.id ? b.id : ulid(),
@@ -66,21 +63,14 @@ function fillBlock( b: Record< string, unknown >, i: number ): Block {
 		schedule: {
 			start: typeof schedule.start === 'string' ? schedule.start : null,
 			end: typeof schedule.end === 'string' ? schedule.end : null,
-			...( schedule.weekly &&
-			typeof schedule.weekly === 'object' &&
-			! Array.isArray( schedule.weekly )
-				? { weekly: schedule.weekly as WeeklyWindow }
-				: {} ),
+			...( isPlainObject( weekly ) ? { weekly } : {} ),
 		},
 		pinned: b.pinned === true,
 		animation: ( typeof b.animation === 'string'
 			? b.animation
-			: 'none' ) as Block[ 'animation' ],
+			: 'none' ) as Animation,
 		tracking: b.tracking !== false,
-		props:
-			b.props && typeof b.props === 'object' && ! Array.isArray( b.props )
-				? ( b.props as JsonObject )
-				: {},
+		props: asObject( b.props ),
 	};
 }
 
@@ -147,11 +137,33 @@ export function createBlock(
 	};
 }
 
-/** Siblings of a block (same parent), in order. */
-export function siblings( doc: PageDoc, parentId: string | null ): Block[] {
-	return doc.blocks
+/**
+ * The blocks under one parent, in order.
+ *
+ * @param blocks   Flat block list.
+ * @param parentId Group id, or null for the top level.
+ */
+export function siblingsIn(
+	blocks: Block[],
+	parentId: string | null
+): Block[] {
+	return blocks
 		.filter( ( b ) => b.parent_id === parentId )
 		.sort( ( a, b ) => a.order - b.order );
+}
+
+/** Siblings of a block (same parent), in order. */
+export function siblings( doc: PageDoc, parentId: string | null ): Block[] {
+	return siblingsIn( doc.blocks, parentId );
+}
+
+/** Whether a block has any schedule: a start, an end or a weekly window. */
+export function isScheduled( block: Block ): boolean {
+	return !! (
+		block.schedule.start ||
+		block.schedule.end ||
+		block.schedule.weekly
+	);
 }
 
 /**
@@ -374,7 +386,7 @@ export function duplicateBlock(
 	const copy: Block = {
 		...block,
 		id: ulid(),
-		props: structuredCopy( block.props ),
+		props: deepCopy( block.props ),
 	};
 	let next = insertBlock( doc, copy, block.id );
 	if ( block.type === 'group' ) {
@@ -382,7 +394,7 @@ export function duplicateBlock(
 			...c,
 			id: ulid(),
 			parent_id: copy.id,
-			props: structuredCopy( c.props ),
+			props: deepCopy( c.props ),
 		} ) );
 		next = normalize( {
 			...next,
@@ -392,7 +404,7 @@ export function duplicateBlock(
 	return { doc: next, id: copy.id };
 }
 
-function structuredCopy< T >( v: T ): T {
+function deepCopy< T >( v: T ): T {
 	return JSON.parse( JSON.stringify( v ) ) as T;
 }
 
@@ -431,40 +443,4 @@ export function withoutBlocks(
 				! ( b.parent_id && incomplete.has( b.parent_id ) )
 		),
 	} );
-}
-
-/**
- * Attachment ids referenced anywhere in the document (for media lookups).
- *
- * @param doc Document.
- */
-export function mediaIds( doc: PageDoc ): number[] {
-	const ids = new Set< number >();
-	const add = ( v: unknown ) => {
-		if ( typeof v === 'number' && v > 0 ) {
-			ids.add( v );
-		}
-	};
-	add( doc.profile.avatar );
-	add( doc.profile.banner );
-	add( ( doc.design.background as JsonObject | undefined )?.image );
-	add( ( doc.settings.seo as JsonObject | undefined )?.image );
-	for ( const b of doc.blocks ) {
-		add( b.props.thumbnail );
-		add( b.props.image );
-		add( b.props.poster );
-		add( b.props.video );
-		if ( Array.isArray( b.props.items ) ) {
-			for ( const item of b.props.items ) {
-				if (
-					item &&
-					typeof item === 'object' &&
-					! Array.isArray( item )
-				) {
-					add( item.image );
-				}
-			}
-		}
-	}
-	return [ ...ids ];
 }

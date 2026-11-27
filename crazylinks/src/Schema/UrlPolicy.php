@@ -113,6 +113,22 @@ final class UrlPolicy {
 	}
 
 	/**
+	 * Whether a URL's host is one of the given hosts or a subdomain of one.
+	 *
+	 * @param string   $url   URL.
+	 * @param string[] $hosts Lower-case host names.
+	 */
+	public static function host_matches( string $url, array $hosts ): bool {
+		$host = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
+		foreach ( $hosts as $allowed ) {
+			if ( $host === $allowed || str_ends_with( $host, '.' . $allowed ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Whether a URL is allowed.
 	 *
 	 * @param string   $url     URL.

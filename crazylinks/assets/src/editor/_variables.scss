@@ -1,0 +1,16 @@
+/* Colours, fonts and sizes shared by the editor stylesheets. */
+
+$cl-text: #1e1e1e;
+$cl-text-subtle: #50575e;
+$cl-muted: #646970;
+$cl-surface: #fff;
+$cl-subtle: #f0f0f1; /* Quiet fills and hairlines. */
+$cl-border: #dcdcde;
+$cl-accent: var(--wp-admin-theme-color, #3858e9);
+$cl-error: #cc1818;
+$cl-warning-text: #6b4800;
+$cl-warning-surface: #fcf9e8;
+$cl-warning-border: #dba617;
+$cl-clicks: #d63638; /* The clicks series in analytics charts. */
+$cl-mono: ui-monospace, "Menlo", "Consolas", monospace;
+$cl-topbar: 60px;

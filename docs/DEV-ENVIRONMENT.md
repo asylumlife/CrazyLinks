@@ -1,137 +1,177 @@
-# CrazyLinks dev environment
+# Local setup
 
-Set up 2026-11-05, revised 2026-11-26. Local only, no Docker. PHP and MySQL come from MAMP, which was reinstalled on 2026-11-23; see [Starting and stopping](#starting-and-stopping) for what changed.
+How to run CrazyLinks from source, run its tests and regenerate the documentation screenshots. Commands are run from `crazylinks/` unless a step says otherwise. Replace `<wp-root>` with the directory of your WordPress site and `<site-url>` with its address, for example `http://localhost:8888`.
 
-## Site
+## Requirements
 
-| Item | Value |
-|---|---|
-| URL | http://crazylinks.test:8888 (link pages under `/linktree/`) |
-| Admin | http://crazylinks.test:8888/wp-admin/ (user `admin`, password in `~/Sites/.crazylinks-dev-credentials`) |
-| Document root | `/Users/asylumlife/Sites/crazylinks.test` |
-| WordPress | 7.1.4 (en_US), pretty permalinks `/%postname%/` |
-| Database | MySQL 8.0.44, db `crazylinks`, user `root` / `root`, socket `/Applications/MAMP/tmp/mysql/mysql.sock` (TCP is disabled by `skip-networking` in MAMP's my.cnf) |
-| PHP (web) | 8.5.3 via `.htaccess` override, see below |
-| PHP (CLI) | 8.4.27 at `/Applications/MAMP/bin/php/php8.4.27/bin/php` |
-| Debug | `WP_DEBUG`, `WP_DEBUG_LOG`, `SCRIPT_DEBUG` on, `WP_ENVIRONMENT_TYPE=local`, log at `wp-content/debug.log` |
+| Tool | Version | Used for |
+|---|---|---|
+| PHP | 8.1 or newer | The plugin, phpcs, PHPStan, PHPUnit |
+| Composer | 2 | PHP development tools |
+| Node.js and npm | Node 22 or newer | Editor build, ESLint, stylelint, Vitest, Playwright |
+| MySQL or MariaDB | Any version WordPress supports | The site and the test database |
+| WP-CLI | 2.x | Test library install, demo content, translations |
+| WordPress | 7.0 or newer | A local site to run the plugin on |
+| Google Chrome | Current | End-to-end tests and screenshots only |
 
-## Starting and stopping
+Any local stack works (a packaged one, Docker, or PHP's built-in server through `wp server`). Nothing in the repository depends on a particular one.
 
-Since the MAMP reinstall, the AppleScript commands (`tell application "MAMP PRO" to start all servers`) no longer work, and `crazylinks.test` has no `/etc/hosts` entry unless MAMP PRO is running and managing it. Tests and screenshots need neither: start MySQL by hand and serve the site with PHP's built-in server.
-
-```sh
-export PATH=/Applications/MAMP/bin/php/php8.4.27/bin:/Applications/MAMP/Library/bin/mysql80/bin:$HOME/.local/bin:$PATH
-
-# MySQL (socket only). Run from /tmp.
-cd /tmp && nohup mysqld_safe --defaults-file=/Applications/MAMP/tmp/mysql/my.cnf \
-  --datadir="/Library/Application Support/appsolute/MAMP PRO/db/mysql80" \
-  --socket=/Applications/MAMP/tmp/mysql/mysql.sock --pid-file=/Applications/MAMP/tmp/mysql/mysql.pid \
-  --log-error=/Applications/MAMP/logs/mysql_error.log >/dev/null 2>&1 &
-
-# The site, on the port WordPress expects.
-cd ~/Sites/crazylinks.test && wp server --host=127.0.0.1 --port=8888
-
-# Stop.
-mysqladmin -uroot -proot -S /Applications/MAMP/tmp/mysql/mysql.sock shutdown
-```
-
-Without a hosts entry, send the host name yourself: `curl -H 'Host: crazylinks.test:8888' http://127.0.0.1:8888/linktree/demo/`, or start Chrome with `--host-resolver-rules="MAP crazylinks.test 127.0.0.1"` (the screenshot script below does this).
-
-If MAMP PRO is running, Apache listens on 8888 (HTTP) and 8890 (HTTPS) and the hosts entry exists, so the `wp server` step is not needed.
-
-## PHP version override
-
-MAMP PRO assigned PHP 7.3.33 to the new host, which WordPress 7.1 refuses. The first lines of the site's `.htaccess` switch the FastCGI handler:
-
-```apache
-Action php-fastcgi "/fcgi-bin/php8.5.3.fcgi"
-```
-
-This applies only when Apache serves the site, and the versions named here predate the reinstall, so check which `fcgi-bin` aliases exist first. To make it clean: in MAMP PRO, Hosts → crazylinks.test → PHP version → a current 8.4 or 8.5, save, then delete the `Action` line from `.htaccess`.
-
-## Command-line tools
+## Install
 
 ```sh
-export PATH=/Applications/MAMP/bin/php/php8.4.27/bin:/Applications/MAMP/Library/bin/mysql80/bin:$PATH
-cd ~/Sites/crazylinks.test
-wp --info
-wp db check
-php /Applications/MAMP/bin/php/composer --version   # Composer 2.9.2 bundled with MAMP
+cd crazylinks
+composer install
+npm ci
 ```
 
-WP-CLI lives at `~/.local/bin/wp` (phar, installed 2026-11-05). Node 25.8.1 and npm 11.11.0 come from Homebrew.
-
-## Plugin under development
-
-The plugin source lives in this repo under `crazylinks/` (matching the repo layout in SPEC.md §15) and is symlinked into `~/Sites/crazylinks.test/wp-content/plugins/crazylinks` so edits are live without copying. (Symlink created 2026-11-05.)
-
-## Other MAMP PRO hosts on this machine
-
-`localhost`, `asylumlife.com`, `creator-asylumlife`. Neither of the last two currently has files at its document root, so there is no local copy of the owner's live site to inspect for AI settings.
-
-## Plugin quality gates and tests (added after Phase 1, 2026-11-05)
+Make the plugin available to your site by linking the folder into it, then activate it:
 
 ```sh
-export PATH=/Applications/MAMP/bin/php/php8.4.27/bin:/Applications/MAMP/Library/bin/mysql80/bin:$PATH
-cd "/Users/asylumlife/Documents/Claude/Projects/Claude Code/AL-CrazyLinks/crazylinks"
-vendor/bin/phpcs                      # WordPress-Extra + Docs, text-domain check
-vendor/bin/phpstan analyse --no-progress   # level 6
-vendor/bin/phpunit                    # integration tests on the real WP test library
+ln -s "$(pwd)" <wp-root>/wp-content/plugins/crazylinks
+wp --path=<wp-root> plugin activate crazylinks
+wp --path=<wp-root> rewrite structure '/%postname%/'
 ```
 
-- WordPress test library: `~/Sites/crazylinks-tests/` (WP 7.1.4), installed by `crazylinks/bin/install-wp-tests.sh` without Docker or svn. Test database `crazylinks_test`, user `root` / `root`, over the MAMP socket.
-- Demo content: `cd ~/Sites/crazylinks.test && wp crazylinks demo` creates `/linktree/demo/`. Other WP-CLI commands: `wp crazylinks validate file.json`, `wp crazylinks rollup`.
-- Dev-only header: with `WP_DEBUG` on, `/go/` responses carry `X-CrazyLinks-Event: logged | duplicate | rate-limited | bot`.
-- Assets: edit `assets/src/*`, then `php bin/build-assets.php` writes `assets/build/*`.
+Link pages are served under `/l/` by default (`<site-url>/l/<slug>/`). The base can be changed under CrazyLinks → Settings.
 
-## Screenshots
+Useful while developing:
 
-Headless Chrome on macOS clamps the window to roughly 500px wide, so `--window-size=390,…` silently renders a wider page and crops it. For a true phone-width capture, screenshot a wrapper page that centers a 390px `<iframe>` of the link page in an 800px window, then crop the middle 390px with `sips -c <h> 390`. Desktop captures work directly:
+- `wp crazylinks demo` creates a sample page that uses every block and prints its address. `--slug=<slug>`, `--theme=<theme>` and `--layout=<layout>` vary it; `--porcelain` prints only the page id.
+- `wp crazylinks validate <file.json>` checks a page document against the schema.
+- `wp crazylinks rollup` runs the daily analytics rollup now.
+- With `WP_DEBUG` on, `/go/` responses carry an `X-CrazyLinks-Event` header that says whether the click was counted (`logged`, `duplicate`, `rate-limited`, ...).
+
+## Quality gates
 
 ```sh
-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --disable-gpu --hide-scrollbars \
-  --window-size=1280,1400 --screenshot=docs/screenshots/demo-desktop.png http://crazylinks.test:8888/linktree/demo/
+composer check     # phpcs, PHPStan and PHPUnit
+npm run check      # TypeScript, ESLint, stylelint and Vitest
 ```
 
-Current captures live in `docs/screenshots/`.
+| Gate | Command | Notes |
+|---|---|---|
+| PHP coding standards | `composer lint` | WordPress-Extra and WordPress-Docs, configured in `phpcs.xml.dist` |
+| PHP static analysis | `composer analyse` | PHPStan level 6, `phpstan.neon.dist` |
+| PHP integration tests | `composer test` | PHPUnit on the WordPress test library, see below |
+| TypeScript | `npm run typecheck` | |
+| JavaScript and SCSS lint | `npm run lint` | `npm run lint:js` and `npm run lint:css` |
+| Editor unit tests | `npm test` | Vitest, `tests/js` |
+| End-to-end tests | `npm run test:e2e` | Playwright against a running site, see below |
 
-### Feature tour screenshots
+CI (`.github/workflows/ci.yml`) runs every gate except the end-to-end tests.
 
-The images in [`FEATURES.md`](FEATURES.md) live in `docs/screenshots/tour/` and are taken by a Playwright script that drives the installed Chrome at a true 390px phone width. With MySQL and the site running:
+To override a configuration file locally, copy `phpunit.xml.dist`, `phpcs.xml.dist` or `phpstan.neon.dist` to the same name without `.dist`. Those copies are ignored by git.
+
+## PHPUnit and the WordPress test library
+
+The integration tests run inside WordPress's own test framework, which needs a copy of WordPress, the test library and an empty database. `bin/install-wp-tests.sh` sets all three up:
 
 ```sh
-cd ~/Sites/crazylinks.test
-wp crazylinks demo --slug=tour                                         # prints the page id
-wp eval-file wp-content/plugins/crazylinks/tests/tour-seed.php         # extra blocks and made-up analytics; once per fresh page
-for t in $(wp eval 'echo implode(" ", array_keys(\CrazyLinks\Render\Themes::all()));' | tr ' ' '\n'); do
-  wp crazylinks demo --slug="tt-${t}" --theme="${t}" --porcelain; done  # one page per theme, for the themes sheet
-
-cd "/Users/asylumlife/Documents/Claude/Projects/Claude Code/AL-CrazyLinks/crazylinks"
-TOUR_PAGE_ID=<id> TOUR_THEME_SLUGS="default:tt-default,midnight:tt-midnight,..." \
-TOUR_PASS="$(sed -n 's/^ADMIN_PASSWORD=//p' ~/Sites/.crazylinks-dev-credentials)" \
-node bin/tour-screenshots.mjs            # or only some groups: public, themes, admin
+bin/install-wp-tests.sh <db-name> <db-user> <db-pass> [db-host] [wp-version] [target-dir]
 ```
 
-Deactivate other plugins that add admin notices or banners (URL Shortify did) while taking the admin group, and delete the `tt-*` pages afterwards. The product blocks show whatever store is set under CrazyLinks → Settings → Store.
+- The tests empty `<db-name>`. Use a database created for this purpose, never a site's database.
+- `db-host` defaults to `localhost`. To connect through a socket, pass `localhost:/path/to/mysql.sock`.
+- `target-dir` defaults to `$TMPDIR/crazylinks-tests`.
+- The script currently relies on BSD `tar` (macOS). On Linux, follow the "Install WordPress test library" step in `.github/workflows/ci.yml`, which prepares the same directories with GNU `tar`.
 
-## Editor JavaScript tooling (added with Phase 2, 2026-11-05)
+The script ends by printing the test library path. Pass it to PHPUnit:
 
 ```sh
-cd "/Users/asylumlife/Documents/Claude/Projects/Claude Code/AL-CrazyLinks/crazylinks"
-npm ci                 # exact versions from package-lock.json (@wordpress/scripts 37.0.0, TypeScript 5.9, dnd-kit, Vitest, Playwright)
-npm run build          # writes assets/build/editor/* (shipped with the plugin)
-npm run start          # watch mode while editing assets/src/editor/
-npm run typecheck && npm run lint:js && npm run lint:css
-npm run test:unit      # Vitest (what @wordpress/scripts 37 runs under test-unit-js)
-E2E_PASS="$(sed -n 's/^ADMIN_PASSWORD=//p' ~/Sites/.crazylinks-dev-credentials)" \
-E2E_APP_PASS="$(cd ~/Sites/crazylinks.test && wp user application-password create admin e2e --porcelain)" \
-npm run test:e2e       # Playwright smoke tests on the installed Google Chrome against the dev site; delete the app password afterwards
+WP_TESTS_DIR=<target-dir>/develop/tests/phpunit composer test
 ```
 
-`E2E_SCREENSHOTS=1` makes the e2e run save screenshots. Translations: `wp i18n make-pot . languages/crazylinks.pot --domain=crazylinks --exclude=assets/src/editor,tests,bin` scans PHP plus the built editor bundle; run `wp i18n make-json languages` once `.po` files exist.
+To avoid typing it every time, copy `phpunit.xml.dist` to `phpunit.xml` and add this inside `<phpunit>`:
 
-## Core file repair (2026-11-05)
+```xml
+<php>
+	<env name="WP_TESTS_DIR" value="<target-dir>/develop/tests/phpunit" force="false"/>
+</php>
+```
 
-`wp core download` extracts the `.tar.gz` with PHP's PharData, which truncates paths at 100 characters; 22 files under `wp-includes/php-ai-client/` arrived with cut-off names and any real AI provider would have fataled. Fixed by syncing `wp-admin/`, `wp-includes/` and the root files from the official `wordpress-7.1.4.zip` (unzipped with `unzip`), then `wp core verify-checksums` passes. If you ever reinstall core, use the zip, not WP-CLI's tarball. The test library copy under `~/Sites/crazylinks-tests/` was extracted with system `tar` and is intact.
+Without `WP_TESTS_DIR`, the bootstrap looks in `/tmp/crazylinks-tests/develop/tests/phpunit`.
 
-Other maintenance commands: `php bin/build-ai-schema.php` regenerates `schemas/ai-ops.v1.json` from `schemas/page.v1.json` (a test fails if they drift); `wp crazylinks ai status` and `wp crazylinks ai eval --offline` exercise the AI layer without a provider.
+A single file or test: `vendor/bin/phpunit tests/integration/RewriteRulesTest.php`, or `vendor/bin/phpunit --filter test_unknown_slug_is_404`.
+
+## Building assets
+
+The files in `assets/build` are committed, so a checkout works without a build. Rebuild them when their source changes and commit the result.
+
+| Source | Command | Output |
+|---|---|---|
+| `assets/src/editor` (TypeScript, React, SCSS) | `npm run build` | `assets/build/editor/*` |
+| `assets/src/frontend.css`, `assets/src/frontend.js` | `composer build:assets` | `assets/build/frontend.min.css`, `frontend.min.js` |
+| `schemas/page.v1.json` | `composer build:ai-schema` | `schemas/ai-ops.v1.json` |
+
+`npm run start` rebuilds the editor on every change. CI fails when the committed editor bundle differs from a fresh build, and a PHPUnit test fails when `ai-ops.v1.json` is out of date. The front-end build is not checked automatically.
+
+`assets/src/admin-analytics.{css,js}` and `assets/src/block-editor.js` are loaded as they are and have no build step.
+
+## End-to-end tests
+
+The Playwright tests in `tests/e2e` drive the page editor in the installed Google Chrome against a running site. They change one existing link page and restore it afterwards, so point them at a development site only.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `E2E_BASE_URL` | none; set it | Site address, `<site-url>` |
+| `E2E_PAGE_ID` | none; set it | Post id of an existing link page to edit, for example the one `wp crazylinks demo --porcelain` prints |
+| `E2E_USER` | `admin` | An administrator's user name |
+| `E2E_PASS` | none | That user's password, for the login form. The tests are skipped without it |
+| `E2E_APP_PASS` | none | An application password of the same user, for the REST calls. The tests are skipped without it |
+| `E2E_CHANNEL` | `chrome` | Playwright browser channel |
+| `E2E_SCREENSHOTS` | off | A directory to save screenshots into during the run |
+
+The defaults compiled into the tests for `E2E_BASE_URL` and `E2E_PAGE_ID` belong to the maintainer's site, so always set both.
+
+```sh
+E2E_BASE_URL=<site-url> \
+E2E_PAGE_ID="$(wp --path=<wp-root> crazylinks demo --slug=e2e --porcelain)" \
+E2E_PASS=<admin password> \
+E2E_APP_PASS="$(wp --path=<wp-root> user application-password create admin e2e --porcelain)" \
+npm run test:e2e
+```
+
+Delete the application password when you are done (`wp user application-password list admin`, then `delete`).
+
+## Translations
+
+```sh
+composer make-pot      # writes languages/crazylinks.pot
+```
+
+This is the command releases use. It needs WP-CLI on the `PATH`.
+
+## Screenshots for the feature tour
+
+The images in [`FEATURES.md`](FEATURES.md) live in `docs/screenshots/tour/`. They are taken by `bin/tour-screenshots.mjs` from a demo page that `bin/tour-seed.php` extends with extra blocks and made-up analytics. Use a development site: the seed script replaces the analytics events of that page.
+
+1. Create and seed the tour page, and one page per theme for the themes sheet (from `<wp-root>`):
+
+   ```sh
+   wp crazylinks demo --slug=tour --porcelain          # prints the page id
+   wp eval-file wp-content/plugins/crazylinks/bin/tour-seed.php
+   for t in $(wp eval 'echo implode( " ", array_keys( \CrazyLinks\Render\Themes::all() ) );'); do
+     wp crazylinks demo --slug="tt-${t}" --theme="${t}" --porcelain
+   done
+   ```
+
+   Run the seed script once per fresh page; a second run adds the extra blocks again.
+
+2. Take the screenshots (from `crazylinks/`):
+
+   ```sh
+   TOUR_BASE=<site-url> TOUR_PAGE_ID=<id> TOUR_PASS=<admin password> \
+   TOUR_THEME_SLUGS="default:tt-default,midnight:tt-midnight,..." \
+   node bin/tour-screenshots.mjs            # or only some groups: public, themes, admin
+   ```
+
+   The variables are described at the top of the script. Set `TOUR_URL_BASE` if the site does not use the default `/l/` base, and `TOUR_RESOLVE=127.0.0.1` if the site's host name has no DNS or hosts-file entry.
+
+3. Delete the `tt-*` pages afterwards.
+
+Notes:
+
+- The public and theme captures are taken at a true 390px phone width with a device scale factor of 2.
+- Other plugins' admin notices and banners end up in the admin captures. Deactivate them first.
+- The product blocks show whatever store is set under CrazyLinks → Settings → Store.
+- `docs/screenshots/` also holds a few hand-taken captures used by the README. Headless Chrome on macOS will not open a window narrower than about 500px, so `--window-size=390,...` renders a wider page and crops it; use Playwright with a 390px viewport (as the tour script does) for phone-width images.

@@ -28,25 +28,27 @@ final class ListColumns {
 	}
 
 	/**
-	 * Adds the columns after the title.
+	 * Adds the columns after the title (at the end when there is no title column).
 	 *
 	 * @param array<string, string> $columns Columns.
 	 * @return array<string, string>
 	 */
 	public function columns( $columns ): array {
+		$columns = (array) $columns;
+		$added   = [
+			'cl_views'  => __( 'Views (30d)', 'crazylinks' ),
+			'cl_clicks' => __( 'Clicks (30d)', 'crazylinks' ),
+			'cl_ctr'    => __( 'CTR', 'crazylinks' ),
+		];
+		if ( ! isset( $columns['title'] ) ) {
+			return $columns + $added;
+		}
 		$out = [];
-		foreach ( (array) $columns as $key => $label ) {
+		foreach ( $columns as $key => $label ) {
 			$out[ $key ] = $label;
 			if ( 'title' === $key ) {
-				$out['cl_views']  = __( 'Views (30d)', 'crazylinks' );
-				$out['cl_clicks'] = __( 'Clicks (30d)', 'crazylinks' );
-				$out['cl_ctr']    = __( 'CTR', 'crazylinks' );
+				$out += $added;
 			}
-		}
-		if ( ! isset( $out['cl_views'] ) ) {
-			$out['cl_views']  = __( 'Views (30d)', 'crazylinks' );
-			$out['cl_clicks'] = __( 'Clicks (30d)', 'crazylinks' );
-			$out['cl_ctr']    = __( 'CTR', 'crazylinks' );
 		}
 		return $out;
 	}
@@ -65,18 +67,18 @@ final class ListColumns {
 			echo '&mdash;';
 			return;
 		}
-		$t     = Summary::page_totals()[ (int) $post_id ] ?? [
+		$totals = Summary::page_totals()[ (int) $post_id ] ?? [
 			'views'  => 0,
 			'clicks' => 0,
 		];
-		$value = [
-			'cl_views'  => number_format_i18n( $t['views'] ),
-			'cl_clicks' => number_format_i18n( $t['clicks'] ),
-			'cl_ctr'    => $t['views'] > 0 ? number_format_i18n( 100 * $t['clicks'] / $t['views'], 1 ) . '%' : '&mdash;',
-		][ $column ];
-		echo wp_kses( $value, [] );
-		if ( '&mdash;' === $value ) {
-			echo '<span class="screen-reader-text">' . esc_html__( 'No views yet', 'crazylinks' ) . '</span>';
+		if ( 'cl_views' === $column ) {
+			echo esc_html( number_format_i18n( $totals['views'] ) );
+		} elseif ( 'cl_clicks' === $column ) {
+			echo esc_html( number_format_i18n( $totals['clicks'] ) );
+		} elseif ( $totals['views'] > 0 ) {
+			echo esc_html( number_format_i18n( 100 * $totals['clicks'] / $totals['views'], 1 ) . '%' );
+		} else {
+			echo '&mdash;<span class="screen-reader-text">' . esc_html__( 'No views yet', 'crazylinks' ) . '</span>';
 		}
 	}
 
@@ -90,14 +92,7 @@ final class ListColumns {
 	public function row_actions( $actions, $post ): array {
 		$actions = (array) $actions;
 		if ( $post instanceof \WP_Post && PostType::NAME === $post->post_type && current_user_can( 'view_crazylinks_analytics' ) ) {
-			$url                  = add_query_arg(
-				[
-					'post_type' => PostType::NAME,
-					'page'      => AnalyticsPage::SLUG,
-					'page_id'   => $post->ID,
-				],
-				admin_url( 'edit.php' )
-			);
+			$url                  = AnalyticsPage::url( [ 'page_id' => $post->ID ] );
 			$actions['analytics'] = '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Analytics', 'crazylinks' ) . '</a>';
 		}
 		return $actions;

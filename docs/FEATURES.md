@@ -136,6 +136,10 @@ Selecting a block opens its settings. Here is the weekly countdown, with its siz
 
 ![The Countdown block's settings](screenshots/tour/editor-countdown.png)
 
+A new page starts with a three-step wizard for the name, the theme and your profile links, which it recognises as you paste them:
+
+![The last step of the setup wizard, with pasted profile links recognised](screenshots/editor-wizard.png)
+
 ## Analytics
 
 Views and clicks are counted without cookies. The visitor hash uses a salt that changes every day, the raw IP address is never stored, and raw events are deleted after 90 days by default while daily totals are kept.

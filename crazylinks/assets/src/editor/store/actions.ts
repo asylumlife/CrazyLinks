@@ -30,20 +30,12 @@ export const addBlock = (
 	afterId: string | null = null
 ): Action =>
 	edit( { kind: 'insert', block: createBlock( type, parentId ), afterId } );
-export const insertBlock = (
-	block: Block,
-	afterId: string | null = null
-): Action => edit( { kind: 'insert', block, afterId } );
 export const removeBlock = ( id: string ): Action =>
 	edit( { kind: 'remove', id } );
 export const duplicateBlock = ( id: string ): Action =>
 	edit( { kind: 'duplicate', id } );
 export const moveBlock = ( id: string, delta: number ): Action =>
 	edit( { kind: 'move', id, delta } );
-export const reorderBlocks = (
-	parentId: string | null,
-	ids: string[]
-): Action => edit( { kind: 'order', parentId, ids } );
 export const setParent = ( id: string, parentId: string | null ): Action =>
 	edit( { kind: 'parent', id, parentId } );
 export const moveBlockTo = (

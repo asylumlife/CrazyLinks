@@ -6,7 +6,7 @@
 import type { LockBoot } from '../types';
 import { boot } from '../boot';
 
-export interface LockUser {
+interface LockUser {
 	name: string;
 	avatar: string;
 }
@@ -106,7 +106,10 @@ export const subscribeLock = ( fn: () => void ): ( () => void ) => {
 };
 
 interface HeartbeatEvents {
-	on: ( ev: string, fn: ( e: unknown, data: any ) => void ) => void;
+	on: (
+		ev: string,
+		fn: ( e: unknown, data: Record< string, unknown > | undefined ) => void
+	) => void;
 	off: ( ev: string ) => void;
 }
 
@@ -125,12 +128,17 @@ export function startLock(): () => void {
 		const $doc = w.jQuery( document );
 		$doc.on( 'heartbeat-send.crazylinks-lock', ( _e, data ) => {
 			const payload = heartbeatPayload( current );
-			if ( payload ) {
+			if ( payload && data ) {
 				data[ 'wp-refresh-post-lock' ] = payload;
 			}
 		} );
 		$doc.on( 'heartbeat-tick.crazylinks-lock', ( _e, data ) => {
-			set( applyHeartbeat( current, data?.[ 'wp-refresh-post-lock' ] ) );
+			set(
+				applyHeartbeat(
+					current,
+					data?.[ 'wp-refresh-post-lock' ] as LockResponse | undefined
+				)
+			);
 		} );
 		cleanups.push( () => {
 			$doc.off( 'heartbeat-send.crazylinks-lock' );

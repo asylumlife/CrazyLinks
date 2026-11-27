@@ -15,6 +15,12 @@ defined( 'ABSPATH' ) || exit;
 final class ImageSizes {
 
 	/**
+	 * The `sizes` attribute of an image that spans the page column (480px wide at most, see
+	 * `.cl-inner` in frontend.css).
+	 */
+	public const FULL_WIDTH_SIZES = '(max-width: 480px) 100vw, 480px';
+
+	/**
 	 * Hooks.
 	 */
 	public function register_hooks(): void {

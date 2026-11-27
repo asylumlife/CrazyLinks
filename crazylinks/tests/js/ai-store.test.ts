@@ -8,6 +8,7 @@ import {
 	initialAiState,
 	HISTORY_SIZE,
 } from '../../assets/src/editor/ai/store';
+import type { AiAction } from '../../assets/src/editor/ai/store';
 import type { AiState, Proposal } from '../../assets/src/editor/ai/types';
 import { emptyDoc } from '../../assets/src/editor/store/doc';
 
@@ -30,7 +31,7 @@ function proposal( over: Partial< Proposal > = {} ): Proposal {
 	};
 }
 
-const run = ( state: AiState, ...actions: ReturnType< typeof A.done >[] ) =>
+const run = ( state: AiState, ...actions: AiAction[] ) =>
 	actions.reduce( aiReducer, state );
 
 describe( 'ai reducer', () => {

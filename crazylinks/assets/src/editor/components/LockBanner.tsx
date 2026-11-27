@@ -8,7 +8,7 @@ import { useEffect, useState } from '@wordpress/element';
 import { boot } from '../boot';
 import { getLock, subscribeLock, type LockState } from '../lib/lock';
 
-export function useLock(): LockState {
+function useLock(): LockState {
 	const [ state, setState ] = useState( getLock() );
 	useEffect( () => {
 		setState( getLock() );

@@ -16,7 +16,26 @@ defined( 'ABSPATH' ) || exit;
  */
 final class EventLogger {
 
+	/**
+	 * Event types the table accepts. Only `view` and `click` are written and reported; `qr_scan`
+	 * and `subscribe` are reserved.
+	 */
 	public const TYPES = [ 'view', 'click', 'qr_scan', 'subscribe' ];
+
+	/**
+	 * Default page views one IP may log per minute (see view_limit()).
+	 */
+	private const VIEW_LIMIT = 120;
+
+	/**
+	 * A repeat view of the same page from the same IP within this window is not counted again.
+	 */
+	private const VIEW_DEDUPE_SECONDS = 30 * MINUTE_IN_SECONDS;
+
+	/**
+	 * Longest stored UTM value.
+	 */
+	private const UTM_MAX_LENGTH = 64;
 
 	/**
 	 * Inserts an event row.
@@ -98,7 +117,7 @@ final class EventLogger {
 		 *
 		 * @param int $limit Default 120.
 		 */
-		return max( 1, (int) apply_filters( 'crazylinks_view_rate_limit', 120 ) );
+		return max( 1, (int) apply_filters( 'crazylinks_view_rate_limit', self::VIEW_LIMIT ) );
 	}
 
 	/**
@@ -117,14 +136,14 @@ final class EventLogger {
 		if ( ! RateLimiter::hit( 'view', $key, self::view_limit(), MINUTE_IN_SECONDS ) ) {
 			return 'rate-limited';
 		}
-		if ( ! RateLimiter::first_in_window( 'view|' . $key . '|' . $post->ID, 30 * MINUTE_IN_SECONDS ) ) {
+		if ( ! RateLimiter::first_in_window( 'view|' . $key . '|' . $post->ID, self::VIEW_DEDUPE_SECONDS ) ) {
 			return 'duplicate';
 		}
 		$utm = [];
 		foreach ( [ 'source', 'medium', 'campaign' ] as $name ) {
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Public read-only tracking parameter.
 			$value        = isset( $_GET[ 'utm_' . $name ] ) ? sanitize_text_field( wp_unslash( $_GET[ 'utm_' . $name ] ) ) : '';
-			$utm[ $name ] = '' !== $value ? substr( $value, 0, 64 ) : null;
+			$utm[ $name ] = '' !== $value ? substr( $value, 0, self::UTM_MAX_LENGTH ) : null;
 		}
 		return self::insert( (int) $post->ID, 'view', $visitor, null, $utm ) ? 'logged' : 'error';
 	}

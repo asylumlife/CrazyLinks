@@ -73,17 +73,15 @@ final class SubscribeController extends \WP_REST_Controller {
 				],
 			]
 		);
-		foreach ( [
-			'confirm'     => 'confirm',
-			'unsubscribe' => 'unsubscribe',
-		] as $path => $method ) {
+		// The route segment is also the name of the callback method.
+		foreach ( [ 'confirm', 'unsubscribe' ] as $action ) {
 			register_rest_route(
 				$this->namespace,
-				'/' . $this->rest_base . '/' . $path,
+				'/' . $this->rest_base . '/' . $action,
 				[
 					[
 						'methods'             => \WP_REST_Server::READABLE,
-						'callback'            => [ $this, $method ],
+						'callback'            => [ $this, $action ],
 						'permission_callback' => '__return_true', // The emailed token is the credential.
 						'args'                => [
 							'token' => [
@@ -120,19 +118,19 @@ final class SubscribeController extends \WP_REST_Controller {
 		}
 		$form = self::is_form_post( $request );
 		if ( ! empty( $block['props']['consent_text'] ) && ! $request['consent'] ) {
-			return self::error( 'consent', 400, $form ? self::back( $page_id, $block_id, 'consent' ) : null );
+			return self::error( 'consent', 400, $form ? Service::return_url( $page_id, $block_id, 'consent' ) : null );
 		}
 		$email = Store::normalize_email( (string) $request['email'] );
 		if ( '' === $email ) {
-			return self::error( 'invalid', 400, $form ? self::back( $page_id, $block_id, 'invalid' ) : null );
+			return self::error( 'invalid', 400, $form ? Service::return_url( $page_id, $block_id, 'invalid' ) : null );
 		}
 
 		$status = Service::subscribe( $page, $block, $email );
 		if ( is_wp_error( $status ) ) {
-			return self::error( 'error', 400, $form ? self::back( $page_id, $block_id, 'error' ) : null );
+			return self::error( 'error', 400, $form ? Service::return_url( $page_id, $block_id, 'error' ) : null );
 		}
 		if ( $form ) {
-			return self::redirect( self::back( $page_id, $block_id, $status ) );
+			return self::redirect( Service::return_url( $page_id, $block_id, $status ) );
 		}
 		return rest_ensure_response(
 			[
@@ -185,17 +183,6 @@ final class SubscribeController extends \WP_REST_Controller {
 	private static function is_form_post( \WP_REST_Request $request ): bool {
 		$type = $request->get_content_type();
 		return is_array( $type ) && in_array( $type['value'], [ 'application/x-www-form-urlencoded', 'multipart/form-data' ], true );
-	}
-
-	/**
-	 * Return URL for a form post.
-	 *
-	 * @param int    $page_id  Page id.
-	 * @param string $block_id Block id.
-	 * @param string $key      Message key.
-	 */
-	private static function back( int $page_id, string $block_id, string $key ): string {
-		return Service::return_url( $page_id, $block_id, $key );
 	}
 
 	/**

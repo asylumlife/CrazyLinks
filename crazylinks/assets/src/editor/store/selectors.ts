@@ -23,7 +23,6 @@ export const getMeta = ( state: EditorState ) => state.meta;
 export const getSelected = ( state: EditorState ) => state.selected;
 export const getSave = ( state: EditorState ) => state.save;
 export const getErrors = ( state: EditorState ): MappedError[] => state.errors;
-export const getMediaMap = ( state: EditorState ) => state.media;
 export const getMedia = ( state: EditorState, id: number ) => state.media[ id ];
 export const getClicks = ( state: EditorState ) => state.clicks;
 export const canUndo = ( state: EditorState ) => state.past.length > 0;
@@ -80,7 +79,7 @@ export const getAllErrors = ( state: EditorState ): MappedError[] => {
 let lastWarnDoc: unknown = null;
 let lastWarnMedia: unknown = null;
 let lastWarn: MappedWarning[] = [];
-/** Missing-alt warnings (memoized per document and media cache). */
+/** Accessibility warnings (memoized per document and media cache). */
 export const getWarnings = ( state: EditorState ): MappedWarning[] => {
 	if ( state.doc !== lastWarnDoc || state.media !== lastWarnMedia ) {
 		lastWarnDoc = state.doc;

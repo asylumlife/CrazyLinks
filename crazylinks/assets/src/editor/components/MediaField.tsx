@@ -1,9 +1,10 @@
 /**
  * Attachment picker using the core media modal; stores the attachment id.
  */
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 import { BaseControl, Button } from '@wordpress/components';
 import { useInstanceId } from '@wordpress/compose';
+import FieldError from './FieldError';
 import { useEditor, useEditorDispatch } from '../hooks';
 import { mediaAvailable, pickMedia } from '../lib/media';
 
@@ -24,7 +25,7 @@ export default function MediaField( {
 	help,
 	error,
 }: Props ) {
-	const id = useInstanceId( MediaField, 'cl-media' ) as string;
+	const labelId = useInstanceId( MediaField, 'cl-media-label' ) as string;
 	const media = useEditor(
 		( s ) => ( value ? s.getMedia( value ) : undefined ),
 		[ value ]
@@ -42,13 +43,12 @@ export default function MediaField( {
 		}
 	};
 	return (
-		<BaseControl
-			id={ id }
-			label={ label }
-			help={ help }
-			__nextHasNoMarginBottom
-		>
-			<div className="cl-media" id={ id }>
+		<BaseControl help={ help } __nextHasNoMarginBottom>
+			{ /* The control is a group of buttons, so it is named as a group, not through a label. */ }
+			<BaseControl.VisualLabel id={ labelId }>
+				{ label }
+			</BaseControl.VisualLabel>
+			<div className="cl-media" role="group" aria-labelledby={ labelId }>
 				{ value ? (
 					<span className="cl-media__thumb">
 						{ media && media.mime.startsWith( 'image' ) ? (
@@ -83,20 +83,15 @@ export default function MediaField( {
 				) : null }
 				{ value && ! media ? (
 					<span className="cl-muted">
-						{
-							/* translators: %d: attachment id. */ __(
-								'Attachment #%d',
-								'crazylinks'
-							).replace( '%d', String( value ) )
-						}
+						{ sprintf(
+							/* translators: %d: attachment id. */
+							__( 'Attachment #%d', 'crazylinks' ),
+							value
+						) }
 					</span>
 				) : null }
 			</div>
-			{ error && (
-				<p className="cl-field-error" role="alert">
-					{ error }
-				</p>
-			) }
+			<FieldError message={ error } />
 		</BaseControl>
 	);
 }

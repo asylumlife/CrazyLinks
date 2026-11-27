@@ -1,7 +1,17 @@
 #!/usr/bin/env bash
-# Installs the WordPress PHPUnit test library without svn or Docker.
+#
+# Installs WordPress and its PHPUnit test library for the integration tests, without svn or
+# Docker. Needs WP-CLI, curl, tar and the mysql client.
+#
 # Usage: bin/install-wp-tests.sh <db-name> <db-user> <db-pass> [db-host] [wp-version] [target-dir]
-# db-host may be a socket: "localhost:/Applications/MAMP/tmp/mysql/mysql.sock".
+#
+#   db-name     Test database. The tests empty it, so never point this at a real site's database.
+#   db-host     Default localhost. For a socket use "localhost:/path/to/mysql.sock".
+#   wp-version  Default 7.1.4.
+#   target-dir  Default $TMPDIR/crazylinks-tests (or /tmp/crazylinks-tests).
+#
+# Prints the WP_TESTS_DIR to export before running vendor/bin/phpunit.
+#
 set -euo pipefail
 
 DB_NAME=${1:?db name}

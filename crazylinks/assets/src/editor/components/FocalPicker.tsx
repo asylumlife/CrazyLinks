@@ -18,6 +18,9 @@ interface Props {
 	help?: string;
 }
 
+/** Slider position (percent) used when a slider is reset. */
+const CENTRE_PERCENT = 50;
+
 export default function FocalPicker( {
 	label,
 	imageId,
@@ -25,7 +28,7 @@ export default function FocalPicker( {
 	onChange,
 	help,
 }: Props ) {
-	const id = useInstanceId( FocalPicker, 'cl-focal' ) as string;
+	const labelId = useInstanceId( FocalPicker, 'cl-focal-label' ) as string;
 	const media = useEditor(
 		( s ) => ( imageId ? s.getMedia( imageId ) : undefined ),
 		[ imageId ]
@@ -33,7 +36,7 @@ export default function FocalPicker( {
 	if ( ! imageId ) {
 		return null;
 	}
-	const f = readFocal( value );
+	const focal = readFocal( value );
 	const pick = ( e: MouseEvent< HTMLDivElement > ) => {
 		const box = e.currentTarget.getBoundingClientRect();
 		onChange(
@@ -46,13 +49,12 @@ export default function FocalPicker( {
 		);
 	};
 	return (
-		<BaseControl
-			id={ id }
-			label={ label }
-			help={ help }
-			__nextHasNoMarginBottom
-		>
-			<div className="cl-focal" id={ id }>
+		<BaseControl help={ help } __nextHasNoMarginBottom>
+			{ /* The control is a group of sliders, so it is named as a group, not through a label. */ }
+			<BaseControl.VisualLabel id={ labelId }>
+				{ label }
+			</BaseControl.VisualLabel>
+			<div className="cl-focal" role="group" aria-labelledby={ labelId }>
 				{ media && media.mime.startsWith( 'image' ) && (
 					// The sliders below are the keyboard equivalent of clicking the picture.
 					// eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
@@ -61,8 +63,8 @@ export default function FocalPicker( {
 						<span
 							className="cl-focal__dot"
 							style={ {
-								left: `${ f.x * 100 }%`,
-								top: `${ f.y * 100 }%`,
+								left: `${ focal.x * 100 }%`,
+								top: `${ focal.y * 100 }%`,
 							} }
 						/>
 					</div>
@@ -73,10 +75,13 @@ export default function FocalPicker( {
 					label={ __( 'Horizontal position (%)', 'crazylinks' ) }
 					min={ 0 }
 					max={ 100 }
-					value={ Math.round( f.x * 100 ) }
+					value={ Math.round( focal.x * 100 ) }
 					onChange={ ( v?: number ) =>
 						onChange(
-							normalizeFocal( { ...f, x: ( v ?? 50 ) / 100 } )
+							normalizeFocal( {
+								...focal,
+								x: ( v ?? CENTRE_PERCENT ) / 100,
+							} )
 						)
 					}
 				/>
@@ -86,10 +91,13 @@ export default function FocalPicker( {
 					label={ __( 'Vertical position (%)', 'crazylinks' ) }
 					min={ 0 }
 					max={ 100 }
-					value={ Math.round( f.y * 100 ) }
+					value={ Math.round( focal.y * 100 ) }
 					onChange={ ( v?: number ) =>
 						onChange(
-							normalizeFocal( { ...f, y: ( v ?? 50 ) / 100 } )
+							normalizeFocal( {
+								...focal,
+								y: ( v ?? CENTRE_PERCENT ) / 100,
+							} )
 						)
 					}
 				/>

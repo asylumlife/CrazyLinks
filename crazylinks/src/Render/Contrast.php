@@ -14,8 +14,7 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Contrast {
 
-	public const AA_BODY  = 4.5;
-	public const AA_LARGE = 3.0;
+	public const AA_BODY = 4.5;
 
 	/**
 	 * Hex colour to [r, g, b] (0-255). Alpha is ignored. Returns null for anything that is not a hex colour.

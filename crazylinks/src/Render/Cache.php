@@ -17,6 +17,12 @@ final class Cache {
 	public const MAX_TTL = 12 * HOUR_IN_SECONDS;
 
 	/**
+	 * Longest a page may stay cached when it shows data that changes without the page being saved
+	 * (latest posts, store products).
+	 */
+	public const EXTERNAL_DATA_TTL = 15 * MINUTE_IN_SECONDS;
+
+	/**
 	 * Transient key.
 	 *
 	 * @param int    $post_id Post id.
@@ -89,7 +95,7 @@ final class Cache {
 			return;
 		}
 		if ( \CrazyLinks\PostType::NAME === $post->post_type || ! is_post_type_viewable( $post->post_type ) ) {
-			return; // Link pages forget their own cache on save.
+			return; // Link pages forget their own cache on save; types without public pages never appear in a latest_posts block.
 		}
 		self::bump();
 	}

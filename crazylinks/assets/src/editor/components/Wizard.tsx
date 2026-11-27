@@ -10,11 +10,15 @@ import {
 } from '@wordpress/components';
 import { useState } from '@wordpress/element';
 import MediaField from './MediaField';
+import ThemePicker from './ThemePicker';
 import { boot } from '../boot';
-import { backgroundCss } from '../lib/theme';
+import { PROFILE_BIO_MAX, PROFILE_NAME_MAX } from '../lib/limits';
 import { parseSocialList } from '../lib/social';
+import { DEFAULT_THEME } from '../lib/theme';
 import type { PageDoc } from '../types';
 import { buildDocument, type WizardResult } from '../lib/wizard';
+
+const LAST_STEP = 2;
 
 export default function Wizard( {
 	onDone,
@@ -24,14 +28,15 @@ export default function Wizard( {
 	onSkip: () => void;
 } ) {
 	const [ step, setStep ] = useState( 0 );
-	const [ r, setR ] = useState< WizardResult >( {
+	const [ answers, setAnswers ] = useState< WizardResult >( {
 		name: '',
 		bio: '',
-		theme: 'default',
+		theme: DEFAULT_THEME,
 		socials: '',
 	} );
-	const themes = boot().themes;
-	const parsed = parseSocialList( r.socials );
+	const answer = ( patch: Partial< WizardResult > ) =>
+		setAnswers( { ...answers, ...patch } );
+	const parsed = parseSocialList( answers.socials );
 	const networks = boot().networks;
 	const titles = [
 		__( 'About you', 'crazylinks' ),
@@ -59,70 +64,33 @@ export default function Wizard( {
 						__next40pxDefaultSize
 						__nextHasNoMarginBottom
 						label={ __( 'Name', 'crazylinks' ) }
-						value={ r.name }
-						maxLength={ 80 }
-						onChange={ ( name: string ) => setR( { ...r, name } ) }
+						value={ answers.name }
+						maxLength={ PROFILE_NAME_MAX }
+						onChange={ ( name: string ) => answer( { name } ) }
 					/>
 					<TextareaControl
 						__nextHasNoMarginBottom
 						label={ __( 'Short bio', 'crazylinks' ) }
-						value={ r.bio }
+						value={ answers.bio }
 						rows={ 3 }
-						help={ `${ r.bio.length } / 280` }
-						onChange={ ( bio: string ) => setR( { ...r, bio } ) }
+						help={ `${ answers.bio.length } / ${ PROFILE_BIO_MAX }` }
+						onChange={ ( bio: string ) => answer( { bio } ) }
 					/>
 					<MediaField
 						label={ __( 'Avatar', 'crazylinks' ) }
-						value={ r.avatar }
-						onChange={ ( avatar ) => setR( { ...r, avatar } ) }
+						value={ answers.avatar }
+						onChange={ ( avatar ) => answer( { avatar } ) }
 					/>
 				</div>
 			) }
 			{ step === 1 && (
-				<div
-					className="cl-wizard__step cl-themes"
-					role="radiogroup"
-					aria-label={ __( 'Theme', 'crazylinks' ) }
-				>
-					{ Object.entries( themes ).map( ( [ slug, t ] ) => (
-						<button
-							type="button"
-							role="radio"
-							aria-checked={ r.theme === slug }
-							key={ slug }
-							className={
-								r.theme === slug
-									? 'cl-theme is-current'
-									: 'cl-theme'
-							}
-							onClick={ () => setR( { ...r, theme: slug } ) }
-						>
-							<span
-								className="cl-theme__swatch"
-								style={ {
-									background: backgroundCss( t.background ),
-								} }
-								aria-hidden="true"
-							>
-								<span
-									className="cl-theme__btn"
-									style={ {
-										background: String(
-											t.button?.color ?? '#111'
-										),
-										borderRadius:
-											t.button?.shape === 'pill'
-												? 999
-												: 6,
-									} }
-								/>
-							</span>
-							<span className="cl-theme__label">{ t.label }</span>
-						</button>
-					) ) }
-				</div>
+				<ThemePicker
+					className="cl-wizard__step"
+					current={ answers.theme }
+					onPick={ ( theme ) => answer( { theme } ) }
+				/>
 			) }
-			{ step === 2 && (
+			{ step === LAST_STEP && (
 				<div className="cl-wizard__step">
 					<TextareaControl
 						__nextHasNoMarginBottom
@@ -134,10 +102,10 @@ export default function Wizard( {
 							'Instagram, TikTok, YouTube, X, email addresses and more are detected automatically.',
 							'crazylinks'
 						) }
-						value={ r.socials }
+						value={ answers.socials }
 						rows={ 6 }
 						onChange={ ( socials: string ) =>
-							setR( { ...r, socials } )
+							answer( { socials } )
 						}
 					/>
 					{ parsed.items.length > 0 && (
@@ -148,12 +116,13 @@ export default function Wizard( {
 								'crazylinks'
 							) }
 						>
-							{ parsed.items.map( ( i ) => (
-								<li key={ i.url }>
+							{ parsed.items.map( ( item ) => (
+								<li key={ item.url }>
 									<strong>
-										{ networks[ i.network ] ?? i.network }
+										{ networks[ item.network ] ??
+											item.network }
 									</strong>{ ' ' }
-									{ i.url }
+									{ item.url }
 								</li>
 							) ) }
 						</ul>
@@ -180,7 +149,7 @@ export default function Wizard( {
 						{ __( 'Back', 'crazylinks' ) }
 					</Button>
 				) }
-				{ step < 2 ? (
+				{ step < LAST_STEP ? (
 					<Button
 						variant="primary"
 						onClick={ () => setStep( step + 1 ) }
@@ -191,7 +160,10 @@ export default function Wizard( {
 					<Button
 						variant="primary"
 						onClick={ () =>
-							onDone( buildDocument( r ), r.name.trim() )
+							onDone(
+								buildDocument( answers ),
+								answers.name.trim()
+							)
 						}
 					>
 						{ __( 'Create my page', 'crazylinks' ) }

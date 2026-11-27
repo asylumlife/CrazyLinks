@@ -209,17 +209,19 @@ final class Evals {
 		$res    = $driver->propose( $req );
 		$expect = (array) ( $item['expect'] ?? [] );
 		if ( is_wp_error( $res ) ) {
-			$usage = $driver->last_usage();
-			Limits::record( $usage['prompt_tokens'] + $usage['completion_tokens'] );
+			$used = self::tokens_used( $driver );
+			Limits::record( $used );
+			// Output the validator rejected twice passes only when the case expects no operations.
+			$expects_ops = 'ops' === ( $expect['type'] ?? '' ) || ! empty( $expect['ops'] );
 			return [
-				'pass'    => 'ops' !== ( $expect['type'] ?? '' ) && 'crazylinks_ai_invalid_output' === $res->get_error_code() && empty( $expect['ops'] ),
+				'pass'    => ! $expects_ops && 'crazylinks_ai_invalid_output' === $res->get_error_code(),
 				'message' => $res->get_error_message(),
-				'tokens'  => $usage['prompt_tokens'] + $usage['completion_tokens'],
+				'tokens'  => $used,
 			];
 		}
-		Limits::record( $res->tokens() );
 		$tokens = $res->tokens();
-		$fail   = '';
+		Limits::record( $tokens );
+		$fail = '';
 		if ( 'questions' === ( $expect['type'] ?? '' ) && ! $res->questions && $res->operations ) {
 			$fail = 'Expected questions, got operations.';
 		} elseif ( 'ops' === ( $expect['type'] ?? '' ) ) {
@@ -230,7 +232,7 @@ final class Evals {
 					break;
 				}
 			}
-			if ( '' === $fail && ! $res->operations && $expect['ops'] ) {
+			if ( '' === $fail && ! $res->operations && ! empty( $expect['ops'] ) ) {
 				$fail = 'Expected operations, got questions: ' . implode( ' ', $res->questions );
 			}
 		}
@@ -241,15 +243,25 @@ final class Evals {
 			} elseif ( empty( $verdict['pass'] ) ) {
 				$fail = 'Grader: ' . (string) ( $verdict['reason'] ?? '' );
 			}
-			$usage   = $driver->last_usage();
-			$tokens += $usage['prompt_tokens'] + $usage['completion_tokens'];
-			Limits::record( $usage['prompt_tokens'] + $usage['completion_tokens'] );
+			$used    = self::tokens_used( $driver );
+			$tokens += $used;
+			Limits::record( $used );
 		}
 		return [
 			'pass'    => '' === $fail,
 			'message' => '' === $fail ? $res->summary : $fail,
 			'tokens'  => $tokens,
 		];
+	}
+
+	/**
+	 * Tokens of the driver's last call.
+	 *
+	 * @param WpAiClientDriver $driver Driver.
+	 */
+	private static function tokens_used( WpAiClientDriver $driver ): int {
+		$usage = $driver->last_usage();
+		return $usage['prompt_tokens'] + $usage['completion_tokens'];
 	}
 
 	/**
