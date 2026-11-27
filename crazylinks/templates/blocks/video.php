@@ -41,7 +41,8 @@ $crazylinks_title  = (string) ( $props['title'] ?? '' );
 <video class="cl-video" playsinline preload="<?php echo $crazylinks_auto ? 'auto' : 'none'; ?>"
 	<?php
 	if ( $crazylinks_auto ) {
-		echo ' autoplay muted';
+		// Autoplay only starts muted; the controls let a visitor pause it or turn the sound on.
+		echo ' controls autoplay muted';
 	} else {
 		echo ' controls';
 		echo ! empty( $props['muted'] ) ? ' muted' : '';

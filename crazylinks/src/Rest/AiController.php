@@ -137,7 +137,7 @@ final class AiController {
 				[
 					'methods'             => \WP_REST_Server::CREATABLE,
 					'callback'            => [ $this, 'page_settings' ],
-					'permission_callback' => [ $this, 'page_permission' ],
+					'permission_callback' => [ $this, 'settings_permission' ],
 					'args'                => [
 						'require_confirmation' => [
 							'type'     => 'boolean',
@@ -206,6 +206,22 @@ final class AiController {
 			return $post;
 		}
 		return current_user_can( 'edit_post', $post->ID ) ? true : RestRoutes::forbidden();
+	}
+
+	/**
+	 * Permission for the per-page confirmation setting: page access plus `manage_crazylinks`. The
+	 * setting exists to hold back external agents, so an account that only has AI and edit
+	 * rights (the agent role) must not be able to switch it off.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return true|\WP_Error
+	 */
+	public function settings_permission( $request ) {
+		$allowed = $this->page_permission( $request );
+		if ( true !== $allowed ) {
+			return $allowed;
+		}
+		return current_user_can( 'manage_crazylinks' ) ? true : RestRoutes::forbidden();
 	}
 
 	/**

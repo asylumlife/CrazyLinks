@@ -231,7 +231,7 @@ class SectionHeadingTest extends TestCase {
 				],
 			]
 		);
-		$this->assertStringContainsString( '<h3 class="cl-heading cl-align-left cl-heading--xl cl-heading--black cl-heading--loose cl-heading--div-dots cl-heading--upper" style="color:#ff0055">', $html );
+		$this->assertStringContainsString( '<h3 class="cl-heading cl-align-left cl-heading--xl cl-heading--black cl-heading--loose cl-heading--divider-dots cl-heading--upper" style="color:#ff0055">', $html );
 		$this->assertStringContainsString( 'cl-heading__icon', $html );
 		$this->assertStringContainsString( '<span class="cl-heading__text">Tour &lt;script&gt;</span>', $html );
 		$this->assertStringContainsString( '<p class="cl-heading__sub cl-align-left">Dates &amp; &quot;tickets&quot;</p>', $html );

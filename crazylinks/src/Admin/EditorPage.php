@@ -160,6 +160,7 @@ final class EditorPage {
 				'publish_crazylinks_pages'  => current_user_can( 'publish_crazylinks_pages' ),
 				'view_crazylinks_analytics' => current_user_can( 'view_crazylinks_analytics' ),
 				'use_crazylinks_ai'         => current_user_can( 'use_crazylinks_ai' ),
+				'manage_crazylinks'         => current_user_can( 'manage_crazylinks' ),
 			],
 			'ai'           => Status::editor_data( (int) $post->ID, self::ai_available() ),
 			'rest'         => [

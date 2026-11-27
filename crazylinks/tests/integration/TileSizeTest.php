@@ -34,7 +34,7 @@ class TileSizeTest extends TestCase {
 		);
 		$doc['design'] = [ 'layout' => 'grid' ];
 		$html          = $this->render_as_admin( $doc );
-		$this->assertSame( 1, substr_count( $html, 'cl-tile-2x2' ) );
+		$this->assertSame( 1, substr_count( $html, 'cl-block--tile-2x2' ) );
 		$this->assertStringContainsString( 'cl-layout-grid', $html );
 		$doc['blocks'][0]['props']['tile_size'] = '3x3';
 		$this->assertFalse( $this->validate_as_admin( $doc )->is_valid() );

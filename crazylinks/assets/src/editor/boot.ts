@@ -39,6 +39,7 @@ const empty: BootData = {
 		publish_crazylinks_pages: false,
 		view_crazylinks_analytics: false,
 		use_crazylinks_ai: false,
+		manage_crazylinks: false,
 	},
 	ai: { available: false },
 	rest: { root: '', nonce: '', namespace: 'crazylinks/v1' },

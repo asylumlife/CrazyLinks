@@ -59,6 +59,7 @@ function ExternalOnly( { ai }: { ai: AiBoot } ) {
 }
 
 function AiTools( { ai }: { ai: AiBoot } ) {
+	const canManage = boot().caps.manage_crazylinks;
 	const state = useAi( selectState );
 	const pageId = useEditor( ( s ) => s.getMeta().id, [] );
 	const { setMode, setInstruction } = useDispatch( aiStore );
@@ -179,10 +180,18 @@ function AiTools( { ai }: { ai: AiBoot } ) {
 					'External AI agents need my confirmation for this page',
 					'crazylinks'
 				) }
-				help={ __(
-					'Changes proposed by assistants connected through the MCP Adapter can only be applied here, in the editor.',
-					'crazylinks'
-				) }
+				help={
+					canManage
+						? __(
+								'Changes proposed by assistants connected through the MCP Adapter can only be applied here, in the editor.',
+								'crazylinks'
+							)
+						: __(
+								'Only an administrator can change this.',
+								'crazylinks'
+							)
+				}
+				disabled={ ! canManage }
 				checked={ confirm }
 				onChange={ ( v: boolean ) => {
 					setConfirm( v );

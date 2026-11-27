@@ -175,6 +175,7 @@ export interface BootData {
 		publish_crazylinks_pages: boolean;
 		view_crazylinks_analytics: boolean;
 		use_crazylinks_ai: boolean;
+		manage_crazylinks: boolean;
 	};
 	ai: AiBoot;
 	lock?: LockBoot;

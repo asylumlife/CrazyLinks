@@ -513,7 +513,8 @@ class AiRestTest extends TestCase {
 
 	public function test_page_settings_route_and_status_shape(): void {
 		$post = $this->page();
-		$res  = $this->rest( 'POST', "/crazylinks/v1/pages/{$post->ID}/ai/settings", [ 'require_confirmation' => true ] );
+		wp_get_current_user()->add_cap( 'manage_crazylinks' );
+		$res = $this->rest( 'POST', "/crazylinks/v1/pages/{$post->ID}/ai/settings", [ 'require_confirmation' => true ] );
 		$this->assertTrue( $res->get_data()['require_confirmation'] );
 		$this->assertTrue( Proposals::requires_confirmation( $post->ID ) );
 
@@ -525,6 +526,20 @@ class AiRestTest extends TestCase {
 		$this->assertSame( 30, $status['limits']['user_hourly'] );
 		$this->assertSame( 300, $status['limits']['site_daily'] );
 		$this->assertSame( 30, $status['limits']['proposal_minutes'] );
+	}
+
+	public function test_only_a_manager_can_change_the_confirmation_setting(): void {
+		$post = $this->page();
+		update_post_meta( $post->ID, Proposals::CONFIRM_META, '1' );
+		$agent = self::factory()->user->create( [ 'role' => 'editor' ] );
+		get_userdata( $agent )->add_cap( 'use_crazylinks_ai' );
+		wp_set_current_user( $agent );
+		$this->assertTrue( current_user_can( 'edit_post', $post->ID ) );
+		$this->assertFalse( current_user_can( 'manage_crazylinks' ) );
+
+		$res = $this->rest( 'POST', "/crazylinks/v1/pages/{$post->ID}/ai/settings", [ 'require_confirmation' => false ] );
+		$this->assertSame( 403, $res->get_status() );
+		$this->assertTrue( Proposals::requires_confirmation( $post->ID ), 'Still on' );
 	}
 
 	public function test_editor_boot_data(): void {

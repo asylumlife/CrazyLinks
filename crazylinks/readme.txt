@@ -4,7 +4,7 @@ Tags: link in bio, linktree, links, bio link, landing page
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.3.6
+Stable tag: 0.3.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -143,6 +143,11 @@ Simple Icons, released under CC0. See LICENSE-icons.txt. The logos remain tradem
 5. The page editor: the Links tab with the live preview.
 
 == Changelog ==
+
+= 0.3.7 =
+* Security: only a user who can manage CrazyLinks (an administrator) can change a page's "External AI agents need my confirmation" setting. An agent account can no longer switch it off for itself; the toggle is read-only for other users.
+* Change: an autoplaying Video block shows the player controls, so visitors can pause it or turn the sound on.
+* Change: CSS class names made consistent. If your custom CSS uses the old names, update it: `cl-pinned` is now `cl-block--pinned`, `cl-tile-2x1` / `cl-tile-2x2` are `cl-block--tile-2x1` / `cl-block--tile-2x2`, `cl-heading--div-line` / `cl-heading--div-dots` are `cl-heading--divider-line` / `cl-heading--divider-dots`, `cl-product-link` is `cl-product__link`, and the Image block's link and caption have the classes `cl-figure__link` and `cl-figure__caption`.
 
 = 0.3.6 =
 * Fix: the Time of day chart put some events in the wrong hour in timezones with a half-hour offset.

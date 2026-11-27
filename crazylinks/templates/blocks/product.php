@@ -84,7 +84,7 @@ $crazylinks_price_html = static function ( array $product ) use ( $crazylinks_pr
 <li class="cl-products__item">
 	<?php endif; ?>
 	<?php if ( $crazylinks_button ) : ?>
-	<a class="cl-link cl-link--classic cl-link--thumb cl-product-link" href="<?php echo esc_url( $crazylinks_href, \CrazyLinks\Schema\UrlPolicy::WEB_SCHEMES ); ?>" rel="noopener" aria-label="<?php echo esc_attr( $crazylinks_cta . ': ' . $crazylinks_name ); ?>">
+	<a class="cl-link cl-link--classic cl-link--thumb cl-product__link" href="<?php echo esc_url( $crazylinks_href, \CrazyLinks\Schema\UrlPolicy::WEB_SCHEMES ); ?>" rel="noopener" aria-label="<?php echo esc_attr( $crazylinks_cta . ': ' . $crazylinks_name ); ?>">
 		<?php if ( '' !== $crazylinks_image ) : ?>
 			<img class="cl-link__thumb" src="<?php echo esc_url( $crazylinks_image ); ?>" alt="" width="44" height="44" loading="lazy" decoding="async">
 		<?php endif; ?>

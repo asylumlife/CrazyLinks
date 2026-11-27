@@ -36,11 +36,11 @@ if ( '' !== $crazylinks_href && '' === $crazylinks_alt ) {
 ?>
 <figure class="cl-figure">
 	<?php if ( '' !== $crazylinks_href ) : ?>
-		<a href="<?php echo esc_url( $crazylinks_href, \CrazyLinks\Schema\UrlPolicy::LINK_SCHEMES ); ?>"><?php echo $crazylinks_img . $crazylinks_link_name; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_get_attachment_image output and escaped text. ?></a>
+		<a class="cl-figure__link" href="<?php echo esc_url( $crazylinks_href, \CrazyLinks\Schema\UrlPolicy::LINK_SCHEMES ); ?>"><?php echo $crazylinks_img . $crazylinks_link_name; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_get_attachment_image output and escaped text. ?></a>
 	<?php else : ?>
 		<?php echo $crazylinks_img; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_get_attachment_image output. ?>
 	<?php endif; ?>
 	<?php if ( ! empty( $props['caption'] ) ) : ?>
-		<figcaption><?php echo esc_html( (string) $props['caption'] ); ?></figcaption>
+		<figcaption class="cl-figure__caption"><?php echo esc_html( (string) $props['caption'] ); ?></figcaption>
 	<?php endif; ?>
 </figure>

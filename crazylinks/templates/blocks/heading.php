@@ -21,7 +21,7 @@ foreach ( [
 ] as $crazylinks_key => $crazylinks_allowed ) {
 	$crazylinks_value = \CrazyLinks\Render\Renderer::choice( $props, $crazylinks_key, $crazylinks_allowed, '' );
 	if ( '' !== $crazylinks_value ) {
-		$crazylinks_classes[] = 'cl-heading--' . ( 'divider' === $crazylinks_key ? 'div-' : '' ) . $crazylinks_value;
+		$crazylinks_classes[] = 'cl-heading--' . ( 'divider' === $crazylinks_key ? 'divider-' : '' ) . $crazylinks_value;
 	}
 }
 if ( ! empty( $props['uppercase'] ) ) {

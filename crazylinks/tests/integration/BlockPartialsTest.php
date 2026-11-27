@@ -200,7 +200,7 @@ class BlockPartialsTest extends TestCase {
 
 		$auto = $this->render( $this->doc( [ [ 'type' => 'video', 'props' => [ 'video' => $video, 'autoplay' => true, 'loop' => true ] ] ] ) );
 		$this->assertStringContainsString( ' autoplay muted', $auto );
-		$this->assertStringNotContainsString( ' controls', $auto );
+		$this->assertStringContainsString( ' controls', $auto, 'An autoplaying video can be paused' );
 
 		$this->assertStringNotContainsString( '<video', $this->render( $this->doc( [ [ 'type' => 'video', 'props' => [ 'video' => $other ] ] ] ) ) );
 		$this->assertFalse( $this->validate_block( 'video', [] )->is_valid(), 'A video block needs a source.' );
@@ -458,7 +458,7 @@ class BlockPartialsTest extends TestCase {
 		);
 		$this->assert_no_injection( $html );
 		$this->assertStringContainsString( 'cl-link--thumb-right', $html );
-		$this->assertStringContainsString( 'cl-pinned', $html );
+		$this->assertStringContainsString( 'cl-block--pinned', $html );
 		$this->assertStringContainsString( 'class="cl-pin"', $html );
 		$this->assertSame( 1, substr_count( $html, 'data-cl-end="' . gmdate( 'c', strtotime( $soon ) ) . '"' ), 'NEW flag only on the link without an explicit badge.' );
 		$this->assertStringContainsString( '>New</span>', $html );

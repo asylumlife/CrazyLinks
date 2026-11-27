@@ -237,13 +237,13 @@ final class Renderer {
 		}
 		$classes = [ 'cl-block', 'cl-block--' . sanitize_html_class( str_replace( '_', '-', (string) $block['type'] ) ) ];
 		if ( ! empty( $block['pinned'] ) ) {
-			$classes[] = 'cl-pinned';
+			$classes[] = 'cl-block--pinned';
 		}
 		if ( 'link' === $block['type'] && 'featured' === ( $block['props']['display'] ?? '' ) ) {
 			$classes[] = 'cl-block--featured';
 		}
 		if ( 'link' === $block['type'] && in_array( $block['props']['tile_size'] ?? '', [ '2x1', '2x2' ], true ) ) {
-			$classes[] = 'cl-tile-' . (string) $block['props']['tile_size'];
+			$classes[] = 'cl-block--tile-' . (string) $block['props']['tile_size'];
 		}
 		if ( 'featured' === $ctx->layout && (string) $block['id'] === $ctx->lead_id ) {
 			$classes[] = 'cl-block--lead';
