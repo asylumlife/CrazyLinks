@@ -26,7 +26,7 @@ final class Assets {
 	 *
 	 * @param string $name frontend.css | frontend.js.
 	 */
-	public static function read( string $name ): string {
+	private static function read( string $name ): string {
 		$debug = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG;
 		$build = CRAZYLINKS_DIR . 'assets/build/' . preg_replace( '/\.(css|js)$/', '.min.$1', $name );
 		$file  = ( ! $debug && is_readable( $build ) ) ? $build : CRAZYLINKS_DIR . 'assets/src/' . $name;
@@ -62,7 +62,8 @@ final class Assets {
 	}
 
 	/**
-	 * Resets print state (tests).
+	 * Resets print state, so the next style_tag() and script_tag() print the assets again (the
+	 * preview response, tests).
 	 */
 	public static function reset(): void {
 		self::$printed = [];

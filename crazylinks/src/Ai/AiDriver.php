@@ -1,6 +1,6 @@
 <?php
 /**
- * AI driver contract (SPEC §10.2). Phase 1 ships the interface only.
+ * AI driver contract (SPEC §10.2).
  *
  * @package CrazyLinks
  */

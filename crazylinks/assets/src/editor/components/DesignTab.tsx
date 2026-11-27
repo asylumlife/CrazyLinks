@@ -10,99 +10,29 @@ import {
 	TextareaControl,
 	ToggleControl,
 } from '@wordpress/components';
-import type { JsonObject, JsonValue } from '../types';
+import type { JsonValue } from '../types';
 import { useEditor, useEditorDispatch } from '../hooks';
 import { boot } from '../boot';
 import ColorField from './ColorField';
+import FieldError from './FieldError';
 import MediaField from './MediaField';
-import { backgroundCss, effective, resolveColorTokens } from '../lib/theme';
+import ThemePicker from './ThemePicker';
+import {
+	backgroundCss,
+	effective,
+	presetFor,
+	resolveColorTokens,
+} from '../lib/theme';
 import { badgeIssue, contrastIssues } from '../lib/contrast';
-import { getPath } from '../lib/paths';
-
-function radiusFor( shape: unknown ): number {
-	if ( shape === 'pill' ) {
-		return 999;
-	}
-	return shape === 'square' ? 0 : 6;
-}
-
-function ThemePicker( {
-	current,
-	onPick,
-}: {
-	current: string;
-	onPick: ( slug: string ) => void;
-} ) {
-	const themes = boot().themes;
-	return (
-		<div
-			className="cl-themes"
-			role="radiogroup"
-			aria-label={ __( 'Theme', 'crazylinks' ) }
-		>
-			{ Object.entries( themes ).map( ( [ slug, t ] ) => {
-				const button = t.button ?? {};
-				const text = t.text ?? {};
-				const checked = current === slug;
-				return (
-					<button
-						type="button"
-						role="radio"
-						aria-checked={ checked }
-						key={ slug }
-						className={
-							checked ? 'cl-theme is-current' : 'cl-theme'
-						}
-						onClick={ () => onPick( slug ) }
-					>
-						<span
-							className="cl-theme__swatch"
-							style={ {
-								background: backgroundCss( t.background ),
-							} }
-							aria-hidden="true"
-						>
-							<span
-								className="cl-theme__aa"
-								style={ {
-									color: String( text.color ?? '#111' ),
-								} }
-							>
-								Aa
-							</span>
-							<span
-								className="cl-theme__btn"
-								style={ {
-									background:
-										button.fill === 'outline'
-											? 'transparent'
-											: String( button.color ?? '#111' ),
-									color: String(
-										button.text_color ?? '#fff'
-									),
-									border: `2px solid ${ String( button.color ?? '#111' ) }`,
-									borderRadius: radiusFor( button.shape ),
-								} }
-							/>
-							<span
-								className="cl-theme__btn"
-								style={ {
-									background:
-										button.fill === 'outline'
-											? 'transparent'
-											: String( button.color ?? '#111' ),
-									border: `2px solid ${ String( button.color ?? '#111' ) }`,
-									borderRadius: radiusFor( button.shape ),
-								} }
-							/>
-						</span>
-						<span className="cl-theme__label">{ t.label }</span>
-					</button>
-				);
-			} ) }
-		</div>
-	);
-}
+import { errorFor } from '../lib/errors';
+import { asObject, getPath } from '../lib/paths';
+import {
+	backgroundTypeOptions,
+	buttonFillOptions,
+	opts,
+	patternOptions,
+} from '../registry/options';
+import type { Option } from '../registry/options';
 
 function contrastLabels(): Record< string, string > {
 	return {
@@ -124,12 +54,7 @@ function contrastLabels(): Record< string, string > {
 function ContrastChips() {
 	const design = useEditor( ( s ) => s.getDoc().design, [] );
 	const blocks = useEditor( ( s ) => s.getDoc().blocks, [] );
-	const slug =
-		typeof design.theme === 'string' && design.theme
-			? design.theme
-			: 'default';
-	const themes = boot().themes;
-	const preset = themes[ slug ] ?? themes.default;
+	const { preset } = presetFor( design, boot().themes );
 	const labels = contrastLabels();
 	const light = contrastIssues(
 		resolveColorTokens( design, preset, false ),
@@ -161,7 +86,7 @@ function ContrastChips() {
 		),
 	} ) );
 	for ( const b of blocks ) {
-		const color = ( b.props.badge as JsonObject | undefined )?.color;
+		const color = asObject( b.props.badge ).color;
 		const ratio =
 			b.type === 'link' && typeof color === 'string'
 				? badgeIssue( color )
@@ -207,79 +132,124 @@ function ContrastChips() {
 	);
 }
 
-export default function DesignTab() {
+/**
+ * The page design with its theme preset, and readers and a writer for single tokens.
+ */
+function useDesign() {
 	const design = useEditor( ( s ) => s.getDoc().design, [] );
 	const errors = useEditor( ( s ) => s.getErrors(), [] );
 	const { setSection, applyTheme } = useEditorDispatch();
-	const data = boot();
-	const slug =
-		typeof design.theme === 'string' && design.theme
-			? design.theme
-			: 'default';
-	const preset = data.themes[ slug ] ?? data.themes.default;
-	const eff = ( ...path: string[] ) => effective( design, preset, path );
-	const own = ( ...path: string[] ) => getPath( design, path );
-	const set = ( path: string[], v: JsonValue | undefined ) =>
-		setSection( 'design', path, v );
-	const err = ( path: string ) =>
-		errors.find(
-			( e ) =>
-				e.field === `/design/${ path }` ||
-				e.field.startsWith( `/design/${ path }/` )
-		)?.message;
-	const color = ( label: string, path: string[], allowEmpty = false ) => (
+	const { slug, preset } = presetFor( design, boot().themes );
+	return {
+		design,
+		slug,
+		applyTheme,
+		/** The page's own value of a token (unset when it follows the theme). */
+		own: ( path: string[] ) => getPath( design, path ),
+		/** The value a token resolves to: the page's own, else the theme's. */
+		resolved: ( path: string[] ) => effective( design, preset, path ),
+		set: ( path: string[], value: JsonValue | undefined ) =>
+			setSection( 'design', path, value ),
+		errorAt: ( path: string[] ) =>
+			errorFor( errors, `/design/${ path.join( '/' ) }` ),
+	};
+}
+
+/**
+ * Colour control for one design token; the theme's colour is the fallback.
+ *
+ * @param props            Props.
+ * @param props.label      Control label.
+ * @param props.path       Token path.
+ * @param props.allowEmpty Whether the token accepts '' ("no colour").
+ */
+function DesignColor( {
+	label,
+	path,
+	allowEmpty = false,
+}: {
+	label: string;
+	path: string[];
+	allowEmpty?: boolean;
+} ) {
+	const { own, resolved, set, errorAt } = useDesign();
+	const value = own( path );
+	const fallback = resolved( path );
+	return (
 		<ColorField
 			label={ label }
-			value={
-				typeof own( ...path ) === 'string'
-					? ( own( ...path ) as string )
-					: undefined
-			}
-			fallback={
-				typeof eff( ...path ) === 'string'
-					? ( eff( ...path ) as string )
-					: undefined
-			}
+			value={ typeof value === 'string' ? value : undefined }
+			fallback={ typeof fallback === 'string' ? fallback : undefined }
 			allowEmpty={ allowEmpty }
 			onChange={ ( v ) => set( path, v ) }
-			error={ err( path.join( '/' ) ) }
+			error={ errorAt( path ) }
 		/>
 	);
-	const select = (
-		label: string,
-		path: string[],
-		options: Array< [ string, string ] >
-	) => (
+}
+
+/**
+ * Select for one design token; shows the first option while the token is unset everywhere.
+ *
+ * @param props         Props.
+ * @param props.label   Control label.
+ * @param props.path    Token path.
+ * @param props.options Options.
+ */
+function DesignSelect( {
+	label,
+	path,
+	options,
+}: {
+	label: string;
+	path: string[];
+	options: Option[];
+} ) {
+	const { resolved, set } = useDesign();
+	return (
 		<SelectControl
 			__next40pxDefaultSize
 			__nextHasNoMarginBottom
 			label={ label }
-			value={ String( eff( ...path ) ?? options[ 0 ][ 0 ] ) }
-			options={ options.map( ( [ value, l ] ) => ( {
-				value,
-				label: l,
-			} ) ) }
+			value={ String( resolved( path ) ?? options[ 0 ].value ) }
+			options={ options }
 			onChange={ ( v: string ) => set( path, v ) }
 		/>
 	);
-	const range = (
-		label: string,
-		path: string[],
-		min: number,
-		max: number,
-		fallback: number
-	) => (
+}
+
+/**
+ * Slider for one numeric design token; resetting it removes the page's own value.
+ *
+ * @param props          Props.
+ * @param props.label    Control label.
+ * @param props.path     Token path.
+ * @param props.min      Lowest value.
+ * @param props.max      Highest value.
+ * @param props.fallback Position shown while the token is unset everywhere.
+ */
+function DesignRange( {
+	label,
+	path,
+	min,
+	max,
+	fallback,
+}: {
+	label: string;
+	path: string[];
+	min: number;
+	max: number;
+	fallback: number;
+} ) {
+	const { resolved, set } = useDesign();
+	const value = resolved( path );
+	return (
 		<RangeControl
 			__next40pxDefaultSize
 			__nextHasNoMarginBottom
 			label={ label }
 			min={ min }
 			max={ max }
-			value={
-				typeof eff( ...path ) === 'number'
-					? ( eff( ...path ) as number )
-					: fallback
-			}
+			value={ typeof value === 'number' ? value : fallback }
 			allowReset
 			resetFallbackValue={ undefined }
 			onChange={ ( v?: number ) =>
@@ -287,9 +257,292 @@ export default function DesignTab() {
 			}
 		/>
 	);
-	const bgType = String( eff( 'background', 'type' ) ?? 'solid' );
-	const bg = ( eff( 'background' ) ?? {} ) as JsonObject;
+}
 
+function BackgroundPanel() {
+	const { own, resolved, set } = useDesign();
+	const type = String( resolved( [ 'background', 'type' ] ) ?? 'solid' );
+	const image = own( [ 'background', 'image' ] );
+	return (
+		<PanelBody
+			title={ __( 'Background', 'crazylinks' ) }
+			initialOpen={ false }
+		>
+			<div
+				className="cl-bg-sample"
+				style={ {
+					background: backgroundCss(
+						asObject( resolved( [ 'background' ] ) )
+					),
+				} }
+				aria-hidden="true"
+			/>
+			<DesignSelect
+				label={ __( 'Type', 'crazylinks' ) }
+				path={ [ 'background', 'type' ] }
+				options={ backgroundTypeOptions() }
+			/>
+			{ [ 'solid', 'pattern', 'image' ].includes( type ) && (
+				<DesignColor
+					label={ __( 'Colour', 'crazylinks' ) }
+					path={ [ 'background', 'color' ] }
+				/>
+			) }
+			{ type === 'gradient' && (
+				<>
+					<DesignColor
+						label={ __( 'From', 'crazylinks' ) }
+						path={ [ 'background', 'from' ] }
+					/>
+					<DesignColor
+						label={ __( 'To', 'crazylinks' ) }
+						path={ [ 'background', 'to' ] }
+					/>
+					<DesignRange
+						label={ __( 'Angle', 'crazylinks' ) }
+						path={ [ 'background', 'angle' ] }
+						min={ 0 }
+						max={ 360 }
+						fallback={ 180 }
+					/>
+					<ToggleControl
+						__nextHasNoMarginBottom
+						label={ __( 'Radial', 'crazylinks' ) }
+						checked={
+							resolved( [ 'background', 'radial' ] ) === true
+						}
+						onChange={ ( v: boolean ) =>
+							set( [ 'background', 'radial' ], v )
+						}
+					/>
+				</>
+			) }
+			{ type === 'image' && (
+				<>
+					<MediaField
+						label={ __( 'Background image', 'crazylinks' ) }
+						value={ typeof image === 'number' ? image : undefined }
+						onChange={ ( v ) =>
+							set( [ 'background', 'image' ], v )
+						}
+					/>
+					<DesignColor
+						label={ __( 'Overlay', 'crazylinks' ) }
+						path={ [ 'background', 'overlay' ] }
+						allowEmpty
+					/>
+					<DesignRange
+						label={ __( 'Blur', 'crazylinks' ) }
+						path={ [ 'background', 'blur' ] }
+						min={ 0 }
+						max={ 40 }
+						fallback={ 0 }
+					/>
+				</>
+			) }
+			{ type === 'pattern' && (
+				<>
+					<DesignSelect
+						label={ __( 'Pattern', 'crazylinks' ) }
+						path={ [ 'background', 'pattern' ] }
+						options={ patternOptions() }
+					/>
+					<DesignColor
+						label={ __( 'Pattern colour', 'crazylinks' ) }
+						path={ [ 'background', 'pattern_color' ] }
+					/>
+					<DesignRange
+						label={ __( 'Pattern size', 'crazylinks' ) }
+						path={ [ 'background', 'pattern_size' ] }
+						min={ 8 }
+						max={ 80 }
+						fallback={ 24 }
+					/>
+				</>
+			) }
+		</PanelBody>
+	);
+}
+
+function TextPanel() {
+	return (
+		<PanelBody title={ __( 'Text', 'crazylinks' ) } initialOpen={ false }>
+			<DesignColor
+				label={ __( 'Text colour', 'crazylinks' ) }
+				path={ [ 'text', 'color' ] }
+			/>
+			<DesignColor
+				label={ __( 'Muted text colour', 'crazylinks' ) }
+				path={ [ 'text', 'muted' ] }
+			/>
+			<DesignSelect
+				label={ __( 'Font', 'crazylinks' ) }
+				path={ [ 'text', 'font' ] }
+				options={ opts( [
+					[
+						'system-sans',
+						__( 'Sans-serif (system)', 'crazylinks' ),
+					],
+					[ 'system-serif', __( 'Serif (system)', 'crazylinks' ) ],
+					[
+						'system-rounded',
+						__( 'Rounded (system)', 'crazylinks' ),
+					],
+					[ 'system-mono', __( 'Monospace (system)', 'crazylinks' ) ],
+				] ) }
+			/>
+			<DesignSelect
+				label={ __( 'Text size', 'crazylinks' ) }
+				path={ [ 'text', 'size' ] }
+				options={ opts( [
+					[ 'sm', __( 'Small', 'crazylinks' ) ],
+					[ 'md', __( 'Medium', 'crazylinks' ) ],
+					[ 'lg', __( 'Large', 'crazylinks' ) ],
+				] ) }
+			/>
+		</PanelBody>
+	);
+}
+
+function ButtonsPanel() {
+	return (
+		<PanelBody
+			title={ __( 'Buttons', 'crazylinks' ) }
+			initialOpen={ false }
+		>
+			<DesignSelect
+				label={ __( 'Shape', 'crazylinks' ) }
+				path={ [ 'button', 'shape' ] }
+				options={ opts( [
+					[ 'rounded', __( 'Rounded', 'crazylinks' ) ],
+					[ 'pill', __( 'Pill', 'crazylinks' ) ],
+					[ 'square', __( 'Square', 'crazylinks' ) ],
+				] ) }
+			/>
+			<DesignSelect
+				label={ __( 'Fill', 'crazylinks' ) }
+				path={ [ 'button', 'fill' ] }
+				options={ buttonFillOptions() }
+			/>
+			<DesignColor
+				label={ __( 'Button colour', 'crazylinks' ) }
+				path={ [ 'button', 'color' ] }
+			/>
+			<DesignColor
+				label={ __( 'Button text colour', 'crazylinks' ) }
+				path={ [ 'button', 'text_color' ] }
+			/>
+			<DesignSelect
+				label={ __( 'Shadow', 'crazylinks' ) }
+				path={ [ 'button', 'shadow' ] }
+				options={ opts( [
+					[ 'none', __( 'None', 'crazylinks' ) ],
+					[ 'soft', __( 'Soft', 'crazylinks' ) ],
+					[ 'hard', __( 'Hard', 'crazylinks' ) ],
+				] ) }
+			/>
+			<DesignRange
+				label={ __( 'Border width', 'crazylinks' ) }
+				path={ [ 'button', 'border_width' ] }
+				min={ 0 }
+				max={ 8 }
+				fallback={ 0 }
+			/>
+			<DesignSelect
+				label={ __( 'Hover effect', 'crazylinks' ) }
+				path={ [ 'button', 'hover' ] }
+				options={ opts( [
+					[ 'lift', __( 'Lift', 'crazylinks' ) ],
+					[ 'darken', __( 'Darken', 'crazylinks' ) ],
+					[ 'none', __( 'None', 'crazylinks' ) ],
+				] ) }
+			/>
+			<DesignColor
+				label={ __( 'Accent colour', 'crazylinks' ) }
+				path={ [ 'accent' ] }
+			/>
+			<DesignRange
+				label={ __( 'Corner radius', 'crazylinks' ) }
+				path={ [ 'radius' ] }
+				min={ 0 }
+				max={ 48 }
+				fallback={ 14 }
+			/>
+		</PanelBody>
+	);
+}
+
+function LayoutPanel() {
+	return (
+		<PanelBody title={ __( 'Layout', 'crazylinks' ) } initialOpen={ false }>
+			<DesignSelect
+				label={ __( 'Link layout', 'crazylinks' ) }
+				path={ [ 'layout' ] }
+				options={ opts( [
+					[ 'list', __( 'List', 'crazylinks' ) ],
+					[ 'grid', __( 'Grid (2 columns)', 'crazylinks' ) ],
+					[ 'featured', __( 'Featured first link', 'crazylinks' ) ],
+				] ) }
+			/>
+			<DesignSelect
+				label={ __( 'Dark mode', 'crazylinks' ) }
+				path={ [ 'dark_mode' ] }
+				options={ opts( [
+					[
+						'auto',
+						__( "Follow the visitor's device", 'crazylinks' ),
+					],
+					[ 'light', __( 'Always light', 'crazylinks' ) ],
+					[ 'dark', __( 'Always dark', 'crazylinks' ) ],
+				] ) }
+			/>
+		</PanelBody>
+	);
+}
+
+/** Custom CSS: editable with the unfiltered_html capability, otherwise only announced. */
+function CustomCssPanel() {
+	const { design, set, errorAt } = useDesign();
+	const canEdit = boot().caps.unfiltered_html;
+	if ( ! canEdit && ! design.custom_css ) {
+		return null;
+	}
+	return (
+		<PanelBody
+			title={ __( 'Custom CSS', 'crazylinks' ) }
+			initialOpen={ false }
+		>
+			{ canEdit ? (
+				<TextareaControl
+					__nextHasNoMarginBottom
+					label={ __( 'CSS added to this page', 'crazylinks' ) }
+					help={ __( 'Scope rules under .cl-page.', 'crazylinks' ) }
+					className="cl-code"
+					rows={ 8 }
+					value={
+						typeof design.custom_css === 'string'
+							? design.custom_css
+							: ''
+					}
+					onChange={ ( v: string ) =>
+						set( [ 'custom_css' ], v === '' ? undefined : v )
+					}
+				/>
+			) : (
+				<Notice status="info" isDismissible={ false }>
+					{ __(
+						'This page has custom CSS. Only users allowed to post unfiltered HTML can change it.',
+						'crazylinks'
+					) }
+				</Notice>
+			) }
+			<FieldError message={ errorAt( [ 'custom_css' ] ) } />
+		</PanelBody>
+	);
+}
+
+export default function DesignTab() {
+	const { slug, applyTheme } = useDesign();
 	return (
 		<div className="cl-design-tab">
 			<ContrastChips />
@@ -302,297 +555,11 @@ export default function DesignTab() {
 				</p>
 				<ThemePicker current={ slug } onPick={ applyTheme } />
 			</PanelBody>
-			<PanelBody
-				title={ __( 'Background', 'crazylinks' ) }
-				initialOpen={ false }
-			>
-				<div
-					className="cl-bg-sample"
-					style={ { background: backgroundCss( bg ) } }
-					aria-hidden="true"
-				/>
-				{ select(
-					__( 'Type', 'crazylinks' ),
-					[ 'background', 'type' ],
-					[
-						[ 'solid', __( 'Solid colour', 'crazylinks' ) ],
-						[ 'gradient', __( 'Gradient', 'crazylinks' ) ],
-						[ 'image', __( 'Image', 'crazylinks' ) ],
-						[ 'pattern', __( 'Pattern', 'crazylinks' ) ],
-					]
-				) }
-				{ ( bgType === 'solid' ||
-					bgType === 'pattern' ||
-					bgType === 'image' ) &&
-					color( __( 'Colour', 'crazylinks' ), [
-						'background',
-						'color',
-					] ) }
-				{ bgType === 'gradient' && (
-					<>
-						{ color( __( 'From', 'crazylinks' ), [
-							'background',
-							'from',
-						] ) }
-						{ color( __( 'To', 'crazylinks' ), [
-							'background',
-							'to',
-						] ) }
-						{ range(
-							__( 'Angle', 'crazylinks' ),
-							[ 'background', 'angle' ],
-							0,
-							360,
-							180
-						) }
-						<ToggleControl
-							__nextHasNoMarginBottom
-							label={ __( 'Radial', 'crazylinks' ) }
-							checked={ eff( 'background', 'radial' ) === true }
-							onChange={ ( v: boolean ) =>
-								set( [ 'background', 'radial' ], v )
-							}
-						/>
-					</>
-				) }
-				{ bgType === 'image' && (
-					<>
-						<MediaField
-							label={ __( 'Background image', 'crazylinks' ) }
-							value={
-								typeof own( 'background', 'image' ) === 'number'
-									? ( own( 'background', 'image' ) as number )
-									: undefined
-							}
-							onChange={ ( v ) =>
-								set( [ 'background', 'image' ], v )
-							}
-						/>
-						{ color(
-							__( 'Overlay', 'crazylinks' ),
-							[ 'background', 'overlay' ],
-							true
-						) }
-						{ range(
-							__( 'Blur', 'crazylinks' ),
-							[ 'background', 'blur' ],
-							0,
-							40,
-							0
-						) }
-					</>
-				) }
-				{ bgType === 'pattern' && (
-					<>
-						{ select(
-							__( 'Pattern', 'crazylinks' ),
-							[ 'background', 'pattern' ],
-							[
-								[ 'dots', __( 'Dots', 'crazylinks' ) ],
-								[ 'grid', __( 'Grid', 'crazylinks' ) ],
-								[ 'stripes', __( 'Stripes', 'crazylinks' ) ],
-								[ 'lines', __( 'Lines', 'crazylinks' ) ],
-								[ 'checks', __( 'Checks', 'crazylinks' ) ],
-								[ 'noise', __( 'Noise', 'crazylinks' ) ],
-							]
-						) }
-						{ color( __( 'Pattern colour', 'crazylinks' ), [
-							'background',
-							'pattern_color',
-						] ) }
-						{ range(
-							__( 'Pattern size', 'crazylinks' ),
-							[ 'background', 'pattern_size' ],
-							8,
-							80,
-							24
-						) }
-					</>
-				) }
-			</PanelBody>
-			<PanelBody
-				title={ __( 'Text', 'crazylinks' ) }
-				initialOpen={ false }
-			>
-				{ color( __( 'Text colour', 'crazylinks' ), [
-					'text',
-					'color',
-				] ) }
-				{ color( __( 'Muted text colour', 'crazylinks' ), [
-					'text',
-					'muted',
-				] ) }
-				{ select(
-					__( 'Font', 'crazylinks' ),
-					[ 'text', 'font' ],
-					[
-						[
-							'system-sans',
-							__( 'Sans-serif (system)', 'crazylinks' ),
-						],
-						[
-							'system-serif',
-							__( 'Serif (system)', 'crazylinks' ),
-						],
-						[
-							'system-rounded',
-							__( 'Rounded (system)', 'crazylinks' ),
-						],
-						[
-							'system-mono',
-							__( 'Monospace (system)', 'crazylinks' ),
-						],
-					]
-				) }
-				{ select(
-					__( 'Text size', 'crazylinks' ),
-					[ 'text', 'size' ],
-					[
-						[ 'sm', __( 'Small', 'crazylinks' ) ],
-						[ 'md', __( 'Medium', 'crazylinks' ) ],
-						[ 'lg', __( 'Large', 'crazylinks' ) ],
-					]
-				) }
-			</PanelBody>
-			<PanelBody
-				title={ __( 'Buttons', 'crazylinks' ) }
-				initialOpen={ false }
-			>
-				{ select(
-					__( 'Shape', 'crazylinks' ),
-					[ 'button', 'shape' ],
-					[
-						[ 'rounded', __( 'Rounded', 'crazylinks' ) ],
-						[ 'pill', __( 'Pill', 'crazylinks' ) ],
-						[ 'square', __( 'Square', 'crazylinks' ) ],
-					]
-				) }
-				{ select(
-					__( 'Fill', 'crazylinks' ),
-					[ 'button', 'fill' ],
-					[
-						[ 'solid', __( 'Solid', 'crazylinks' ) ],
-						[ 'outline', __( 'Outline', 'crazylinks' ) ],
-						[ 'soft', __( 'Soft', 'crazylinks' ) ],
-						[ 'glass', __( 'Glass', 'crazylinks' ) ],
-					]
-				) }
-				{ color( __( 'Button colour', 'crazylinks' ), [
-					'button',
-					'color',
-				] ) }
-				{ color( __( 'Button text colour', 'crazylinks' ), [
-					'button',
-					'text_color',
-				] ) }
-				{ select(
-					__( 'Shadow', 'crazylinks' ),
-					[ 'button', 'shadow' ],
-					[
-						[ 'none', __( 'None', 'crazylinks' ) ],
-						[ 'soft', __( 'Soft', 'crazylinks' ) ],
-						[ 'hard', __( 'Hard', 'crazylinks' ) ],
-					]
-				) }
-				{ range(
-					__( 'Border width', 'crazylinks' ),
-					[ 'button', 'border_width' ],
-					0,
-					8,
-					0
-				) }
-				{ select(
-					__( 'Hover effect', 'crazylinks' ),
-					[ 'button', 'hover' ],
-					[
-						[ 'lift', __( 'Lift', 'crazylinks' ) ],
-						[ 'darken', __( 'Darken', 'crazylinks' ) ],
-						[ 'none', __( 'None', 'crazylinks' ) ],
-					]
-				) }
-				{ color( __( 'Accent colour', 'crazylinks' ), [ 'accent' ] ) }
-				{ range(
-					__( 'Corner radius', 'crazylinks' ),
-					[ 'radius' ],
-					0,
-					48,
-					14
-				) }
-			</PanelBody>
-			<PanelBody
-				title={ __( 'Layout', 'crazylinks' ) }
-				initialOpen={ false }
-			>
-				{ select(
-					__( 'Link layout', 'crazylinks' ),
-					[ 'layout' ],
-					[
-						[ 'list', __( 'List', 'crazylinks' ) ],
-						[ 'grid', __( 'Grid (2 columns)', 'crazylinks' ) ],
-						[
-							'featured',
-							__( 'Featured first link', 'crazylinks' ),
-						],
-					]
-				) }
-				{ select(
-					__( 'Dark mode', 'crazylinks' ),
-					[ 'dark_mode' ],
-					[
-						[
-							'auto',
-							__( "Follow the visitor's device", 'crazylinks' ),
-						],
-						[ 'light', __( 'Always light', 'crazylinks' ) ],
-						[ 'dark', __( 'Always dark', 'crazylinks' ) ],
-					]
-				) }
-			</PanelBody>
-			{ ( data.caps.unfiltered_html || design.custom_css ) && (
-				<PanelBody
-					title={ __( 'Custom CSS', 'crazylinks' ) }
-					initialOpen={ false }
-				>
-					{ data.caps.unfiltered_html ? (
-						<TextareaControl
-							__nextHasNoMarginBottom
-							label={ __(
-								'CSS added to this page',
-								'crazylinks'
-							) }
-							help={ __(
-								'Scope rules under .cl-page.',
-								'crazylinks'
-							) }
-							className="cl-code"
-							rows={ 8 }
-							value={
-								typeof design.custom_css === 'string'
-									? design.custom_css
-									: ''
-							}
-							onChange={ ( v: string ) =>
-								set(
-									[ 'custom_css' ],
-									v === '' ? undefined : v
-								)
-							}
-						/>
-					) : (
-						<Notice status="info" isDismissible={ false }>
-							{ __(
-								'This page has custom CSS. Only users allowed to post unfiltered HTML can change it.',
-								'crazylinks'
-							) }
-						</Notice>
-					) }
-					{ err( 'custom_css' ) && (
-						<p className="cl-field-error">
-							{ err( 'custom_css' ) }
-						</p>
-					) }
-				</PanelBody>
-			) }
+			<BackgroundPanel />
+			<TextPanel />
+			<ButtonsPanel />
+			<LayoutPanel />
+			<CustomCssPanel />
 		</div>
 	);
 }

@@ -1,5 +1,15 @@
+# Dependencies
 /vendor/
 /node_modules/
+
+# Test and lint artefacts
 .phpunit.result.cache
+.eslintcache
+/coverage/
 /test-results/
 /playwright-report/
+
+# Local overrides of the committed *.dist configuration
+/phpunit.xml
+/phpcs.xml
+/phpstan.neon

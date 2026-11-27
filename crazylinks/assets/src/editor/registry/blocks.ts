@@ -2,8 +2,20 @@
  * Block registry: one entry per block type in schemas/page.v1.json. Field definitions drive the
  * generated edit panels; `defaults` seed new blocks; `required` drives client-side completeness checks.
  */
-import { __ } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 import type { BlockType, JsonObject, JsonValue } from '../types';
+import { URL_MAX } from '../lib/limits';
+import { asObject } from '../lib/paths';
+import {
+	backgroundTypeOptions,
+	buttonFillOptions,
+	opts,
+	patternOptions,
+	weekdayOptions,
+} from './options';
+import type { Option } from './options';
+
+export type { Option };
 
 export type FieldKind =
 	| 'text'
@@ -24,11 +36,6 @@ export type FieldKind =
 	| 'items'
 	| 'product'
 	| 'audience';
-
-export interface Option {
-	value: string;
-	label: string;
-}
 
 export interface FieldDef {
 	/** Prop key inside block.props. */
@@ -55,7 +62,7 @@ export interface FieldDef {
 	maxItems?: number;
 	/** Hide the field unless this returns true for the current props. */
 	showIf?: ( props: JsonObject ) => boolean;
-	/** Advanced fields are folded into a "More options" section. */
+	/** Advanced fields are folded into the panel's "Visibility, schedule and more" section. */
 	advanced?: boolean;
 	/** For a nested key (`background/type`): clearing this field removes the whole parent object. */
 	clearsParent?: boolean;
@@ -87,9 +94,6 @@ export interface BlockDef {
 
 const str = ( v: JsonValue | undefined ): string =>
 	typeof v === 'string' ? v : '';
-
-const opts = ( pairs: Array< [ string, string ] > ): Option[] =>
-	pairs.map( ( [ value, label ] ) => ( { value, label } ) );
 
 const align = (): FieldDef => ( {
 	key: 'align',
@@ -153,8 +157,14 @@ export const SOCIAL_NETWORKS = [
 
 export type SocialNetwork = ( typeof SOCIAL_NETWORKS )[ number ];
 
+/** Posts or products a "latest" block shows when no count is stored. */
+const DEFAULT_LATEST_COUNT = 3;
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/** The ISO date-time a number of days from now, on the hour. */
 function inDays( days: number ): string {
-	const d = new Date( Date.now() + days * 86400000 );
+	const d = new Date( Date.now() + days * MS_PER_DAY );
 	d.setUTCMinutes( 0, 0, 0 );
 	return d.toISOString().replace( /\.\d{3}Z$/, 'Z' );
 }
@@ -194,7 +204,7 @@ export function blockDefs(): Record< string, BlockDef > {
 					label: __( 'URL', 'crazylinks' ),
 					kind: 'url',
 					required: true,
-					maxLength: 2048,
+					maxLength: URL_MAX,
 					placeholder: 'https://',
 					help: __(
 						'http, https, mailto, tel or sms.',
@@ -321,13 +331,13 @@ export function blockDefs(): Record< string, BlockDef > {
 					key: 'style/fill',
 					label: __( 'Button fill (this link only)', 'crazylinks' ),
 					kind: 'select',
-					options: opts( [
-						[ '', __( 'Page default', 'crazylinks' ) ],
-						[ 'solid', __( 'Solid', 'crazylinks' ) ],
-						[ 'outline', __( 'Outline', 'crazylinks' ) ],
-						[ 'soft', __( 'Soft', 'crazylinks' ) ],
-						[ 'glass', __( 'Glass', 'crazylinks' ) ],
-					] ),
+					options: [
+						{
+							value: '',
+							label: __( 'Page default', 'crazylinks' ),
+						},
+						...buttonFillOptions(),
+					],
 					advanced: true,
 				},
 				{
@@ -388,13 +398,7 @@ export function blockDefs(): Record< string, BlockDef > {
 			summary: ( p ) =>
 				Array.isArray( p.items )
 					? p.items
-							.map( ( i ) =>
-								i &&
-								typeof i === 'object' &&
-								! Array.isArray( i )
-									? str( i.network )
-									: ''
-							)
+							.map( ( item ) => str( asObject( item ).network ) )
 							.filter( Boolean )
 							.join( ', ' )
 					: '',
@@ -418,7 +422,7 @@ export function blockDefs(): Record< string, BlockDef > {
 							label: __( 'URL', 'crazylinks' ),
 							kind: 'url',
 							required: true,
-							maxLength: 2048,
+							maxLength: URL_MAX,
 						},
 					],
 				},
@@ -536,7 +540,7 @@ export function blockDefs(): Record< string, BlockDef > {
 					label: __( 'Space above', 'crazylinks' ),
 					kind: 'select',
 					options: opts( [
-						[ '', __( 'Normal', 'crazylinks' ) ],
+						[ '', __( 'Default (normal)', 'crazylinks' ) ],
 						[ 'tight', __( 'Tight', 'crazylinks' ) ],
 						[ 'normal', __( 'Normal', 'crazylinks' ) ],
 						[ 'loose', __( 'Loose', 'crazylinks' ) ],
@@ -639,7 +643,7 @@ export function blockDefs(): Record< string, BlockDef > {
 					key: 'url',
 					label: __( 'Link URL', 'crazylinks' ),
 					kind: 'url',
-					maxLength: 2048,
+					maxLength: URL_MAX,
 				},
 				{
 					key: 'caption',
@@ -661,10 +665,16 @@ export function blockDefs(): Record< string, BlockDef > {
 			defaults: () => ( { items: [], columns: 2, mode: 'grid' } ),
 			summary: ( p ) =>
 				Array.isArray( p.items )
-					? /* translators: %d: number of images. */ __(
-							'%d images',
-							'crazylinks'
-						).replace( '%d', String( p.items.length ) )
+					? sprintf(
+							/* translators: %d: number of images. */
+							_n(
+								'%d image',
+								'%d images',
+								p.items.length,
+								'crazylinks'
+							),
+							p.items.length
+						)
 					: '',
 			fields: [
 				{
@@ -698,7 +708,7 @@ export function blockDefs(): Record< string, BlockDef > {
 							key: 'url',
 							label: __( 'Link URL', 'crazylinks' ),
 							kind: 'url',
-							maxLength: 2048,
+							maxLength: URL_MAX,
 						},
 						{
 							key: 'caption',
@@ -742,14 +752,22 @@ export function blockDefs(): Record< string, BlockDef > {
 			icon: 'admin-post',
 			category: 'content',
 			defaults: () => ( { count: 3, display: 'featured' } ),
-			summary: ( p ) =>
-				/* translators: %d: number of posts. */ __(
-					'%d newest posts',
-					'crazylinks'
-				).replace(
-					'%d',
-					String( typeof p.count === 'number' ? p.count : 3 )
-				),
+			summary: ( p ) => {
+				const count =
+					typeof p.count === 'number'
+						? p.count
+						: DEFAULT_LATEST_COUNT;
+				return sprintf(
+					/* translators: %d: number of posts. */
+					_n(
+						'%d newest post',
+						'%d newest posts',
+						count,
+						'crazylinks'
+					),
+					count
+				);
+			},
 			fields: [
 				{
 					key: 'count',
@@ -801,7 +819,7 @@ export function blockDefs(): Record< string, BlockDef > {
 					label: __( 'URL', 'crazylinks' ),
 					kind: 'url',
 					required: true,
-					maxLength: 2048,
+					maxLength: URL_MAX,
 					placeholder: 'https://',
 				},
 				{
@@ -844,7 +862,7 @@ export function blockDefs(): Record< string, BlockDef > {
 					key: 'url',
 					label: __( 'Or video URL', 'crazylinks' ),
 					kind: 'url',
-					maxLength: 2048,
+					maxLength: URL_MAX,
 				},
 				{
 					key: 'poster',
@@ -922,13 +940,10 @@ export function blockDefs(): Record< string, BlockDef > {
 					key: 'destination',
 					label: __( 'Send sign-ups to', 'crazylinks' ),
 					kind: 'select',
-					options: [
-						{
-							value: 'local',
-							label: __( "This site's list", 'crazylinks' ),
-						},
-						{ value: 'mailchimp', label: 'Mailchimp' },
-					],
+					options: opts( [
+						[ 'local', __( "This site's list", 'crazylinks' ) ],
+						[ 'mailchimp', 'Mailchimp' ],
+					] ),
 					help: __(
 						'Mailchimp sends its own confirmation email; connect it under CrazyLinks → Settings → Integrations.',
 						'crazylinks'
@@ -1094,13 +1109,13 @@ export function blockDefs(): Record< string, BlockDef > {
 					label: __( 'Background', 'crazylinks' ),
 					kind: 'select',
 					clearsParent: true,
-					options: opts( [
-						[ '', __( 'None (page background)', 'crazylinks' ) ],
-						[ 'solid', __( 'Solid colour', 'crazylinks' ) ],
-						[ 'gradient', __( 'Gradient', 'crazylinks' ) ],
-						[ 'image', __( 'Image', 'crazylinks' ) ],
-						[ 'pattern', __( 'Pattern', 'crazylinks' ) ],
-					] ),
+					options: [
+						{
+							value: '',
+							label: __( 'None (page background)', 'crazylinks' ),
+						},
+						...backgroundTypeOptions(),
+					],
 				},
 				{
 					key: 'background/color',
@@ -1156,14 +1171,8 @@ export function blockDefs(): Record< string, BlockDef > {
 					key: 'background/pattern',
 					label: __( 'Pattern', 'crazylinks' ),
 					kind: 'select',
-					options: opts( [
-						[ '', __( 'Dots', 'crazylinks' ) ],
-						[ 'grid', __( 'Grid', 'crazylinks' ) ],
-						[ 'stripes', __( 'Stripes', 'crazylinks' ) ],
-						[ 'lines', __( 'Lines', 'crazylinks' ) ],
-						[ 'checks', __( 'Checks', 'crazylinks' ) ],
-						[ 'noise', __( 'Noise', 'crazylinks' ) ],
-					] ),
+					// Dots is the schema default, stored as no value.
+					options: patternOptions( '' ),
 					showIf: ( p ) => bgType( p ) === 'pattern',
 				},
 				{
@@ -1226,19 +1235,30 @@ export function blockDefs(): Record< string, BlockDef > {
 				show_price: true,
 				button_text: __( 'Buy', 'crazylinks' ),
 			} ),
-			summary: ( p ) =>
-				p.mode === 'latest'
-					? /* translators: %d: number of products. */ __(
+			summary: ( p ) => {
+				if ( p.mode === 'latest' ) {
+					const count =
+						typeof p.count === 'number'
+							? p.count
+							: DEFAULT_LATEST_COUNT;
+					return sprintf(
+						/* translators: %d: number of products. */
+						_n(
+							'%d newest product',
 							'%d newest products',
+							count,
 							'crazylinks'
-						).replace(
-							'%d',
-							String( typeof p.count === 'number' ? p.count : 3 )
-						)
-					: str( p.title ) ||
-						( typeof p.product_id === 'number' && p.product_id > 0
-							? `#${ p.product_id }`
-							: '' ),
+						),
+						count
+					);
+				}
+				if ( str( p.title ) ) {
+					return str( p.title );
+				}
+				return typeof p.product_id === 'number' && p.product_id > 0
+					? `#${ p.product_id }`
+					: '';
+			},
 			fields: [
 				{
 					key: 'mode',
@@ -1253,7 +1273,6 @@ export function blockDefs(): Record< string, BlockDef > {
 					key: 'product_id',
 					label: __( 'Product', 'crazylinks' ),
 					kind: 'product',
-					min: 0,
 					showIf: ( p ) => p.mode !== 'latest',
 				},
 				{
@@ -1390,7 +1409,7 @@ export function blockDefs(): Record< string, BlockDef > {
 					key: 'url',
 					label: __( 'Or full URL', 'crazylinks' ),
 					kind: 'url',
-					maxLength: 2048,
+					maxLength: URL_MAX,
 				},
 				{
 					key: 'label',
@@ -1481,7 +1500,7 @@ export function blockDefs(): Record< string, BlockDef > {
 					key: 'url',
 					label: __( 'Link after the end', 'crazylinks' ),
 					kind: 'url',
-					maxLength: 2048,
+					maxLength: URL_MAX,
 				},
 				{
 					key: 'link_label',
@@ -1521,15 +1540,7 @@ export function blockDefs(): Record< string, BlockDef > {
 						'crazylinks'
 					),
 					kind: 'multicheck',
-					options: opts( [
-						[ 'mon', __( 'Monday', 'crazylinks' ) ],
-						[ 'tue', __( 'Tuesday', 'crazylinks' ) ],
-						[ 'wed', __( 'Wednesday', 'crazylinks' ) ],
-						[ 'thu', __( 'Thursday', 'crazylinks' ) ],
-						[ 'fri', __( 'Friday', 'crazylinks' ) ],
-						[ 'sat', __( 'Saturday', 'crazylinks' ) ],
-						[ 'sun', __( 'Sunday', 'crazylinks' ) ],
-					] ),
+					options: weekdayOptions(),
 					showIf: ( p ) => p.repeat === 'weekly',
 				},
 				{
@@ -1674,10 +1685,7 @@ export function missingFields(
 			field.itemFields
 		) {
 			v.forEach( ( item, i ) => {
-				const obj =
-					item && typeof item === 'object' && ! Array.isArray( item )
-						? ( item as JsonObject )
-						: {};
+				const obj = asObject( item );
 				for ( const sub of field.itemFields ?? [] ) {
 					const sv = obj[ sub.key ];
 					if (

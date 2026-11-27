@@ -7,6 +7,7 @@
 
 namespace CrazyLinks\Admin;
 
+use CrazyLinks\Ai\Status;
 use CrazyLinks\Ai\WpAiClientDriver;
 use CrazyLinks\PageStore;
 use CrazyLinks\PostType;
@@ -32,6 +33,11 @@ final class EditorPage {
 	public const CLASSIC_ARG = 'crazylinks_classic';
 
 	/**
+	 * Build manifest of the editor bundle, relative to the plugin directory.
+	 */
+	private const ASSET_FILE = 'assets/build/editor/index.asset.php';
+
+	/**
 	 * Hooks.
 	 */
 	public function register_hooks(): void {
@@ -43,6 +49,13 @@ final class EditorPage {
 	 */
 	public static function wants_classic(): bool {
 		return isset( $_GET[ self::CLASSIC_ARG ] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen switch.
+	}
+
+	/**
+	 * Whether the editor bundle has been built. Without it only the classic screen works.
+	 */
+	public static function is_built(): bool {
+		return is_readable( CRAZYLINKS_DIR . self::ASSET_FILE );
 	}
 
 	/**
@@ -77,8 +90,8 @@ final class EditorPage {
 		if ( ! did_action( 'load-post.php' ) && ! did_action( 'load-post-new.php' ) ) {
 			return (bool) $replace;
 		}
-		if ( ! current_user_can( 'edit_post', $post->ID ) || ! is_readable( CRAZYLINKS_DIR . 'assets/build/editor/index.asset.php' ) ) {
-			return (bool) $replace; // No build: the classic screen with the JSON box still works.
+		if ( ! current_user_can( 'edit_post', $post->ID ) || ! self::is_built() ) {
+			return (bool) $replace; // The classic screen with the JSON box still works.
 		}
 		$this->enqueue( $post );
 		$this->render( $post );
@@ -91,7 +104,7 @@ final class EditorPage {
 	 * @param \WP_Post $post Post.
 	 */
 	public function enqueue( \WP_Post $post ): void {
-		$asset = include CRAZYLINKS_DIR . 'assets/build/editor/index.asset.php';
+		$asset = include CRAZYLINKS_DIR . self::ASSET_FILE;
 		$asset = is_array( $asset ) ? $asset : [];
 		$deps  = isset( $asset['dependencies'] ) && is_array( $asset['dependencies'] ) ? $asset['dependencies'] : [];
 		$ver   = isset( $asset['version'] ) ? (string) $asset['version'] : CRAZYLINKS_VERSION;
@@ -116,9 +129,10 @@ final class EditorPage {
 	 * @return array<string, mixed>
 	 */
 	public function boot_data( \WP_Post $post ): array {
-		$page = $this->page_payload( $post );
-		$doc  = PageStore::get_document( $post ) ?? PageValidator::empty_document();
-		if ( 'auto-draft' === $post->post_status ) {
+		$page   = $this->page_payload( $post );
+		$doc    = PageStore::get_document( $post ) ?? PageValidator::empty_document();
+		$is_new = 'auto-draft' === $post->post_status;
+		if ( $is_new ) {
 			$page['title'] = ''; // Core names every new post "Auto Draft"; the wizard fills in the real name.
 		}
 
@@ -126,7 +140,7 @@ final class EditorPage {
 			'post'         => array_merge(
 				$page,
 				[
-					'isNew'      => 'auto-draft' === $post->post_status,
+					'isNew'      => $is_new,
 					'viewUrl'    => (string) get_permalink( $post ),
 					'classicUrl' => self::classic_url( (int) $post->ID ),
 					'listUrl'    => admin_url( 'edit.php?post_type=' . PostType::NAME ),
@@ -147,7 +161,7 @@ final class EditorPage {
 				'view_crazylinks_analytics' => current_user_can( 'view_crazylinks_analytics' ),
 				'use_crazylinks_ai'         => current_user_can( 'use_crazylinks_ai' ),
 			],
-			'ai'           => \CrazyLinks\Ai\Status::editor_data( (int) $post->ID, self::ai_available() ),
+			'ai'           => Status::editor_data( (int) $post->ID, self::ai_available() ),
 			'rest'         => [
 				'root'      => esc_url_raw( rest_url() ),
 				'nonce'     => wp_create_nonce( 'wp_rest' ),
@@ -266,10 +280,12 @@ final class EditorPage {
 	 * @return array<int, array<string, mixed>> Keyed by attachment id (never 0, so it encodes as a JSON object).
 	 */
 	public static function media_for( array $doc ): array {
-		$ids = [];
-		foreach ( [ $doc['profile']['avatar'] ?? 0, $doc['profile']['banner'] ?? 0, $doc['design']['background']['image'] ?? 0, $doc['settings']['seo']['image'] ?? 0 ] as $id ) {
-			$ids[] = (int) $id;
-		}
+		$ids = [
+			(int) ( $doc['profile']['avatar'] ?? 0 ),
+			(int) ( $doc['profile']['banner'] ?? 0 ),
+			(int) ( $doc['design']['background']['image'] ?? 0 ),
+			(int) ( $doc['settings']['seo']['image'] ?? 0 ),
+		];
 		foreach ( (array) ( $doc['blocks'] ?? [] ) as $block ) {
 			$props = is_array( $block ) ? (array) ( $block['props'] ?? [] ) : [];
 			foreach ( [ 'thumbnail', 'image', 'poster', 'video' ] as $key ) {
@@ -300,7 +316,7 @@ final class EditorPage {
 	}
 
 	/**
-	 * Whether the AI tab should show (Phase 3 fills it).
+	 * Whether the AI tab should show: the user may use AI and an AI text model is connected.
 	 */
 	public static function ai_available(): bool {
 		$available = false;

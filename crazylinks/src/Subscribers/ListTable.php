@@ -9,6 +9,7 @@ namespace CrazyLinks\Subscribers;
 
 use CrazyLinks\Admin\SubscribersPage;
 use CrazyLinks\PostType;
+use CrazyLinks\Subscribers\Adapters\Mailchimp;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -20,6 +21,13 @@ if ( ! class_exists( 'WP_List_Table' ) ) {
  * Email, page, status and consent date, with search, status and page filters and bulk actions.
  */
 final class ListTable extends \WP_List_Table {
+
+	private const PER_PAGE = 20;
+
+	/**
+	 * Most link pages offered in the page filter.
+	 */
+	private const PAGE_FILTER_LIMIT = 100;
 
 	/**
 	 * Constructor.
@@ -41,15 +49,16 @@ final class ListTable extends \WP_List_Table {
 	 */
 	public static function filters(): array {
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only filters.
-		$status = isset( $_GET['status'] ) ? sanitize_key( wp_unslash( $_GET['status'] ) ) : '';
-		$sync   = isset( $_GET['sync'] ) ? sanitize_key( wp_unslash( $_GET['sync'] ) ) : '';
-		return [
+		$status  = isset( $_GET['status'] ) ? sanitize_key( wp_unslash( $_GET['status'] ) ) : '';
+		$sync    = isset( $_GET['sync'] ) ? sanitize_key( wp_unslash( $_GET['sync'] ) ) : '';
+		$filters = [
 			'page_id' => isset( $_GET['page_id'] ) ? absint( $_GET['page_id'] ) : 0,
 			'status'  => in_array( $status, Store::STATUSES, true ) ? $status : '',
 			'search'  => isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '',
 			'sync'    => in_array( $sync, Store::SYNC_STATUSES, true ) ? $sync : '',
 		];
 		// phpcs:enable
+		return $filters;
 	}
 
 	/**
@@ -103,12 +112,11 @@ final class ListTable extends \WP_List_Table {
 		$orderby = isset( $_GET['orderby'] ) ? sanitize_key( wp_unslash( $_GET['orderby'] ) ) : 'consent_at';
 		$order   = isset( $_GET['order'] ) ? sanitize_key( wp_unslash( $_GET['order'] ) ) : 'desc';
 		// phpcs:enable
-		$per_page    = 20;
 		$result      = Store::query(
 			self::filters() + [
 				'orderby'  => $orderby,
 				'order'    => $order,
-				'per_page' => $per_page,
+				'per_page' => self::PER_PAGE,
 				'paged'    => $this->get_pagenum(),
 			]
 		);
@@ -116,7 +124,7 @@ final class ListTable extends \WP_List_Table {
 		$this->set_pagination_args(
 			[
 				'total_items' => $result['total'],
-				'per_page'    => $per_page,
+				'per_page'    => self::PER_PAGE,
 			]
 		);
 	}
@@ -137,14 +145,14 @@ final class ListTable extends \WP_List_Table {
 	 */
 	protected function column_email( $item ): string {
 		$actions = [];
-		if ( in_array( (string) $item['sync_status'], [ 'queued', 'failed', 'skipped' ], true ) ) {
+		if ( in_array( (string) $item['sync_status'], array_diff( Store::SYNC_STATUSES, [ 'sent' ] ), true ) ) {
 			$actions['retry_sync'] = '<a href="' . esc_url( $this->action_url( 'retry_sync', (int) $item['id'] ) ) . '">' . esc_html__( 'Retry sync', 'crazylinks' ) . '</a>';
 		}
-		if ( 'pending' === $item['status'] && 'mailchimp' !== $item['destination'] ) {
+		if ( 'pending' === $item['status'] && Mailchimp::ID !== $item['destination'] ) {
 			$actions['resend'] = '<a href="' . esc_url( $this->action_url( 'resend', (int) $item['id'] ) ) . '">' . esc_html__( 'Resend confirmation', 'crazylinks' ) . '</a>';
 		}
 		$actions['delete'] = '<a href="' . esc_url( $this->action_url( 'delete', (int) $item['id'] ) ) . '" class="submitdelete">' . esc_html__( 'Delete', 'crazylinks' ) . '</a>';
-		return '<strong>' . esc_html( (string) $item['email'] ) . '</strong>' . $this->row_actions( $actions ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped parts.
+		return '<strong>' . esc_html( (string) $item['email'] ) . '</strong>' . $this->row_actions( $actions );
 	}
 
 	/**
@@ -164,7 +172,7 @@ final class ListTable extends \WP_List_Table {
 	 */
 	protected function column_status( $item ): string {
 		$label = self::status_label( (string) $item['status'] );
-		if ( 'pending' === $item['status'] && 'mailchimp' === $item['destination'] ) {
+		if ( 'pending' === $item['status'] && Mailchimp::ID === $item['destination'] ) {
 			/* translators: %s: status label ("Pending"). */
 			$label = sprintf( __( '%s (Mailchimp confirms)', 'crazylinks' ), $label );
 		}
@@ -182,15 +190,29 @@ final class ListTable extends \WP_List_Table {
 			return '&mdash;';
 		}
 		$label = self::sync_label( $state );
-		$error = (string) $item['sync_error'];
 		if ( 'failed' === $state ) {
 			/* translators: 1: number of attempts. */
 			$label .= ' ' . sprintf( _n( '(%d attempt)', '(%d attempts)', (int) $item['sync_attempts'], 'crazylinks' ), (int) $item['sync_attempts'] );
 		}
+		$detail = (string) $item['sync_error'];
 		if ( 'sent' === $state && ! empty( $item['synced_at'] ) ) {
-			$error = wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), (int) strtotime( (string) $item['synced_at'] . ' UTC' ) );
+			$detail = self::local_datetime( Store::timestamp( (string) $item['synced_at'] ) );
 		}
-		return '' !== $error ? '<span title="' . esc_attr( $error ) . '">' . esc_html( $label ) . '</span>' . ( 'sent' !== $state ? '<br><span class="description">' . esc_html( $error ) . '</span>' : '' ) : esc_html( $label );
+		if ( '' === $detail ) {
+			return esc_html( $label );
+		}
+		$cell = '<span title="' . esc_attr( $detail ) . '">' . esc_html( $label ) . '</span>';
+		// A sent row keeps its date in the hover text only; any other state shows its error below.
+		return 'sent' === $state ? $cell : $cell . '<br><span class="description">' . esc_html( $detail ) . '</span>';
+	}
+
+	/**
+	 * A timestamp in the site's date and time format and timezone.
+	 *
+	 * @param int $timestamp Unix timestamp.
+	 */
+	private static function local_datetime( int $timestamp ): string {
+		return (string) wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $timestamp );
 	}
 
 	/**
@@ -216,9 +238,14 @@ final class ListTable extends \WP_List_Table {
 		if ( empty( $item['consent_at'] ) ) {
 			return '&mdash;';
 		}
-		$ts   = (int) strtotime( (string) $item['consent_at'] . ' UTC' );
-		$text = (string) $item['consent_text'];
-		return '<time datetime="' . esc_attr( gmdate( 'c', $ts ) ) . '" title="' . esc_attr( '' !== $text ? $text : __( 'No consent text on this form', 'crazylinks' ) ) . '">' . esc_html( wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $ts ) ) . '</time>';
+		$timestamp = Store::timestamp( (string) $item['consent_at'] );
+		$text      = (string) $item['consent_text'];
+		return sprintf(
+			'<time datetime="%s" title="%s">%s</time>',
+			esc_attr( gmdate( 'c', $timestamp ) ),
+			esc_attr( '' !== $text ? $text : __( 'No consent text on this form', 'crazylinks' ) ),
+			esc_html( self::local_datetime( $timestamp ) )
+		);
 	}
 
 	/**
@@ -244,24 +271,24 @@ final class ListTable extends \WP_List_Table {
 	 * @return array<string, string>
 	 */
 	protected function get_views(): array {
-		$f      = self::filters();
-		$counts = Store::counts( $f['page_id'] );
-		$base   = add_query_arg(
+		$filters = self::filters();
+		$counts  = Store::counts( $filters['page_id'] );
+		$base    = add_query_arg(
 			array_filter(
 				[
 					'post_type' => PostType::NAME,
 					'page'      => SubscribersPage::SLUG,
-					'page_id'   => $f['page_id'],
-					's'         => $f['search'],
+					'page_id'   => $filters['page_id'],
+					's'         => $filters['search'],
 				]
 			),
 			admin_url( 'edit.php' )
 		);
-		$views  = [
+		$views   = [
 			'all' => sprintf(
 				'<a href="%s"%s>%s <span class="count">(%d)</span></a>',
 				esc_url( $base ),
-				'' === $f['status'] ? ' class="current" aria-current="page"' : '',
+				'' === $filters['status'] ? ' class="current" aria-current="page"' : '',
 				esc_html__( 'All', 'crazylinks' ),
 				array_sum( $counts )
 			),
@@ -270,7 +297,7 @@ final class ListTable extends \WP_List_Table {
 			$views[ $status ] = sprintf(
 				'<a href="%s"%s>%s <span class="count">(%d)</span></a>',
 				esc_url( add_query_arg( 'status', $status, $base ) ),
-				$f['status'] === $status ? ' class="current" aria-current="page"' : '',
+				$filters['status'] === $status ? ' class="current" aria-current="page"' : '',
 				esc_html( self::status_label( $status ) ),
 				$n
 			);
@@ -287,27 +314,27 @@ final class ListTable extends \WP_List_Table {
 		if ( 'top' !== $which ) {
 			return;
 		}
-		$f = self::filters();
+		$filters = self::filters();
 		echo '<div class="alignleft actions"><label class="screen-reader-text" for="cl-sub-page">' . esc_html__( 'Filter by page', 'crazylinks' ) . '</label><select name="page_id" id="cl-sub-page"><option value="0">' . esc_html__( 'All pages', 'crazylinks' ) . '</option>';
 		foreach ( get_posts(
 			[
 				'post_type'      => PostType::NAME,
 				'post_status'    => 'any',
-				'posts_per_page' => 100,
+				'posts_per_page' => self::PAGE_FILTER_LIMIT,
 				'orderby'        => 'title',
 				'order'          => 'ASC',
 			]
-		) as $p ) {
-			printf( '<option value="%d"%s>%s</option>', (int) $p->ID, selected( $f['page_id'], $p->ID, false ), esc_html( '' !== $p->post_title ? $p->post_title : $p->post_name ) );
+		) as $page ) {
+			printf( '<option value="%d"%s>%s</option>', (int) $page->ID, selected( $filters['page_id'], $page->ID, false ), esc_html( '' !== $page->post_title ? $page->post_title : $page->post_name ) );
 		}
 		echo '</select>';
 		echo '<label class="screen-reader-text" for="cl-sub-sync">' . esc_html__( 'Filter by sync', 'crazylinks' ) . '</label><select name="sync" id="cl-sub-sync"><option value="">' . esc_html__( 'Any sync state', 'crazylinks' ) . '</option>';
 		foreach ( Store::SYNC_STATUSES as $state ) {
-			printf( '<option value="%s"%s>%s</option>', esc_attr( $state ), selected( $f['sync'], $state, false ), esc_html( self::sync_label( $state ) ) );
+			printf( '<option value="%s"%s>%s</option>', esc_attr( $state ), selected( $filters['sync'], $state, false ), esc_html( self::sync_label( $state ) ) );
 		}
 		echo '</select>';
 		submit_button( __( 'Filter', 'crazylinks' ), '', 'filter_action', false );
-		echo ' <a class="button" href="' . esc_url( SubscribersPage::export_url( $f ) ) . '">' . esc_html__( 'Export CSV', 'crazylinks' ) . '</a>';
+		echo ' <a class="button" href="' . esc_url( SubscribersPage::export_url( $filters ) ) . '">' . esc_html__( 'Export CSV', 'crazylinks' ) . '</a>';
 		if ( Adapters::active() ) {
 			echo ' <a class="button" href="' . esc_url( SubscribersPage::backfill_url() ) . '">' . esc_html__( 'Backfill to Mailchimp', 'crazylinks' ) . '</a>';
 		}

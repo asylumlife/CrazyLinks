@@ -16,22 +16,26 @@ $crazylinks_href = $ctx->href( $block, (string) ( $props['url'] ?? '' ) );
 if ( '' === $crazylinks_href ) {
 	return;
 }
-$crazylinks_display  = in_array( $props['display'] ?? 'classic', [ 'classic', 'featured', 'thumbnail' ], true ) ? (string) ( $props['display'] ?? 'classic' ) : 'classic';
-$crazylinks_featured = 'featured' === $crazylinks_display;
+$crazylinks_featured = 'featured' === ( $props['display'] ?? '' );
 $crazylinks_thumb_id = (int) ( $props['thumbnail'] ?? 0 );
 $crazylinks_tile     = 'grid' === $ctx->layout && ! $crazylinks_featured;
 $crazylinks_media    = '';
 if ( $crazylinks_thumb_id > 0 ) {
+	[ $crazylinks_size, $crazylinks_sizes ] = match ( true ) {
+		$crazylinks_featured => [ 'cl-featured', \CrazyLinks\Render\ImageSizes::FULL_WIDTH_SIZES ],
+		$crazylinks_tile     => [ 'cl-tile', '(max-width: 480px) 45vw, 220px' ],
+		default              => [ 'cl-thumb', '48px' ],
+	};
 	$crazylinks_media = $renderer->image(
 		$crazylinks_thumb_id,
-		$crazylinks_featured ? 'cl-featured' : ( $crazylinks_tile ? 'cl-tile' : 'cl-thumb' ),
+		$crazylinks_size,
 		$ctx,
 		array_filter(
 			[
 				'class' => $crazylinks_featured ? 'cl-link__cover' : 'cl-link__thumb',
 				'alt'   => $renderer->alt( $props['thumbnail_alt'] ?? '', $crazylinks_thumb_id, ! empty( $props['decorative'] ) ),
 				'style' => \CrazyLinks\Render\Renderer::focal_style( $props['focal_point'] ?? null ),
-				'sizes' => $crazylinks_featured ? '(max-width: 480px) 100vw, 480px' : ( $crazylinks_tile ? '(max-width: 480px) 45vw, 220px' : '48px' ),
+				'sizes' => $crazylinks_sizes,
 			],
 			static fn( $v, $k ) => 'alt' === $k || '' !== $v,
 			ARRAY_FILTER_USE_BOTH
@@ -72,8 +76,8 @@ foreach ( [
 	'color'      => '--cl-btn',
 	'text_color' => '--cl-btn-text',
 ] as $crazylinks_key => $crazylinks_var ) {
-	$crazylinks_val = (string) ( $props['style'][ $crazylinks_key ] ?? '' );
-	if ( preg_match( '/^#[0-9a-fA-F]{3,8}$/', $crazylinks_val ) ) {
+	$crazylinks_val = \CrazyLinks\Render\Tokens::hex( $props['style'][ $crazylinks_key ] ?? null );
+	if ( '' !== $crazylinks_val ) {
 		$crazylinks_style .= $crazylinks_var . ':' . $crazylinks_val . ';';
 	}
 }
@@ -102,7 +106,7 @@ if ( $crazylinks_new ) {
 >
 	<?php echo $crazylinks_media; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped above. ?>
 	<span class="cl-link__body">
-		<span class="cl-link__title"><?php echo esc_html( (string) $props['title'] ); ?></span>
+		<span class="cl-link__title"><?php echo esc_html( (string) ( $props['title'] ?? '' ) ); ?></span>
 		<?php if ( ! empty( $props['subtitle'] ) ) : ?>
 			<span class="cl-link__subtitle"><?php echo esc_html( (string) $props['subtitle'] ); ?></span>
 		<?php endif; ?>
@@ -110,11 +114,11 @@ if ( $crazylinks_new ) {
 	<?php if ( '' !== $crazylinks_badge_text ) : ?>
 		<span class="cl-badge"
 		<?php
-		$crazylinks_badge_color = (string) ( $props['badge']['color'] ?? '' );
+		$crazylinks_badge_color = \CrazyLinks\Render\Tokens::hex( $props['badge']['color'] ?? null );
 		if ( '' !== $crazylinks_badge_end ) {
 			echo ' data-cl-end="' . esc_attr( $crazylinks_badge_end ) . '"';
 		}
-		if ( preg_match( '/^#[0-9a-fA-F]{3,8}$/', $crazylinks_badge_color ) ) {
+		if ( '' !== $crazylinks_badge_color ) {
 			echo ' style="' . esc_attr( '--cl-badge:' . $crazylinks_badge_color ) . '"';
 		}
 		?>

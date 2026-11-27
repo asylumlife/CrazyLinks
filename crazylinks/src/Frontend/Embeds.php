@@ -7,8 +7,6 @@
 
 namespace CrazyLinks\Frontend;
 
-use CrazyLinks\PageStore;
-
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -18,11 +16,6 @@ defined( 'ABSPATH' ) || exit;
 final class Embeds {
 
 	public const META = '_cl_oembed';
-
-	/**
-	 * Hooks.
-	 */
-	public function register_hooks(): void {}
 
 	/**
 	 * Allow-listed provider hosts.
@@ -35,7 +28,10 @@ final class Embeds {
 		 *
 		 * @param string[] $hosts Host names (subdomains match).
 		 */
-		return (array) apply_filters( 'crazylinks_embed_hosts', [ 'youtube.com', 'youtu.be', 'vimeo.com', 'spotify.com', 'soundcloud.com', 'tiktok.com', 'x.com', 'twitter.com', 'instagram.com' ] );
+		return (array) apply_filters(
+			'crazylinks_embed_hosts',
+			[ 'youtube.com', 'youtu.be', 'vimeo.com', 'spotify.com', 'soundcloud.com', 'tiktok.com', 'x.com', 'twitter.com', 'instagram.com' ]
+		);
 	}
 
 	/**
@@ -44,13 +40,7 @@ final class Embeds {
 	 * @param string $url URL.
 	 */
 	public static function is_allowed( string $url ): bool {
-		$host = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
-		foreach ( self::hosts() as $allowed ) {
-			if ( $host === $allowed || str_ends_with( $host, '.' . $allowed ) ) {
-				return true;
-			}
-		}
-		return false;
+		return \CrazyLinks\Schema\UrlPolicy::host_matches( $url, self::hosts() );
 	}
 
 	/**

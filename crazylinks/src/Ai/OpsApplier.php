@@ -16,8 +16,10 @@ defined( 'ABSPATH' ) || exit;
 // phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped -- OpsException messages are data for the validator and are escaped wherever they are displayed.
 
 /**
- * Pure function from (document, operations) to a new document. No database access, no globals; the only
- * input besides the arguments is the id factory, so tests can make new block ids deterministic.
+ * Applying an operation (step()) is a pure function from (document, operation) to a new document: no
+ * database access and no globals. The only input besides the arguments is the id factory, so tests
+ * can make new block ids deterministic. finalize() is the one method that reads the site
+ * (PageValidator checks capabilities).
  *
  * Placement rules (also stated in the system prompt):
  * - `after_id: null` puts the block first in its parent (the page, or a group);
@@ -29,6 +31,14 @@ defined( 'ABSPATH' ) || exit;
 final class OpsApplier {
 
 	public const MAX_BLOCKS = 200;
+
+	/**
+	 * A schedule with no dates, which given schedule fields are merged into.
+	 */
+	private const NO_SCHEDULE = [
+		'start' => null,
+		'end'   => null,
+	];
 
 	/**
 	 * New block id factory.
@@ -60,12 +70,13 @@ final class OpsApplier {
 	}
 
 	/**
-	 * Applies every operation in order.
+	 * Applies every operation in order. The plugin itself validates and applies step by step through
+	 * OpsValidator; this is the short form for tests and other callers that trust their operations.
 	 *
 	 * @param array<string, mixed>             $doc        Document.
 	 * @param array<int, array<string, mixed>> $operations Operations.
 	 * @return array{doc: array<string, mixed>, refs: array<string, string>, added: string[]}
-	 * @throws OpsException On the first operation that cannot be applied (message prefixed with its index).
+	 * @throws OpsException On the first operation that cannot be applied (its field path starts with /operations/N).
 	 */
 	public function apply( array $doc, array $operations ): array {
 		$refs  = [];
@@ -190,26 +201,26 @@ final class OpsApplier {
 		if ( $has_parent ) {
 			$parent_id = null;
 			if ( null !== $parent_ref ) {
-				$p = $doc['blocks'][ $this->resolve( $doc, $parent_ref, $refs, '/parent_id' ) ];
-				if ( 'group' !== $p['type'] ) {
+				$parent_block = $doc['blocks'][ $this->resolve( $doc, $parent_ref, $refs, '/parent_id' ) ];
+				if ( 'group' !== $parent_block['type'] ) {
 					throw new OpsException( __( 'parent_id must be a group block.', 'crazylinks' ), '/parent_id' );
 				}
-				$parent_id = (string) $p['id'];
+				$parent_id = (string) $parent_block['id'];
 			}
 		}
 		if ( null === $after ) {
 			return [ $parent_id, null ];
 		}
-		$a = $doc['blocks'][ $this->resolve( $doc, $after, $refs, '/after_id' ) ];
-		if ( $has_parent && null !== $parent_id && $a['id'] === $parent_id ) {
+		$anchor = $doc['blocks'][ $this->resolve( $doc, $after, $refs, '/after_id' ) ];
+		if ( $has_parent && null !== $parent_id && $anchor['id'] === $parent_id ) {
 			// "After the group, inside the group" reads as "first inside the group".
 			return [ $parent_id, null ];
 		}
-		$after_parent = null === $a['parent_id'] ? null : (string) $a['parent_id'];
+		$after_parent = null === $anchor['parent_id'] ? null : (string) $anchor['parent_id'];
 		if ( $has_parent && $after_parent !== $parent_id ) {
 			throw new OpsException( __( 'after_id must be a block inside the same parent as parent_id.', 'crazylinks' ), '/after_id' );
 		}
-		return [ $after_parent, (string) $a['id'] ];
+		return [ $after_parent, (string) $anchor['id'] ];
 	}
 
 	/**
@@ -327,13 +338,7 @@ final class OpsApplier {
 			'parent_id' => $parent,
 			'order'     => PHP_INT_MAX,
 			'visible'   => isset( $block['visible'] ) ? (bool) $block['visible'] : true,
-			'schedule'  => array_merge(
-				[
-					'start' => null,
-					'end'   => null,
-				],
-				(array) ( $block['schedule'] ?? [] )
-			),
+			'schedule'  => array_merge( self::NO_SCHEDULE, (array) ( $block['schedule'] ?? [] ) ),
 			'pinned'    => ! empty( $block['pinned'] ),
 			'animation' => isset( $block['animation'] ) ? (string) $block['animation'] : 'none',
 			'tracking'  => isset( $block['tracking'] ) ? (bool) $block['tracking'] : true,
@@ -374,14 +379,7 @@ final class OpsApplier {
 			$block['animation'] = (string) $op['animation'];
 		}
 		if ( isset( $op['schedule'] ) ) {
-			$block['schedule'] = array_merge(
-				[
-					'start' => null,
-					'end'   => null,
-				],
-				(array) ( $block['schedule'] ?? [] ),
-				(array) $op['schedule']
-			);
+			$block['schedule'] = array_merge( self::NO_SCHEDULE, (array) ( $block['schedule'] ?? [] ), (array) $op['schedule'] );
 		}
 		$doc['blocks'][ $i ] = $block;
 		return $doc;

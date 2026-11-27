@@ -23,8 +23,14 @@ defined( 'ABSPATH' ) || exit;
 final class Command {
 
 	/**
+	 * Placeholder images (and demo posts) the demo page uses.
+	 */
+	private const DEMO_IMAGES = 3;
+
+	/**
 	 * Creates (or replaces) a demo page that shows one of every block: links in each presentation, socials,
-	 * gallery, email sign-up, payment, countdown, video, latest posts, contact and map.
+	 * gallery, email sign-up, payment, countdown, video, latest posts, contact, map and, when a store is
+	 * connected, a product.
 	 *
 	 * Placeholder images are generated with GD and imported with `wp media import` (reused on later runs).
 	 *
@@ -93,13 +99,13 @@ final class Command {
 				'post_type'      => 'attachment',
 				'post_status'    => 'inherit',
 				'meta_key'       => '_crazylinks_demo', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Small CLI lookup.
-				'posts_per_page' => 3,
+				'posts_per_page' => self::DEMO_IMAGES,
 				'orderby'        => 'ID',
 				'order'          => 'ASC',
 				'fields'         => 'ids',
 			]
 		);
-		if ( 3 === count( $existing ) ) {
+		if ( self::DEMO_IMAGES === count( $existing ) ) {
 			return array_map( 'intval', $existing );
 		}
 		if ( ! function_exists( 'imagecreatetruecolor' ) ) {
@@ -168,7 +174,7 @@ final class Command {
 	 */
 	private function demo_posts( array $images ): void {
 		$have = (int) ( wp_count_posts( 'post' )->publish ?? 0 );
-		for ( $i = $have; $i < 3; $i++ ) {
+		for ( $i = $have; $i < self::DEMO_IMAGES; $i++ ) {
 			$id = wp_insert_post(
 				[
 					'post_type'    => 'post',
@@ -479,43 +485,6 @@ final class Command {
 	}
 
 	/**
-	 * Validates a JSON file against the page schema.
-	 *
-	 * ## OPTIONS
-	 *
-	 * <file>
-	 * : Path to a JSON file, or - for STDIN.
-	 *
-	 * @param string[] $args Positional args.
-	 */
-	public function validate( $args ): void {
-		$file   = $args[0];
-		$json   = '-' === $file ? (string) stream_get_contents( STDIN ) : (string) file_get_contents( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- CLI input.
-		$result = ( new PageValidator() )->validate( $json, get_current_user_id() );
-		if ( $result->is_valid() ) {
-			foreach ( $result->warnings() as $warning ) {
-				WP_CLI::warning( 'Warning: ' . $warning['path'] . ' ' . $warning['message'] );
-			}
-			WP_CLI::success( 'Valid.' );
-			return;
-		}
-		foreach ( $result->errors() as $error ) {
-			WP_CLI::warning( $error['path'] . ' ' . $error['message'] );
-		}
-		WP_CLI::halt( 1 );
-	}
-
-	/**
-	 * Runs the daily analytics rollup now.
-	 *
-	 * @subcommand rollup
-	 */
-	public function rollup(): void {
-		( new Rollup() )->run();
-		WP_CLI::success( 'Rollup complete through ' . get_option( 'crazylinks_rollup_through', '(nothing to roll up)' ) );
-	}
-
-	/**
 	 * A heading and a Product block with the first product the connected store returns. Empty when
 	 * no store is configured (or it has no products), so the demo never depends on a store.
 	 *
@@ -545,5 +514,40 @@ final class Command {
 				],
 			],
 		];
+	}
+
+	/**
+	 * Validates a JSON file against the page schema.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <file>
+	 * : Path to a JSON file, or - for STDIN.
+	 *
+	 * @param string[] $args Positional args.
+	 */
+	public function validate( $args ): void {
+		$file   = $args[0];
+		$json   = '-' === $file ? (string) stream_get_contents( STDIN ) : (string) file_get_contents( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- CLI input.
+		$result = ( new PageValidator() )->validate( $json, get_current_user_id() );
+		if ( $result->is_valid() ) {
+			foreach ( $result->warnings() as $warning ) {
+				WP_CLI::warning( $warning['path'] . ' ' . $warning['message'] );
+			}
+			WP_CLI::success( 'Valid.' );
+			return;
+		}
+		foreach ( $result->errors() as $error ) {
+			WP_CLI::warning( $error['path'] . ' ' . $error['message'] );
+		}
+		WP_CLI::halt( 1 );
+	}
+
+	/**
+	 * Runs the daily analytics rollup now.
+	 */
+	public function rollup(): void {
+		( new Rollup() )->run();
+		WP_CLI::success( 'Rollup complete through ' . get_option( 'crazylinks_rollup_through', '(nothing to roll up)' ) );
 	}
 }

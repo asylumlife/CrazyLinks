@@ -1,13 +1,14 @@
 <?php
 /**
- * Regenerates schemas/ai-ops.v1.json from schemas/page.v1.json.
+ * Regenerates schemas/ai-ops.v1.json from schemas/page.v1.json. Run it after changing the page
+ * schema: a test (AiOpsTest) fails when the two files drift apart.
  *
- * Usage: php bin/build-ai-schema.php  (AiOpsTest fails when the two drift apart)
+ * Usage: php bin/build-ai-schema.php  (or: composer build:ai-schema)
  *
  * @package CrazyLinks
  */
 
-PHP_SAPI === 'cli' || exit;
+PHP_SAPI === 'cli' || exit; // Dev tool: never runs over HTTP.
 
 // phpcs:disable WordPress.WP.AlternativeFunctions -- local CLI build script reading and writing repository files.
 
@@ -17,7 +18,7 @@ PHP_SAPI === 'cli' || exit;
 	$defs  = $page['$defs'];
 	$types = array_values( array_diff( $defs['block']['properties']['type']['enum'], [ 'html' ] ) );
 
-	$out = [
+	$out      = [
 		'$schema'              => 'https://json-schema.org/draft/2020-12/schema',
 		'$id'                  => 'https://crazylinks.dev/schemas/ai-ops.v1.json',
 		'title'                => 'CrazyLinks AI operations, schema v1',
@@ -57,24 +58,24 @@ PHP_SAPI === 'cli' || exit;
 		],
 		'$defs'                => [],
 	];
-	$d   = &$out['$defs'];
-	foreach ( [ 'ulid', 'color', 'color_or_empty', 'datetime_or_null', 'background', 'schedule' ] as $k ) {
-		$d[ $k ] = $defs[ $k ];
+	$out_defs = &$out['$defs'];
+	foreach ( [ 'ulid', 'color', 'color_or_empty', 'datetime_or_null', 'background', 'schedule' ] as $name ) {
+		$out_defs[ $name ] = $defs[ $name ];
 	}
-	$d['block_ref']         = [
+	$out_defs['block_ref']         = [
 		'type'        => 'string',
 		'pattern'     => '^(?:[0-9A-HJKMNP-TV-Z]{26}|new-[0-9]{1,3})$',
 		'description' => 'An existing block id, or the ref of a block added earlier in this list (new-1, new-2, ...).',
 	];
-	$d['block_ref_or_null'] = [
+	$out_defs['block_ref_or_null'] = [
 		'type'    => [ 'string', 'null' ],
 		'pattern' => '^(?:[0-9A-HJKMNP-TV-Z]{26}|new-[0-9]{1,3})$',
 	];
-	$d['profile']           = $defs['profile'];
-	$design                 = $defs['design'];
+	$out_defs['profile']           = $defs['profile'];
+	$design                        = $defs['design'];
 	unset( $design['properties']['custom_css'] );
 	$design['description'] = 'Design patch. Objects (background, text, button) merge into the current values; setting theme resets background, text, button, accent and radius to the theme first.';
-	$d['design']           = $design;
+	$out_defs['design']    = $design;
 	// Nested design objects (text, button) are inline in the design def; background is a shared def (also used by sections).
 	$common     = [
 		'parent_id' => [ '$ref' => '#/$defs/block_ref_or_null' ],
@@ -86,23 +87,23 @@ PHP_SAPI === 'cli' || exit;
 	];
 	$new_refs   = [];
 	$patch_refs = [];
-	foreach ( $types as $t ) {
-		$props              = $defs[ 'props_' . $t ];
-		$d[ 'props_' . $t ] = $props;
-		$patch              = $props;
+	foreach ( $types as $type ) {
+		$props                        = $defs[ 'props_' . $type ];
+		$out_defs[ 'props_' . $type ] = $props;
+		$patch                        = $props;
 		unset( $patch['required'] );
 		// Patches may not blank a required field either, so property constraints (minLength etc.) stay as-is.
-		$d[ 'patch_' . $t ] = $patch;
-		$d[ 'new_' . $t ]   = [
+		$out_defs[ 'patch_' . $type ] = $patch;
+		$out_defs[ 'new_' . $type ]   = [
 			'type'                 => 'object',
 			'additionalProperties' => false,
 			'required'             => [ 'type', 'props' ],
-			'properties'           => [ 'type' => [ 'const' => $t ] ] + $common + [ 'props' => [ '$ref' => '#/$defs/props_' . $t ] ],
+			'properties'           => [ 'type' => [ 'const' => $type ] ] + $common + [ 'props' => [ '$ref' => '#/$defs/props_' . $type ] ],
 		];
-		$new_refs[]         = [ '$ref' => '#/$defs/new_' . $t ];
-		$patch_refs[]       = [ '$ref' => '#/$defs/patch_' . $t ];
+		$new_refs[]                   = [ '$ref' => '#/$defs/new_' . $type ];
+		$patch_refs[]                 = [ '$ref' => '#/$defs/patch_' . $type ];
 	}
-	$d['op_add_block']    = [
+	$out_defs['op_add_block']    = [
 		'type'                 => 'object',
 		'additionalProperties' => false,
 		'required'             => [ 'op', 'after_id', 'block' ],
@@ -118,7 +119,7 @@ PHP_SAPI === 'cli' || exit;
 			'block'    => [ 'anyOf' => $new_refs ],
 		],
 	];
-	$d['op_update_block'] = [
+	$out_defs['op_update_block'] = [
 		'type'                 => 'object',
 		'additionalProperties' => false,
 		'required'             => [ 'op', 'id' ],
@@ -134,7 +135,7 @@ PHP_SAPI === 'cli' || exit;
 			'tracking'  => [ 'type' => 'boolean' ],
 		],
 	];
-	$d['op_move_block']   = [
+	$out_defs['op_move_block']   = [
 		'type'                 => 'object',
 		'additionalProperties' => false,
 		'required'             => [ 'op', 'id', 'after_id' ],
@@ -146,7 +147,7 @@ PHP_SAPI === 'cli' || exit;
 			'parent_id' => [ '$ref' => '#/$defs/block_ref_or_null' ],
 		],
 	];
-	$d['op_remove_block'] = [
+	$out_defs['op_remove_block'] = [
 		'type'                 => 'object',
 		'additionalProperties' => false,
 		'required'             => [ 'op', 'id' ],
@@ -156,7 +157,7 @@ PHP_SAPI === 'cli' || exit;
 			'id' => [ '$ref' => '#/$defs/block_ref' ],
 		],
 	];
-	$d['op_set_design']   = [
+	$out_defs['op_set_design']   = [
 		'type'                 => 'object',
 		'additionalProperties' => false,
 		'required'             => [ 'op', 'design' ],
@@ -165,7 +166,7 @@ PHP_SAPI === 'cli' || exit;
 			'design' => [ '$ref' => '#/$defs/design' ],
 		],
 	];
-	$d['op_set_profile']  = [
+	$out_defs['op_set_profile']  = [
 		'type'                 => 'object',
 		'additionalProperties' => false,
 		'required'             => [ 'op', 'profile' ],

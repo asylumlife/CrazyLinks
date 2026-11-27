@@ -9,31 +9,39 @@ import {
 	TextareaControl,
 } from '@wordpress/components';
 import { useDispatch } from '@wordpress/data';
+import { useMemo } from '@wordpress/element';
 import { useEditor } from '../hooks';
 import AiPreview from './AiPreview';
-import { aiStore } from './store';
+import { aiSelectors, aiStore } from './store';
 import { aiApi } from './api';
 import { useAi } from './hooks';
 import { applyProposal, propose } from './run';
 import { changeIcon, sortChanges, summarizeChanges } from './changes';
 import { coerceDoc } from '../store/doc';
-import type { HistoryEntry } from './types';
+import type { AiState, HistoryEntry } from './types';
 
-const selectAnswers = ( s: { answers: Record< number, string > } ) => s.answers;
-const selectView = ( s: { view: 'after' | 'before' } ) => s.view;
-const selectStatus = ( s: { status: string } ) => s.status;
+const selectAnswers = ( s: AiState ) => s.answers;
+const selectView = ( s: AiState ) => s.view;
+const selectStatus = ( s: AiState ) => s.status;
 
 export default function ProposalView( { entry }: { entry: HistoryEntry } ) {
 	const answers = useAi( selectAnswers );
 	const view = useAi( selectView );
 	const status = useAi( selectStatus );
+	const busy = useAi( aiSelectors.isBusy );
+	// The view always shows the selected entry, so this is about `entry`.
+	const canApply = useAi( aiSelectors.canApply );
 	const doc = useEditor( ( s ) => s.getDoc(), [] );
 	const pageId = useEditor( ( s ) => s.getMeta().id, [] );
 	const { setAnswer, setView, discard } = useDispatch( aiStore );
 	const { proposal } = entry;
 	const open = entry.state === 'open';
 	const hasOps = proposal.operations.length > 0 && !! proposal.proposal_id;
-	const busy = status !== 'idle';
+	// Kept stable between renders: the preview is fetched again whenever this document changes.
+	const proposed = useMemo(
+		() => coerceDoc( proposal.preview_document ),
+		[ proposal.preview_document ]
+	);
 
 	return (
 		<div className="cl-ai-proposal" aria-live="polite">
@@ -68,9 +76,7 @@ export default function ProposalView( { entry }: { entry: HistoryEntry } ) {
 									className={ `cl-ai-changes__item is-${ item.kind }` }
 								>
 									<Dashicon
-										icon={
-											changeIcon( item.kind ) as never
-										}
+										icon={ changeIcon( item.kind ) }
 									/>
 									<span>{ item.text }</span>
 								</li>
@@ -125,7 +131,7 @@ export default function ProposalView( { entry }: { entry: HistoryEntry } ) {
 			{ hasOps && (
 				<AiPreview
 					before={ doc }
-					after={ coerceDoc( proposal.preview_document ) }
+					after={ proposed }
 					pageId={ pageId }
 					view={ view }
 					onView={ ( v ) => setView( v ) }
@@ -136,7 +142,7 @@ export default function ProposalView( { entry }: { entry: HistoryEntry } ) {
 					<Button
 						variant="primary"
 						onClick={ () => applyProposal( entry ) }
-						disabled={ busy }
+						disabled={ ! canApply }
 						isBusy={ status === 'applying' }
 					>
 						{ __( 'Apply', 'crazylinks' ) }

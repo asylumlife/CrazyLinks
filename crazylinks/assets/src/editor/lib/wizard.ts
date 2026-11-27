@@ -4,6 +4,8 @@
 import { parseSocialList } from './social';
 import { createBlock, emptyDoc, normalize } from '../store/doc';
 import type { PageDoc } from '../types';
+import { DEFAULT_THEME } from './theme';
+import { PROFILE_BIO_MAX, PROFILE_NAME_MAX } from './limits';
 
 export interface WizardResult {
 	name: string;
@@ -21,11 +23,15 @@ export interface WizardResult {
 export function buildDocument( r: WizardResult ): PageDoc {
 	const doc = emptyDoc();
 	doc.profile = {
-		...( r.name.trim() ? { name: r.name.trim().slice( 0, 80 ) } : {} ),
-		...( r.bio.trim() ? { bio: r.bio.trim().slice( 0, 280 ) } : {} ),
+		...( r.name.trim()
+			? { name: r.name.trim().slice( 0, PROFILE_NAME_MAX ) }
+			: {} ),
+		...( r.bio.trim()
+			? { bio: r.bio.trim().slice( 0, PROFILE_BIO_MAX ) }
+			: {} ),
 		...( r.avatar ? { avatar: r.avatar } : {} ),
 	};
-	doc.design = { theme: r.theme || 'default' };
+	doc.design = { theme: r.theme || DEFAULT_THEME };
 	const { items } = parseSocialList( r.socials );
 	if ( items.length ) {
 		const block = createBlock( 'socials' );

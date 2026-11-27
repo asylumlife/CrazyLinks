@@ -304,10 +304,10 @@ class WeeklyScheduleTest extends TestCase {
 		$this->set_permalink_structure( '/%postname%/' );
 		$now   = time();
 		$plain = $this->make_page( $this->doc(), 'no-schedule' );
-		$this->assertNull( TemplateLoader::schedule_max_age( PageStore::get_document( $plain ), $now ) );
+		$this->assertNull( Schedule::page_ttl( PageStore::get_document( $plain ), $now, wp_timezone() ) );
 
 		$sched = $this->make_page( $this->link_doc( $this->around_now( 120, 180 ) ), 'with-schedule' );
-		$ttl   = TemplateLoader::schedule_max_age( PageStore::get_document( $sched ), $now );
+		$ttl   = Schedule::page_ttl( PageStore::get_document( $sched ), $now, wp_timezone() );
 		$this->assertNotNull( $ttl );
 		$this->assertGreaterThanOrEqual( 60, $ttl );
 		$this->assertLessThanOrEqual( 2 * HOUR_IN_SECONDS + 60, $ttl, 'Revalidate when the window opens' );

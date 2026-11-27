@@ -9,19 +9,23 @@ import LinksTab from './LinksTab';
 import DesignTab from './DesignTab';
 import SettingsTab from './SettingsTab';
 import AnalyticsTab from './AnalyticsTab';
-import { clicksByBlock } from '../lib/analytics';
 import AiTab from './AiTab';
 import Preview from './Preview';
 import HistoryPanel from './HistoryPanel';
 import JsonPanel from './JsonPanel';
 import Wizard from './Wizard';
 import LockBanner from './LockBanner';
+import { CLICKS_RANGE, clicksByBlock } from '../lib/analytics';
 import { startLock } from '../lib/lock';
 import { useEditor, useEditorDispatch } from '../hooks';
 import { boot } from '../boot';
 import { autosave, savePage } from '../lib/save';
 import { api } from '../lib/api';
 import { coerceDoc, isEmptyDoc } from '../store/doc';
+
+/** Idle time before an autosave: the site setting, never below the minimum. */
+const MIN_AUTOSAVE_SECONDS = 5;
+const DEFAULT_AUTOSAVE_SECONDS = 10;
 
 function isTextTarget( t: EventTarget | null ): boolean {
 	const el = t as HTMLElement | null;
@@ -55,10 +59,13 @@ export default function App() {
 
 	// Autosave after a period of inactivity.
 	useEffect( () => {
-		const ms = Math.max( 5, data.settings.autosaveInterval || 10 ) * 1000;
+		const seconds = Math.max(
+			MIN_AUTOSAVE_SECONDS,
+			data.settings.autosaveInterval || DEFAULT_AUTOSAVE_SECONDS
+		);
 		const timer = window.setTimeout( () => {
 			autosave();
-		}, ms );
+		}, seconds * 1000 );
 		return () => window.clearTimeout( timer );
 	}, [ docJson, title, data.settings.autosaveInterval ] );
 
@@ -111,10 +118,10 @@ export default function App() {
 		) {
 			return;
 		}
-		api.analytics( id, '30d' )
+		api.analytics( id, CLICKS_RANGE )
 			.then( ( res ) => setClicks( clicksByBlock( res ) ) )
 			.catch( () => undefined );
-		// eslint-disable-next-line react-hooks/exhaustive-deps
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- the boot data and the store's action creators never change.
 	}, [ id ] );
 
 	const tabs = [

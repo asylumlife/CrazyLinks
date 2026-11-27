@@ -10,7 +10,7 @@ namespace CrazyLinks\Ai;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Describes operations for people: "Added link “Tour dates” at the top", "Changed “Merch”: title, URL".
+ * Describes operations for people: "Add link “Tour dates” at the top", "Change link “Merch”: title, URL".
  * Built from the operations and the base document, so it never repeats model-written prose.
  */
 final class ChangeList {
@@ -30,71 +30,20 @@ final class ChangeList {
 				$names[ (string) ( $block['id'] ?? '' ) ] = self::label( $block );
 			}
 		}
-		$refs  = [];
-		$items = [];
-		$n     = 0;
+		$refs        = [];
+		$items       = [];
+		$added_index = 0;
 		foreach ( $ops as $op ) {
-			$kind = (string) ( $op['op'] ?? '' );
-			switch ( $kind ) {
+			switch ( (string) ( $op['op'] ?? '' ) ) {
 				case 'add_block':
-					$block = (array) ( $op['block'] ?? [] );
-					$id    = $added[ $n ] ?? null;
-					++$n;
-					$label = self::label( $block );
-					if ( null !== $id ) {
-						$names[ $id ] = $label;
-					}
-					if ( isset( $op['ref'] ) ) {
-						$refs[ (string) $op['ref'] ]  = (string) $id;
-						$names[ (string) $op['ref'] ] = $label;
-					}
-					$where = null === ( $op['after_id'] ?? null )
-						? __( 'at the top', 'crazylinks' )
-						/* translators: %s: block name. */
-						: sprintf( __( 'after %s', 'crazylinks' ), $names[ (string) $op['after_id'] ] ?? __( 'another block', 'crazylinks' ) );
-					/* translators: 1: block name, 2: position such as "at the top". */
-					$items[] = self::item( 'add', sprintf( __( 'Add %1$s %2$s', 'crazylinks' ), $label, $where ), $id );
+					$items[] = self::add_item( $op, $added[ $added_index ] ?? null, $names, $refs );
+					++$added_index;
 					break;
 				case 'update_block':
-					$ref   = (string) ( $op['id'] ?? '' );
-					$label = $names[ $ref ] ?? __( 'a block', 'crazylinks' );
-					$what  = [];
-					foreach ( array_keys( (array) ( $op['props'] ?? [] ) ) as $key ) {
-						$what[] = self::field_name( (string) $key );
-					}
-					foreach ( [ 'visible', 'schedule', 'animation', 'tracking' ] as $key ) {
-						if ( array_key_exists( $key, $op ) ) {
-							$what[] = self::field_name( $key );
-						}
-					}
-					if ( array_key_exists( 'pinned', $op ) && [] === $what ) {
-						/* translators: %s: block name. */
-						$text = ! empty( $op['pinned'] ) ? sprintf( __( 'Pin %s to the top', 'crazylinks' ), $label ) : sprintf( __( 'Unpin %s', 'crazylinks' ), $label );
-					} else {
-						if ( array_key_exists( 'pinned', $op ) ) {
-							$what[] = ! empty( $op['pinned'] ) ? __( 'pinned', 'crazylinks' ) : __( 'unpinned', 'crazylinks' );
-						}
-						/* translators: 1: block name, 2: comma-separated list of fields. */
-						$text = sprintf( __( 'Change %1$s: %2$s', 'crazylinks' ), $label, implode( ', ', array_unique( $what ) ) );
-					}
-					$items[] = self::item( 'update', $text, $refs[ $ref ] ?? $ref );
+					$items[] = self::update_item( $op, $names, $refs );
 					break;
 				case 'move_block':
-					$ref   = (string) ( $op['id'] ?? '' );
-					$label = $names[ $ref ] ?? __( 'a block', 'crazylinks' );
-					$after = $op['after_id'] ?? null;
-					$text  = null === $after
-						/* translators: %s: block name. */
-						? sprintf( __( 'Move %s to the top', 'crazylinks' ), $label )
-						/* translators: 1: block name, 2: other block name. */
-						: sprintf( __( 'Move %1$s after %2$s', 'crazylinks' ), $label, $names[ (string) $after ] ?? __( 'another block', 'crazylinks' ) );
-					if ( array_key_exists( 'parent_id', $op ) ) {
-						$text .= null === $op['parent_id']
-							? ' ' . __( '(out of its section)', 'crazylinks' )
-							/* translators: %s: section name. */
-							: ' ' . sprintf( __( '(into %s)', 'crazylinks' ), $names[ (string) $op['parent_id'] ] ?? __( 'a section', 'crazylinks' ) );
-					}
-					$items[] = self::item( 'move', $text, $refs[ $ref ] ?? $ref );
+					$items[] = self::move_item( $op, $names, $refs );
 					break;
 				case 'remove_block':
 					$ref = (string) ( $op['id'] ?? '' );
@@ -112,6 +61,93 @@ final class ChangeList {
 			}
 		}
 		return $items;
+	}
+
+	/**
+	 * The item for add_block. Remembers the new block's name under its id and its ref, so later
+	 * operations can name it.
+	 *
+	 * @param array<string, mixed>  $op    Operation.
+	 * @param string|null           $id    Id given to the new block, when known.
+	 * @param array<string, string> $names Block names by id or ref, updated in place.
+	 * @param array<string, string> $refs  Ids by ref, updated in place.
+	 * @return array{kind:string, text:string, block_id:string|null}
+	 */
+	private static function add_item( array $op, ?string $id, array &$names, array &$refs ): array {
+		$label = self::label( (array) ( $op['block'] ?? [] ) );
+		if ( null !== $id ) {
+			$names[ $id ] = $label;
+		}
+		if ( isset( $op['ref'] ) ) {
+			$refs[ (string) $op['ref'] ]  = (string) $id;
+			$names[ (string) $op['ref'] ] = $label;
+		}
+		$where = null === ( $op['after_id'] ?? null )
+			? __( 'at the top', 'crazylinks' )
+			/* translators: %s: block name. */
+			: sprintf( __( 'after %s', 'crazylinks' ), $names[ (string) $op['after_id'] ] ?? __( 'another block', 'crazylinks' ) );
+		/* translators: 1: block name, 2: position such as "at the top". */
+		return self::item( 'add', sprintf( __( 'Add %1$s %2$s', 'crazylinks' ), $label, $where ), $id );
+	}
+
+	/**
+	 * The item for update_block: "Pin …" or "Unpin …" when only the pin changes, otherwise the list
+	 * of changed fields.
+	 *
+	 * @param array<string, mixed>  $op    Operation.
+	 * @param array<string, string> $names Block names by id or ref.
+	 * @param array<string, string> $refs  Ids by ref.
+	 * @return array{kind:string, text:string, block_id:string|null}
+	 */
+	private static function update_item( array $op, array $names, array $refs ): array {
+		$ref   = (string) ( $op['id'] ?? '' );
+		$label = $names[ $ref ] ?? __( 'a block', 'crazylinks' );
+		$what  = [];
+		foreach ( array_keys( (array) ( $op['props'] ?? [] ) ) as $key ) {
+			$what[] = self::field_name( (string) $key );
+		}
+		foreach ( [ 'visible', 'schedule', 'animation', 'tracking' ] as $key ) {
+			if ( array_key_exists( $key, $op ) ) {
+				$what[] = self::field_name( $key );
+			}
+		}
+		if ( array_key_exists( 'pinned', $op ) && [] === $what ) {
+			/* translators: %s: block name. */
+			$text = ! empty( $op['pinned'] ) ? sprintf( __( 'Pin %s to the top', 'crazylinks' ), $label ) : sprintf( __( 'Unpin %s', 'crazylinks' ), $label );
+		} else {
+			if ( array_key_exists( 'pinned', $op ) ) {
+				$what[] = ! empty( $op['pinned'] ) ? __( 'pinned', 'crazylinks' ) : __( 'unpinned', 'crazylinks' );
+			}
+			/* translators: 1: block name, 2: comma-separated list of fields. */
+			$text = sprintf( __( 'Change %1$s: %2$s', 'crazylinks' ), $label, implode( ', ', array_unique( $what ) ) );
+		}
+		return self::item( 'update', $text, $refs[ $ref ] ?? $ref );
+	}
+
+	/**
+	 * The item for move_block.
+	 *
+	 * @param array<string, mixed>  $op    Operation.
+	 * @param array<string, string> $names Block names by id or ref.
+	 * @param array<string, string> $refs  Ids by ref.
+	 * @return array{kind:string, text:string, block_id:string|null}
+	 */
+	private static function move_item( array $op, array $names, array $refs ): array {
+		$ref   = (string) ( $op['id'] ?? '' );
+		$label = $names[ $ref ] ?? __( 'a block', 'crazylinks' );
+		$after = $op['after_id'] ?? null;
+		$text  = null === $after
+			/* translators: %s: block name. */
+			? sprintf( __( 'Move %s to the top', 'crazylinks' ), $label )
+			/* translators: 1: block name, 2: other block name. */
+			: sprintf( __( 'Move %1$s after %2$s', 'crazylinks' ), $label, $names[ (string) $after ] ?? __( 'another block', 'crazylinks' ) );
+		if ( array_key_exists( 'parent_id', $op ) ) {
+			$text .= null === $op['parent_id']
+				? ' ' . __( '(out of its section)', 'crazylinks' )
+				/* translators: %s: section name. */
+				: ' ' . sprintf( __( '(into %s)', 'crazylinks' ), $names[ (string) $op['parent_id'] ] ?? __( 'a section', 'crazylinks' ) );
+		}
+		return self::item( 'move', $text, $refs[ $ref ] ?? $ref );
 	}
 
 	/**

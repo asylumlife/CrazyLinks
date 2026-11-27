@@ -10,17 +10,16 @@
 
 defined( 'ABSPATH' ) || exit;
 
-$crazylinks_pick    = static fn( string $key, array $allowed, string $fallback ): string => in_array( $props[ $key ] ?? '', $allowed, true ) ? (string) $props[ $key ] : $fallback;
 $crazylinks_level   = 'h3' === ( $props['level'] ?? 'h2' ) ? 'h3' : 'h2';
-$crazylinks_align   = $crazylinks_pick( 'align', [ 'left', 'center', 'right' ], 'center' );
+$crazylinks_align   = \CrazyLinks\Render\Renderer::choice( $props, 'align', [ 'left', 'center', 'right' ], 'center' );
 $crazylinks_classes = [ 'cl-heading', 'cl-align-' . $crazylinks_align ];
 foreach ( [
-	'size'    => [ [ 'sm', 'lg', 'xl' ], '' ],
-	'weight'  => [ [ 'normal', 'black' ], '' ],
-	'spacing' => [ [ 'tight', 'loose' ], '' ],
-	'divider' => [ [ 'line', 'dots' ], '' ],
-] as $crazylinks_key => [ $crazylinks_allowed, $crazylinks_default ] ) {
-	$crazylinks_value = $crazylinks_pick( $crazylinks_key, $crazylinks_allowed, $crazylinks_default );
+	'size'    => [ 'sm', 'lg', 'xl' ],
+	'weight'  => [ 'normal', 'black' ],
+	'spacing' => [ 'tight', 'loose' ],
+	'divider' => [ 'line', 'dots' ],
+] as $crazylinks_key => $crazylinks_allowed ) {
+	$crazylinks_value = \CrazyLinks\Render\Renderer::choice( $props, $crazylinks_key, $crazylinks_allowed, '' );
 	if ( '' !== $crazylinks_value ) {
 		$crazylinks_classes[] = 'cl-heading--' . ( 'divider' === $crazylinks_key ? 'div-' : '' ) . $crazylinks_value;
 	}
@@ -28,8 +27,8 @@ foreach ( [
 if ( ! empty( $props['uppercase'] ) ) {
 	$crazylinks_classes[] = 'cl-heading--upper';
 }
-$crazylinks_color = (string) ( $props['color'] ?? '' );
-$crazylinks_style = preg_match( '/^#[0-9a-fA-F]{3,8}$/', $crazylinks_color ) ? ' style="color:' . esc_attr( $crazylinks_color ) . '"' : '';
+$crazylinks_color = \CrazyLinks\Render\Tokens::hex( $props['color'] ?? null );
+$crazylinks_style = '' !== $crazylinks_color ? ' style="color:' . esc_attr( $crazylinks_color ) . '"' : '';
 
 $crazylinks_media = '';
 if ( ! empty( $props['emoji'] ) ) {
@@ -44,7 +43,7 @@ if ( '' !== $crazylinks_media ) {
 
 printf(
 	'<%1$s class="%2$s"%3$s>%4$s</%1$s>',
-	esc_html( $crazylinks_level ),
+	tag_escape( $crazylinks_level ),
 	esc_attr( implode( ' ', $crazylinks_classes ) ),
 	$crazylinks_style, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped above.
 	$crazylinks_text // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped text and static SVG.

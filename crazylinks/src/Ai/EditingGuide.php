@@ -8,6 +8,8 @@
 namespace CrazyLinks\Ai;
 
 use CrazyLinks\PageStore;
+use CrazyLinks\Settings;
+use CrazyLinks\Subscribers\Integrations;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -248,7 +250,11 @@ final class EditingGuide {
 	 * @param array{type:string, required:string[], props:array<string, string>} $block Block type.
 	 */
 	private static function block_markdown( array $block ): string {
-		$line = '### ' . $block['type'] . ( 'group' === $block['type'] ? ' (a Section: other blocks join it with parent_id; sections never nest)' : '' ) . ( 'product' === $block['type'] ? ' (use `crazylinks-search-products` to get a `product_id`; the store address is a site setting)' : '' );
+		$notes = [
+			'group'   => ' (a Section: other blocks join it with parent_id; sections never nest)',
+			'product' => ' (use `crazylinks-search-products` to get a `product_id`; the store address is a site setting)',
+		];
+		$line  = '### ' . $block['type'] . ( $notes[ $block['type'] ] ?? '' );
 		if ( $block['required'] ) {
 			$line .= "\nRequired: `" . implode( '`, `', $block['required'] ) . '`.';
 		}
@@ -289,16 +295,15 @@ final class EditingGuide {
 	 *
 	 * @param array<string, mixed> $node Schema node.
 	 * @param string               $name Property name (for media ids).
-	 * @param int                  $depth Nesting depth.
 	 */
-	public static function describe( array $node, string $name = '', int $depth = 0 ): string {
+	public static function describe( array $node, string $name = '' ): string {
 		if ( isset( $node['$ref'] ) ) {
 			$ref = substr( (string) $node['$ref'], strrpos( (string) $node['$ref'], '/' ) + 1 );
 			if ( isset( self::REF_NAMES[ $ref ] ) ) {
 				return self::REF_NAMES[ $ref ];
 			}
 			$def = OpsSchema::def( $ref );
-			return null === $def ? $ref : self::describe( $def, $name, $depth );
+			return null === $def ? $ref : self::describe( $def, $name );
 		}
 		if ( array_key_exists( 'const', $node ) ) {
 			return '"' . (string) $node['const'] . '"';
@@ -328,13 +333,13 @@ final class EditingGuide {
 			case 'boolean':
 				return 'true|false' . $null;
 			case 'array':
-				$items = is_array( $node['items'] ?? null ) ? self::describe( $node['items'], '', $depth + 1 ) : 'values';
+				$items = is_array( $node['items'] ?? null ) ? self::describe( $node['items'] ) : 'values';
 				return 'list of ' . $items . ( isset( $node['maxItems'] ) ? ' (max ' . (int) $node['maxItems'] . ')' : '' ) . $null;
 			case 'object':
 				$fields = [];
 				foreach ( (array) ( $node['properties'] ?? [] ) as $key => $child ) {
 					$req      = in_array( $key, (array) ( $node['required'] ?? [] ), true ) ? '*' : '';
-					$fields[] = $key . $req . ': ' . self::describe( (array) $child, (string) $key, $depth + 1 );
+					$fields[] = $key . $req . ': ' . self::describe( (array) $child, (string) $key );
 				}
 				return ( $fields ? '{' . implode( ', ', $fields ) . '}' : 'object' ) . $null;
 		}
@@ -350,22 +355,48 @@ final class EditingGuide {
 			$themes[] = '`' . $slug . '` (' . $label . ')';
 		}
 		$audiences = [];
-		foreach ( \CrazyLinks\Subscribers\Integrations::cached_audiences() as $aud ) {
-			$audiences[] = '`' . $aud['id'] . '` (' . $aud['name'] . ')';
+		foreach ( Integrations::cached_audiences() as $audience ) {
+			$audiences[] = '`' . $audience['id'] . '` (' . $audience['name'] . ')';
 		}
-		$default = \CrazyLinks\Subscribers\Integrations::default_audience();
-		$mail    = \CrazyLinks\Subscribers\Integrations::mailchimp_connected()
-			? '- Mailchimp is connected. Audiences for email_capture `audience_id`: ' . ( $audiences ? implode( ', ', $audiences ) : ( '' !== $default ? '`' . $default . '` (the default)' : 'none listed yet; omit `audience_id`' ) ) . ( '' !== $default ? '; site default `' . $default . '`.' : '.' )
-			: '- Mailchimp is not connected: keep email_capture `destination` at `local` and leave out `audience_id`.';
-		return '- Timezone: ' . wp_timezone_string() . '; now: ' . wp_date( 'c' ) . "\n- Theme presets for `design.theme`: " . implode( ', ', $themes ) . "\n" . $mail . "\n- Fields marked * inside objects are required.";
+		$default = Integrations::default_audience();
+		if ( ! Integrations::mailchimp_connected() ) {
+			$mail = '- Mailchimp is not connected: keep email_capture `destination` at `local` and leave out `audience_id`.';
+		} else {
+			if ( $audiences ) {
+				$listed = implode( ', ', $audiences );
+			} elseif ( '' !== $default ) {
+				$listed = '`' . $default . '` (the default)';
+			} else {
+				$listed = 'none listed yet; omit `audience_id`';
+			}
+			$mail = '- Mailchimp is connected. Audiences for email_capture `audience_id`: ' . $listed . ( '' !== $default ? '; site default `' . $default . '`.' : '.' );
+		}
+		return implode(
+			"\n",
+			[
+				'- Timezone: ' . wp_timezone_string() . '; now: ' . wp_date( 'c' ),
+				'- Theme presets for `design.theme`: ' . implode( ', ', $themes ),
+				$mail,
+				'- Fields marked * inside objects are required.',
+			]
+		);
 	}
 
 	/**
 	 * Limits and logging.
 	 */
 	private static function limits_markdown(): string {
-		$hourly = (int) \CrazyLinks\Settings::get( 'ai_user_hourly' );
-		$daily  = (int) \CrazyLinks\Settings::get( 'ai_site_daily' );
-		return '- At most 60 operations per call; a page holds at most ' . OpsApplier::MAX_BLOCKS . " blocks.\n- apply-operations counts against the AI request limits: " . ( $hourly > 0 ? $hourly . ' per person per hour' : 'no per-person limit' ) . ', ' . ( $daily > 0 ? $daily . ' per site per day' : 'no per-site limit' ) . ". Preview calls are not counted.\n- Every applied change is logged and kept in the page history with an \"AI (external)\" badge; the owner can restore any earlier revision.";
+		$hourly   = (int) Settings::get( 'ai_user_hourly' );
+		$daily    = (int) Settings::get( 'ai_site_daily' );
+		$per_user = $hourly > 0 ? $hourly . ' per person per hour' : 'no per-person limit';
+		$per_site = $daily > 0 ? $daily . ' per site per day' : 'no per-site limit';
+		return implode(
+			"\n",
+			[
+				'- At most ' . OpsSchema::MAX_OPERATIONS . ' operations per call; a page holds at most ' . OpsApplier::MAX_BLOCKS . ' blocks.',
+				'- apply-operations counts against the AI request limits: ' . $per_user . ', ' . $per_site . '. Preview calls are not counted.',
+				'- Every applied change is logged and kept in the page history with an "AI (external)" badge; the owner can restore any earlier revision.',
+			]
+		);
 	}
 }

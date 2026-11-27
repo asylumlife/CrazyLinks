@@ -10,12 +10,7 @@ You can expect an acknowledgement within a few days. This is a small project run
 
 ## Supported versions
 
-Only the latest released version receives security fixes.
-
-| Version | Supported |
-|---|---|
-| 0.2.x (latest) | Yes |
-| Older | No |
+Only the latest release receives security fixes. The current version is on the [Releases page](https://github.com/asylumlife/CrazyLinks/releases); please update to it before reporting.
 
 ## Scope
 

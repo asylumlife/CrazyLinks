@@ -4,20 +4,20 @@
 .vscode/
 .idea/
 
-# Plugin build and test artefacts (built assets under crazylinks/assets/build ARE committed)
-crazylinks/node_modules/
-crazylinks/vendor/
-crazylinks/.phpunit.result.cache
-crazylinks/test-results/
-crazylinks/playwright-report/
-
 # Release zips
 dist/
+*.zip
 
-# Local-only
+# Local-only files
 *.log
+.env
+.env.*
+*.local.md
 
-# Kept out of the public repository (owner decision 2026-11-06)
+# Local research and tool settings
 research_notes/
 reports/
 .claude/
+
+# Build and test artefacts of the plugin are listed in crazylinks/.gitignore.
+# The built assets under crazylinks/assets/build are committed on purpose.

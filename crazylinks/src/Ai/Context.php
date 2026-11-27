@@ -9,6 +9,7 @@ namespace CrazyLinks\Ai;
 
 use CrazyLinks\Analytics\Summary;
 use CrazyLinks\Render\Themes;
+use CrazyLinks\Subscribers\Integrations;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -183,14 +184,14 @@ final class Context {
 				];
 			}
 		}
-		if ( \CrazyLinks\Subscribers\Integrations::mailchimp_connected() ) {
+		if ( Integrations::mailchimp_connected() ) {
 			// Audience ids and names only (from the cache, no request), for email_capture audience_id.
 			$facts['audiences'] = array_map(
 				static fn( array $a ): array => [
 					'id'   => $a['id'],
 					'name' => $a['name'],
 				],
-				\CrazyLinks\Subscribers\Integrations::cached_audiences()
+				Integrations::cached_audiences()
 			);
 		}
 		/**

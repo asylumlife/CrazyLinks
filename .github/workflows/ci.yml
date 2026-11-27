@@ -2,7 +2,13 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
+
+# A newer push to the same branch or pull request cancels the run in progress.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -41,10 +47,10 @@ jobs:
         run: composer install --no-interaction --no-progress --prefer-dist
 
       - name: phpcs
-        run: vendor/bin/phpcs
+        run: composer lint
 
       - name: phpstan
-        run: vendor/bin/phpstan analyse --no-progress
+        run: composer analyse
 
       # The install script cannot run unmodified on ubuntu runners: it uses
       # bsdtar-only `tar --include` flags (GNU tar rejects them) and `wp core
@@ -74,7 +80,7 @@ jobs:
       - name: phpunit
         env:
           WP_TESTS_DIR: ${{ runner.temp }}/crazylinks-tests/develop/tests/phpunit
-        run: vendor/bin/phpunit
+        run: composer test
 
   js:
     name: JS (typecheck, lint, vitest, build)
@@ -94,9 +100,8 @@ jobs:
 
       - run: npm ci
       - run: npm run typecheck
-      - run: npm run lint:js
-      - run: npm run lint:css
-      - run: npm run test:unit
+      - run: npm run lint
+      - run: npm test
       - run: npm run build
 
       - name: Committed build matches source

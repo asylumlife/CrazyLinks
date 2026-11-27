@@ -8,12 +8,11 @@
 namespace CrazyLinks\Rest;
 
 use CrazyLinks\Analytics\Summary;
-use CrazyLinks\PostType;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * GET /crazylinks/v1/analytics/summary?page_id=123&range=7d|30d|90d (or from=&to=, or the older days=)
+ * GET /crazylinks/v1/analytics/summary?page_id=123&range=7d|30d|90d (or from=&to=, or days= as an alias for range).
  */
 final class AnalyticsController extends \WP_REST_Controller {
 
@@ -59,7 +58,7 @@ final class AnalyticsController extends \WP_REST_Controller {
 							'type'        => 'integer',
 							'minimum'     => 1,
 							'maximum'     => Summary::MAX_DAYS,
-							'description' => 'Older alias for range; ignored when range or from is given.',
+							'description' => __( 'Older alias for range; ignored when range or from is given.', 'crazylinks' ),
 						],
 					],
 				],
@@ -69,20 +68,22 @@ final class AnalyticsController extends \WP_REST_Controller {
 	}
 
 	/**
-	 * Needs view_crazylinks_analytics and edit rights on the page.
+	 * Needs view_crazylinks_analytics and edit rights on the page. The capability is checked before the
+	 * page is looked up, so callers without it cannot probe which ids are link pages.
 	 *
 	 * @param \WP_REST_Request $request Request.
 	 * @return true|\WP_Error
 	 */
 	public function get_item_permissions_check( $request ) {
-		$post = get_post( (int) $request['page_id'] );
-		if ( ! $post instanceof \WP_Post || PostType::NAME !== $post->post_type ) {
-			return new \WP_Error( 'crazylinks_not_found', __( 'Link page not found.', 'crazylinks' ), [ 'status' => 404 ] );
+		$denied = new \WP_Error( 'crazylinks_forbidden', __( 'Sorry, you are not allowed to view analytics for this page.', 'crazylinks' ), [ 'status' => rest_authorization_required_code() ] );
+		if ( ! current_user_can( 'view_crazylinks_analytics' ) ) {
+			return $denied;
 		}
-		if ( ! current_user_can( 'view_crazylinks_analytics' ) || ! current_user_can( 'edit_post', $post->ID ) ) {
-			return new \WP_Error( 'crazylinks_forbidden', __( 'Sorry, you are not allowed to view analytics for this page.', 'crazylinks' ), [ 'status' => rest_authorization_required_code() ] );
+		$post = RestRoutes::link_page( (int) $request['page_id'] );
+		if ( is_wp_error( $post ) ) {
+			return $post;
 		}
-		return true;
+		return current_user_can( 'edit_post', $post->ID ) ? true : $denied;
 	}
 
 	/**
@@ -102,7 +103,7 @@ final class AnalyticsController extends \WP_REST_Controller {
 			return $range;
 		}
 		$report = Summary::report( (int) $request['page_id'], $range['from'], $range['to'] );
-		// Older top-level fields stay so existing callers keep working.
+		// Flat top-level copies of the totals, for callers that read the summary without `totals`.
 		$report['page_id'] = (int) $request['page_id'];
 		$report['views']   = $report['totals']['views'];
 		$report['uniques'] = $report['totals']['uniques'];

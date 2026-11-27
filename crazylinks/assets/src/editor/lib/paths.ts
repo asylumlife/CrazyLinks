@@ -4,6 +4,26 @@
 import type { JsonObject, JsonValue } from '../types';
 
 /**
+ * Whether a value is a plain (non-array, non-null) object.
+ *
+ * @param value Anything.
+ */
+export function isPlainObject(
+	value: unknown
+): value is Record< string, unknown > {
+	return !! value && typeof value === 'object' && ! Array.isArray( value );
+}
+
+/**
+ * The value as a JSON object, or an empty object when it is anything else.
+ *
+ * @param value Anything.
+ */
+export function asObject( value: unknown ): JsonObject {
+	return isPlainObject( value ) ? ( value as JsonObject ) : {};
+}
+
+/**
  * Value at a path, or undefined.
  *
  * @param obj  Object.
@@ -48,11 +68,6 @@ export function setPath(
 		}
 		return next;
 	}
-	const child = obj[ head ];
-	const childObj: JsonObject =
-		child && typeof child === 'object' && ! Array.isArray( child )
-			? ( child as JsonObject )
-			: {};
-	next[ head ] = setPath( childObj, rest, value );
+	next[ head ] = setPath( asObject( obj[ head ] ), rest, value );
 	return next;
 }

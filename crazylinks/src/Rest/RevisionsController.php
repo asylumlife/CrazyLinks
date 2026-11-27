@@ -8,7 +8,6 @@
 namespace CrazyLinks\Rest;
 
 use CrazyLinks\PageStore;
-use CrazyLinks\PostType;
 use CrazyLinks\Schema\PageValidator;
 
 defined( 'ABSPATH' ) || exit;
@@ -65,7 +64,7 @@ final class RevisionsController extends \WP_REST_Controller {
 						'title' => [
 							'type'              => 'string',
 							'description'       => __( 'Working copy of the page name.', 'crazylinks' ),
-							'sanitize_callback' => 'sanitize_text_field',
+							'sanitize_callback' => static fn( $value ) => sanitize_text_field( (string) $value ),
 						],
 					],
 				],
@@ -110,20 +109,6 @@ final class RevisionsController extends \WP_REST_Controller {
 	}
 
 	/**
-	 * The link page or an error.
-	 *
-	 * @param int $id Id.
-	 * @return \WP_Post|\WP_Error
-	 */
-	private function get_page( int $id ) {
-		$post = get_post( $id );
-		if ( ! $post instanceof \WP_Post || PostType::NAME !== $post->post_type ) {
-			return new \WP_Error( 'crazylinks_not_found', __( 'Link page not found.', 'crazylinks' ), [ 'status' => 404 ] );
-		}
-		return $post;
-	}
-
-	/**
 	 * A revision (or autosave) of the page, or an error.
 	 *
 	 * @param \WP_Post $page   Page.
@@ -145,11 +130,11 @@ final class RevisionsController extends \WP_REST_Controller {
 	 * @return true|\WP_Error
 	 */
 	public function edit_permission( $request ) {
-		$post = $this->get_page( (int) $request['id'] );
+		$post = RestRoutes::link_page_or_denied( (int) $request['id'] );
 		if ( is_wp_error( $post ) ) {
-			return current_user_can( 'edit_crazylinks_pages' ) ? $post : $this->forbidden();
+			return $post;
 		}
-		return current_user_can( 'edit_post', $post->ID ) ? true : $this->forbidden();
+		return current_user_can( 'edit_post', $post->ID ) ? true : RestRoutes::forbidden();
 	}
 
 	/**
@@ -163,7 +148,7 @@ final class RevisionsController extends \WP_REST_Controller {
 		if ( true !== $allowed ) {
 			return $allowed;
 		}
-		$page = $this->get_page( (int) $request['id'] );
+		$page = RestRoutes::link_page( (int) $request['id'] );
 		if ( is_wp_error( $page ) ) {
 			return $page;
 		}
@@ -172,7 +157,7 @@ final class RevisionsController extends \WP_REST_Controller {
 			return $rev;
 		}
 		if ( self::is_foreign_autosave( $rev ) ) {
-			return $this->forbidden();
+			return RestRoutes::forbidden();
 		}
 		return true;
 	}
@@ -185,7 +170,7 @@ final class RevisionsController extends \WP_REST_Controller {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public function autosave( $request ) {
-		$post = $this->get_page( (int) $request['id'] );
+		$post = RestRoutes::link_page( (int) $request['id'] );
 		if ( is_wp_error( $post ) ) {
 			return $post;
 		}
@@ -213,7 +198,7 @@ final class RevisionsController extends \WP_REST_Controller {
 				$saved->add_data( [ 'status' => 500 ] );
 				return $saved;
 			}
-			return $this->autosave_response( 'draft', (int) $saved, $doc );
+			return $this->autosave_response( 'draft', (int) $saved, $doc, $post );
 		}
 
 		$existing = wp_get_post_autosave( $post->ID, get_current_user_id() );
@@ -222,7 +207,7 @@ final class RevisionsController extends \WP_REST_Controller {
 			if ( $existing instanceof \WP_Post ) {
 				wp_delete_post_revision( $existing->ID );
 			}
-			return $this->autosave_response( 'unchanged', 0, $doc );
+			return $this->autosave_response( 'unchanged', 0, $doc, $post );
 		}
 
 		$fields = [
@@ -253,23 +238,25 @@ final class RevisionsController extends \WP_REST_Controller {
 		 * @param int $page_id     Page id.
 		 */
 		do_action( 'crazylinks_page_autosaved', (int) $rev_id, (int) $post->ID );
-		return $this->autosave_response( 'autosave', (int) $rev_id, $doc );
+		return $this->autosave_response( 'autosave', (int) $rev_id, $doc, $post );
 	}
 
 	/**
 	 * Autosave response.
 	 *
 	 * @param string               $mode autosave | draft | unchanged.
-	 * @param int                  $id   Autosave revision id, or the page id for `draft`.
+	 * @param int                  $id   Autosave revision id, the page id for `draft`, 0 for `unchanged`.
 	 * @param array<string, mixed> $doc  Normalized document.
+	 * @param \WP_Post             $page The page, whose modified time is reported when nothing was stored.
 	 */
-	private function autosave_response( string $mode, int $id, array $doc ): \WP_REST_Response {
-		$post = $id > 0 ? get_post( $id ) : null;
+	private function autosave_response( string $mode, int $id, array $doc, \WP_Post $page ): \WP_REST_Response {
+		$saved = $id > 0 ? get_post( $id ) : null;
+		$saved = $saved instanceof \WP_Post ? $saved : $page;
 		return rest_ensure_response(
 			[
 				'mode'        => $mode,
 				'autosave_id' => 'autosave' === $mode ? $id : 0,
-				'modified'    => $post instanceof \WP_Post ? mysql_to_rfc3339( $post->post_modified_gmt ) : gmdate( 'c' ),
+				'modified'    => mysql_to_rfc3339( $saved->post_modified_gmt ),
 				'page'        => PageValidator::to_json_shape( $doc ),
 			]
 		);
@@ -282,7 +269,7 @@ final class RevisionsController extends \WP_REST_Controller {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public function list_revisions( $request ) {
-		$post = $this->get_page( (int) $request['id'] );
+		$post = RestRoutes::link_page( (int) $request['id'] );
 		if ( is_wp_error( $post ) ) {
 			return $post;
 		}
@@ -303,7 +290,7 @@ final class RevisionsController extends \WP_REST_Controller {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public function get_revision( $request ) {
-		$page = $this->get_page( (int) $request['id'] );
+		$page = RestRoutes::link_page( (int) $request['id'] );
 		if ( is_wp_error( $page ) ) {
 			return $page;
 		}
@@ -327,7 +314,7 @@ final class RevisionsController extends \WP_REST_Controller {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public function restore( $request ) {
-		$page = $this->get_page( (int) $request['id'] );
+		$page = RestRoutes::link_page( (int) $request['id'] );
 		if ( is_wp_error( $page ) ) {
 			return $page;
 		}
@@ -391,12 +378,5 @@ final class RevisionsController extends \WP_REST_Controller {
 	 */
 	private static function is_foreign_autosave( \WP_Post $rev ): bool {
 		return wp_is_post_autosave( $rev ) && get_current_user_id() !== (int) $rev->post_author && ! current_user_can( 'edit_others_crazylinks_pages' );
-	}
-
-	/**
-	 * Generic forbidden error.
-	 */
-	private function forbidden(): \WP_Error {
-		return new \WP_Error( 'crazylinks_forbidden', __( 'Sorry, you are not allowed to do that.', 'crazylinks' ), [ 'status' => rest_authorization_required_code() ] );
 	}
 }

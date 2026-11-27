@@ -7,6 +7,7 @@
 
 namespace CrazyLinks\Ai;
 
+use CrazyLinks\PostType;
 use CrazyLinks\Settings;
 
 defined( 'ABSPATH' ) || exit;
@@ -121,7 +122,8 @@ final class Status {
 				}
 			}
 		} catch ( \Throwable $e ) {
-			return $names;
+			// A registry that cannot be read ends the list at the providers named so far.
+			unset( $e );
 		}
 		return $names;
 	}
@@ -140,7 +142,7 @@ final class Status {
 		 * Filters the model preference list (first available wins; core falls back to any capable model).
 		 *
 		 * @param string[] $models  Model ids.
-		 * @param string   $purpose edit | suggest | grade.
+		 * @param string   $purpose edit | suggest.
 		 */
 		return array_values( array_map( 'strval', (array) apply_filters( 'crazylinks_ai_models', $models, $purpose ) ) );
 	}
@@ -182,7 +184,7 @@ final class Status {
 			'reason'              => $reason,
 			'message'             => self::message( $reason ),
 			'connectorsUrl'       => current_user_can( 'manage_options' ) ? admin_url( 'options-connectors.php' ) : '',
-			'settingsUrl'         => current_user_can( 'manage_crazylinks' ) ? admin_url( 'edit.php?post_type=crazylinks_page&page=crazylinks-settings#crazylinks-ai' ) : '',
+			'settingsUrl'         => current_user_can( 'manage_crazylinks' ) ? admin_url( 'edit.php?post_type=' . PostType::NAME . '&page=crazylinks-settings#crazylinks-ai' ) : '',
 			'providers'           => '' === $reason ? self::providers() : [],
 			'budget'              => Limits::budget_state(),
 			'requireConfirmation' => Proposals::requires_confirmation( $page_id ),

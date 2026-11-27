@@ -129,7 +129,12 @@ final class Router {
 		$page  = '' !== $slug ? get_page_by_path( $slug, OBJECT, PostType::NAME ) : null;
 
 		if ( ! $page instanceof \WP_Post ) {
-			$path = Settings::base() . '/' . $slug . ( '' !== $go ? '/go/' . $go . ( '' !== $item ? '/' . $item : '' ) : '' ) . ( $vcard ? '/vcard' : '' );
+			$path = Settings::base() . '/' . $slug;
+			if ( '' !== $go ) {
+				$path .= '/go/' . $go . ( '' !== $item ? '/' . $item : '' );
+			} elseif ( $vcard ) {
+				$path .= '/vcard';
+			}
 			return [ 'pagename' => $path ];
 		}
 		$out = [
@@ -158,7 +163,7 @@ final class Router {
 	 * @return array{crazylinks_slug:string, crazylinks_go:string, crazylinks_item:string, crazylinks_vcard:string}|null
 	 */
 	private function our_vars( array $qv ): ?array {
-		if ( '' !== (string) get_option( 'permalink_structure' ) ) {
+		if ( ! self::plain_permalinks() ) {
 			global $wp;
 			if ( ! $wp instanceof \WP || ! is_string( $wp->matched_rule ) || ! array_key_exists( $wp->matched_rule, self::rules() ) ) {
 				return null;
@@ -211,12 +216,19 @@ final class Router {
 	}
 
 	/**
+	 * Whether the site uses plain permalinks, where our URLs are query strings instead of paths.
+	 */
+	private static function plain_permalinks(): bool {
+		return '' === (string) get_option( 'permalink_structure' );
+	}
+
+	/**
 	 * Public URL of a page.
 	 *
 	 * @param string $slug Slug.
 	 */
 	public static function page_url( string $slug ): string {
-		if ( '' === (string) get_option( 'permalink_structure' ) ) {
+		if ( self::plain_permalinks() ) {
 			return add_query_arg( self::QV_SLUG, rawurlencode( $slug ), home_url( '/' ) );
 		}
 		return home_url( user_trailingslashit( Settings::base() . '/' . rawurlencode( $slug ) ) );
@@ -230,7 +242,7 @@ final class Router {
 	 * @param string $item_id  Item id inside the block (social icons), or ''.
 	 */
 	public static function go_url( string $slug, string $block_id, string $item_id = '' ): string {
-		if ( '' === (string) get_option( 'permalink_structure' ) ) {
+		if ( self::plain_permalinks() ) {
 			return add_query_arg(
 				array_filter(
 					[
@@ -242,7 +254,11 @@ final class Router {
 				home_url( '/' )
 			);
 		}
-		return home_url( user_trailingslashit( Settings::base() . '/' . rawurlencode( $slug ) . '/go/' . rawurlencode( $block_id ) . ( '' !== $item_id ? '/' . rawurlencode( $item_id ) : '' ) ) );
+		$path = Settings::base() . '/' . rawurlencode( $slug ) . '/go/' . rawurlencode( $block_id );
+		if ( '' !== $item_id ) {
+			$path .= '/' . rawurlencode( $item_id );
+		}
+		return home_url( user_trailingslashit( $path ) );
 	}
 
 	/**
@@ -263,7 +279,7 @@ final class Router {
 	 * @param string $slug Page slug.
 	 */
 	public static function vcard_url( string $slug ): string {
-		if ( '' === (string) get_option( 'permalink_structure' ) ) {
+		if ( self::plain_permalinks() ) {
 			return add_query_arg(
 				[
 					self::QV_SLUG  => rawurlencode( $slug ),

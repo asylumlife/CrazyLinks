@@ -100,7 +100,7 @@ final class Integrations {
 	public static function audiences( bool $refresh = false ) {
 		$adapter = Adapters::get( Mailchimp::ID );
 		if ( ! $adapter || ! $adapter->is_configured() ) {
-			return new \WP_Error( 'crazylinks_mc_no_key', __( 'No Mailchimp API key is saved. Add it under CrazyLinks → Settings → Integrations.', 'crazylinks' ), [ 'status' => 409 ] );
+			return self::no_key_error( [ 'status' => 409 ] );
 		}
 		$key = self::audiences_key();
 		$hit = $refresh ? false : get_transient( $key );
@@ -137,6 +137,15 @@ final class Integrations {
 	}
 
 	/**
+	 * The error for a missing API key.
+	 *
+	 * @param array<string, mixed> $data Error data (e.g. the REST status).
+	 */
+	private static function no_key_error( array $data = [] ): \WP_Error {
+		return new \WP_Error( 'crazylinks_mc_no_key', __( 'No Mailchimp API key is saved. Add it under CrazyLinks → Settings → Integrations.', 'crazylinks' ), $data ? $data : '' );
+	}
+
+	/**
 	 * Runs and remembers a connection test.
 	 *
 	 * @param string|null $api_key Key to test (default: the saved key).
@@ -144,7 +153,7 @@ final class Integrations {
 	 */
 	public static function test( ?string $api_key = null ) {
 		$adapter = new Mailchimp( $api_key );
-		$result  = $adapter->is_configured() ? $adapter->test() : new \WP_Error( 'crazylinks_mc_no_key', __( 'No Mailchimp API key is saved. Add it under CrazyLinks → Settings → Integrations.', 'crazylinks' ) );
+		$result  = $adapter->is_configured() ? $adapter->test() : self::no_key_error();
 		if ( null === $api_key || self::api_key() === $api_key ) {
 			set_transient(
 				self::TEST_TRANSIENT,

@@ -12,8 +12,17 @@
 
 defined( 'ABSPATH' ) || exit;
 
-$crazylinks_uid     = 'cl-ec-' . (string) $block['id'];
-$crazylinks_consent = (string) ( $props['consent_text'] ?? '' );
+$crazylinks_uid         = 'cl-ec-' . (string) $block['id'];
+$crazylinks_consent     = (string) ( $props['consent_text'] ?? '' );
+$crazylinks_placeholder = (string) ( $props['placeholder'] ?? '' );
+$crazylinks_button      = (string) ( $props['button_text'] ?? '' );
+// An empty placeholder or button text falls back to the default wording, so the button always has a name.
+if ( '' === trim( $crazylinks_placeholder ) ) {
+	$crazylinks_placeholder = __( 'you@example.com', 'crazylinks' );
+}
+if ( '' === trim( $crazylinks_button ) ) {
+	$crazylinks_button = __( 'Subscribe', 'crazylinks' );
+}
 // The block's own wording replaces the site defaults for the pending (double opt-in) and success messages.
 // A block routed to Mailchimp defaults to "Check your email to confirm your subscription." (Mailchimp sends it).
 $crazylinks_custom = [
@@ -22,7 +31,7 @@ $crazylinks_custom = [
 	'done'      => trim( (string) ( $props['success_text'] ?? '' ) ),
 ];
 ?>
-<form class="cl-capture" method="post" action="<?php echo esc_url( wp_make_link_relative( rest_url( 'crazylinks/v1/subscribe' ) ) ); ?>" data-cl-capture data-cl-uid="<?php echo esc_attr( $crazylinks_uid ); ?>">
+<form class="cl-capture" method="post" action="<?php echo esc_url( wp_make_link_relative( rest_url( 'crazylinks/v1/subscribe' ) ) ); ?>" data-cl-capture data-cl-uid="<?php echo esc_attr( $crazylinks_uid ); ?>"<?php echo ! empty( $props['heading'] ) ? ' aria-labelledby="' . esc_attr( $crazylinks_uid . '-h' ) . '"' : ''; ?>>
 	<?php if ( ! empty( $props['heading'] ) ) : ?>
 		<p class="cl-capture__heading" id="<?php echo esc_attr( $crazylinks_uid ); ?>-h"><?php echo esc_html( (string) $props['heading'] ); ?></p>
 	<?php endif; ?>
@@ -37,8 +46,8 @@ $crazylinks_custom = [
 	</div>
 	<div class="cl-capture__row">
 		<label class="cl-sr" for="<?php echo esc_attr( $crazylinks_uid ); ?>-e"><?php esc_html_e( 'Email address', 'crazylinks' ); ?></label>
-		<input class="cl-capture__input" type="email" id="<?php echo esc_attr( $crazylinks_uid ); ?>-e" name="email" required autocomplete="email" inputmode="email" placeholder="<?php echo esc_attr( (string) ( $props['placeholder'] ?? __( 'you@example.com', 'crazylinks' ) ) ); ?>">
-		<button class="cl-capture__button" type="submit"><?php echo esc_html( (string) ( $props['button_text'] ?? __( 'Subscribe', 'crazylinks' ) ) ); ?></button>
+		<input class="cl-capture__input" type="email" id="<?php echo esc_attr( $crazylinks_uid ); ?>-e" name="email" required autocomplete="email" inputmode="email" placeholder="<?php echo esc_attr( $crazylinks_placeholder ); ?>">
+		<button class="cl-capture__button" type="submit"><?php echo esc_html( $crazylinks_button ); ?></button>
 	</div>
 	<?php if ( '' !== $crazylinks_consent ) : ?>
 		<p class="cl-capture__consent">

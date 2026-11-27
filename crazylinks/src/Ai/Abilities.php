@@ -10,6 +10,7 @@ namespace CrazyLinks\Ai;
 use CrazyLinks\Analytics\Summary;
 use CrazyLinks\PageStore;
 use CrazyLinks\PostType;
+use CrazyLinks\Rest\PagesController;
 use CrazyLinks\Settings;
 use CrazyLinks\Woo\Store;
 use WP_Error;
@@ -45,6 +46,15 @@ final class Abilities {
 		'crazylinks/get-analytics-summary',
 		'crazylinks/suggest-titles',
 		'crazylinks/search-products',
+	];
+
+	/**
+	 * Annotations of an ability that only reads.
+	 */
+	private const READONLY = [
+		'readonly'    => true,
+		'destructive' => false,
+		'idempotent'  => true,
 	];
 
 	/**
@@ -96,17 +106,72 @@ final class Abilities {
 		if ( ! function_exists( 'wp_register_ability' ) ) {
 			return;
 		}
-		$page_id  = [
+		$this->register_list_pages();
+		$this->register_get_page();
+		$this->register_get_editing_guide();
+		$this->register_preview_operations();
+		$this->register_apply_operations();
+		$this->register_propose_changes();
+		$this->register_apply_changes();
+		$this->register_get_analytics_summary();
+		$this->register_suggest_titles();
+		$this->register_search_products();
+	}
+
+	/**
+	 * Input schema of a link page id.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private static function page_id_schema(): array {
+		return [
 			'type'        => 'integer',
 			'minimum'     => 1,
 			'description' => __( 'Link page id.', 'crazylinks' ),
 		];
-		$readonly = [
-			'readonly'    => true,
-			'destructive' => false,
-			'idempotent'  => true,
+	}
+
+	/**
+	 * Input schema of a list of operations.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private static function operations_schema(): array {
+		return [
+			'type'        => 'array',
+			'description' => __( 'Operations in the CrazyLinks format (see get-editing-guide), applied in order.', 'crazylinks' ),
+			'items'       => [
+				'type'                 => 'object',
+				'additionalProperties' => true,
+			],
 		];
-		$proposal = [
+	}
+
+	/**
+	 * Output schema of validation errors or warnings (path and message).
+	 *
+	 * @return array<string, mixed>
+	 */
+	private static function messages_schema(): array {
+		return [
+			'type'  => 'array',
+			'items' => [
+				'type'       => 'object',
+				'properties' => [
+					'path'    => [ 'type' => 'string' ],
+					'message' => [ 'type' => 'string' ],
+				],
+			],
+		];
+	}
+
+	/**
+	 * Output schema of a proposal.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private static function proposal_schema(): array {
+		return [
 			'type'       => 'object',
 			'properties' => [
 				'proposal_id'      => [ 'type' => [ 'string', 'null' ] ],
@@ -121,7 +186,12 @@ final class Abilities {
 				'expires_at'       => [ 'type' => [ 'string', 'null' ] ],
 			],
 		];
+	}
 
+	/**
+	 * Registers crazylinks/list-pages.
+	 */
+	private function register_list_pages(): void {
 		$this->register(
 			'crazylinks/list-pages',
 			__( 'List link pages', 'crazylinks' ),
@@ -145,48 +215,42 @@ final class Abilities {
 			],
 			[ $this, 'list_pages' ],
 			static fn() => current_user_can( 'edit_crazylinks_pages' ),
-			$readonly
+			self::READONLY
 		);
+	}
+
+	/**
+	 * Registers crazylinks/get-page.
+	 */
+	private function register_get_page(): void {
 		$this->register(
 			'crazylinks/get-page',
 			__( 'Get a link page', 'crazylinks' ),
 			__( 'Returns one link page as JSON (profile, design, blocks with ids) and its modified time. Custom HTML and custom CSS are summarized, not returned. Use the block ids in operations for preview-operations and apply-operations (or propose-changes), and pass modified as expected_modified.', 'crazylinks' ),
 			[
 				'type'                 => 'object',
-				'properties'           => [ 'id' => $page_id ],
+				'properties'           => [ 'id' => self::page_id_schema() ],
 				'required'             => [ 'id' ],
 				'additionalProperties' => false,
 			],
 			[ 'type' => 'object' ],
 			[ $this, 'get_page' ],
 			static fn( $input = null ) => self::can_edit( $input ),
-			$readonly
+			self::READONLY
 		);
-		$operations = [
-			'type'        => 'array',
-			'description' => __( 'Operations in the CrazyLinks format (see get-editing-guide), applied in order.', 'crazylinks' ),
-			'items'       => [
-				'type'                 => 'object',
-				'additionalProperties' => true,
-			],
-		];
-		$messages   = [
-			'type'  => 'array',
-			'items' => [
-				'type'       => 'object',
-				'properties' => [
-					'path'    => [ 'type' => 'string' ],
-					'message' => [ 'type' => 'string' ],
-				],
-			],
-		];
+	}
+
+	/**
+	 * Registers crazylinks/get-editing-guide.
+	 */
+	private function register_get_editing_guide(): void {
 		$this->register(
 			'crazylinks/get-editing-guide',
 			__( 'Get the CrazyLinks editing guide', 'crazylinks' ),
 			__( 'Call this before writing operations for a CrazyLinks link page: returns the block types and their props, the operations format with examples, the rules and the recommended workflow. Optional input id (a link page id) also returns that page\'s current content and modified time.', 'crazylinks' ),
 			[
 				'type'                 => 'object',
-				'properties'           => [ 'id' => $page_id ],
+				'properties'           => [ 'id' => self::page_id_schema() ],
 				'additionalProperties' => false,
 				// Lets core's REST run route and MCP clients call it with no input at all.
 				'default'              => [],
@@ -203,8 +267,14 @@ final class Abilities {
 			],
 			[ $this, 'editing_guide' ],
 			static fn( $input = null ) => self::can_edit_or_missing( $input, false ),
-			$readonly
+			self::READONLY
 		);
+	}
+
+	/**
+	 * Registers crazylinks/preview-operations.
+	 */
+	private function register_preview_operations(): void {
 		$this->register(
 			'crazylinks/preview-operations',
 			__( 'Preview operations on a link page', 'crazylinks' ),
@@ -212,8 +282,8 @@ final class Abilities {
 			[
 				'type'                 => 'object',
 				'properties'           => [
-					'id'               => $page_id,
-					'operations'       => $operations,
+					'id'               => self::page_id_schema(),
+					'operations'       => self::operations_schema(),
 					'include_document' => [
 						'type'        => 'boolean',
 						'default'     => false,
@@ -227,8 +297,8 @@ final class Abilities {
 				'type'       => 'object',
 				'properties' => [
 					'valid'             => [ 'type' => 'boolean' ],
-					'errors'            => $messages,
-					'warnings'          => $messages,
+					'errors'            => self::messages_schema(),
+					'warnings'          => self::messages_schema(),
 					'summary'           => [ 'type' => 'string' ],
 					'change_list'       => [ 'type' => 'array' ],
 					'changed_blocks'    => [ 'type' => 'array' ],
@@ -243,8 +313,14 @@ final class Abilities {
 			],
 			[ $this, 'preview_operations' ],
 			static fn( $input = null ) => self::can_edit_or_missing( $input, true ),
-			$readonly
+			self::READONLY
 		);
+	}
+
+	/**
+	 * Registers crazylinks/apply-operations.
+	 */
+	private function register_apply_operations(): void {
 		$this->register(
 			'crazylinks/apply-operations',
 			__( 'Apply operations to a link page', 'crazylinks' ),
@@ -252,8 +328,8 @@ final class Abilities {
 			[
 				'type'                 => 'object',
 				'properties'           => [
-					'id'                => $page_id,
-					'operations'        => $operations,
+					'id'                => self::page_id_schema(),
+					'operations'        => self::operations_schema(),
 					'summary'           => [
 						'type'        => 'string',
 						'maxLength'   => ExternalOps::MAX_SUMMARY,
@@ -301,6 +377,12 @@ final class Abilities {
 				'idempotent'  => false,
 			]
 		);
+	}
+
+	/**
+	 * Registers crazylinks/propose-changes.
+	 */
+	private function register_propose_changes(): void {
 		$this->register(
 			'crazylinks/propose-changes',
 			__( 'Propose changes to a link page', 'crazylinks' ),
@@ -308,7 +390,7 @@ final class Abilities {
 			[
 				'type'                 => 'object',
 				'properties'           => [
-					'id'                => $page_id,
+					'id'                => self::page_id_schema(),
 					'instruction'       => [
 						'type'      => 'string',
 						'maxLength' => Proposals::MAX_INSTRUCTION,
@@ -337,11 +419,17 @@ final class Abilities {
 				'required'             => [ 'id' ],
 				'additionalProperties' => false,
 			],
-			$proposal,
+			self::proposal_schema(),
 			[ $this, 'propose' ],
 			static fn( $input = null ) => current_user_can( 'use_crazylinks_ai' ) && self::can_edit( $input ),
-			$readonly
+			self::READONLY
 		);
+	}
+
+	/**
+	 * Registers crazylinks/apply-changes.
+	 */
+	private function register_apply_changes(): void {
 		$this->register(
 			'crazylinks/apply-changes',
 			__( 'Apply proposed changes', 'crazylinks' ),
@@ -349,10 +437,10 @@ final class Abilities {
 			[
 				'type'                 => 'object',
 				'properties'           => [
-					'id'          => $page_id,
+					'id'          => self::page_id_schema(),
 					'proposal_id' => [
 						'type'    => 'string',
-						'pattern' => '^[A-Za-z0-9]{24}$',
+						'pattern' => Proposals::ID_PATTERN,
 					],
 				],
 				'required'             => [ 'id', 'proposal_id' ],
@@ -374,6 +462,12 @@ final class Abilities {
 				'idempotent'  => true,
 			]
 		);
+	}
+
+	/**
+	 * Registers crazylinks/get-analytics-summary.
+	 */
+	private function register_get_analytics_summary(): void {
 		$this->register(
 			'crazylinks/get-analytics-summary',
 			__( 'Get link page analytics', 'crazylinks' ),
@@ -381,7 +475,7 @@ final class Abilities {
 			[
 				'type'                 => 'object',
 				'properties'           => [
-					'id'   => $page_id,
+					'id'   => self::page_id_schema(),
 					'days' => [
 						'type'    => 'integer',
 						'minimum' => 1,
@@ -395,8 +489,14 @@ final class Abilities {
 			[ 'type' => 'object' ],
 			[ $this, 'analytics' ],
 			static fn( $input = null ) => current_user_can( 'view_crazylinks_analytics' ) && self::can_edit( $input ),
-			$readonly
+			self::READONLY
 		);
+	}
+
+	/**
+	 * Registers crazylinks/suggest-titles.
+	 */
+	private function register_suggest_titles(): void {
 		$this->register(
 			'crazylinks/suggest-titles',
 			__( 'Suggest link titles', 'crazylinks' ),
@@ -432,8 +532,14 @@ final class Abilities {
 			],
 			[ $this, 'suggest_titles' ],
 			static fn() => current_user_can( 'use_crazylinks_ai' ),
-			$readonly
+			self::READONLY
 		);
+	}
+
+	/**
+	 * Registers crazylinks/search-products.
+	 */
+	private function register_search_products(): void {
 		$this->register(
 			'crazylinks/search-products',
 			__( 'Search store products', 'crazylinks' ),
@@ -468,7 +574,7 @@ final class Abilities {
 			],
 			[ $this, 'search_products' ],
 			static fn() => current_user_can( 'edit_crazylinks_pages' ),
-			$readonly
+			self::READONLY
 		);
 	}
 
@@ -557,6 +663,13 @@ final class Abilities {
 	}
 
 	/**
+	 * The answer for an id that is not a link page.
+	 */
+	private static function not_found(): WP_Error {
+		return new WP_Error( 'crazylinks_not_found', __( 'Link page not found.', 'crazylinks' ), [ 'status' => 404 ] );
+	}
+
+	/**
 	 * Execute: list-pages.
 	 *
 	 * @param mixed $input Input.
@@ -564,21 +677,11 @@ final class Abilities {
 	 */
 	public function list_pages( $input = null ): array {
 		$input = is_array( $input ) ? $input : [];
-		$args  = [
-			'post_type'      => PostType::NAME,
+		$args  = PagesController::editable_query_args( (string) ( $input['search'] ?? '' ) ) + [
 			'post_status'    => 'any',
 			'posts_per_page' => min( 100, max( 1, (int) ( $input['per_page'] ?? 20 ) ) ),
-			'perm'           => 'editable',
-			'orderby'        => 'modified',
-			'order'          => 'DESC',
 		];
-		if ( ! empty( $input['search'] ) ) {
-			$args['s'] = (string) $input['search'];
-		}
-		if ( ! current_user_can( 'edit_others_crazylinks_pages' ) ) {
-			$args['author'] = get_current_user_id();
-		}
-		$out = [];
+		$out   = [];
 		foreach ( ( new \WP_Query( $args ) )->posts as $post ) {
 			if ( $post instanceof \WP_Post && current_user_can( 'edit_post', $post->ID ) ) {
 				$out[] = [
@@ -603,7 +706,7 @@ final class Abilities {
 	public function get_page( $input = null ) {
 		$post = self::page( $input );
 		if ( null === $post ) {
-			return new WP_Error( 'crazylinks_not_found', __( 'Link page not found.', 'crazylinks' ), [ 'status' => 404 ] );
+			return self::not_found();
 		}
 		return [
 			'id'       => (int) $post->ID,
@@ -625,7 +728,7 @@ final class Abilities {
 		if ( is_array( $input ) && ! empty( $input['id'] ) ) {
 			$post = self::page( $input );
 			if ( null === $post ) {
-				return new WP_Error( 'crazylinks_not_found', __( 'Link page not found.', 'crazylinks' ), [ 'status' => 404 ] );
+				return self::not_found();
 			}
 			return EditingGuide::build( $post );
 		}
@@ -641,7 +744,7 @@ final class Abilities {
 	public function preview_operations( $input = null ) {
 		$post = self::page( $input );
 		if ( null === $post ) {
-			return new WP_Error( 'crazylinks_not_found', __( 'Link page not found.', 'crazylinks' ), [ 'status' => 404 ] );
+			return self::not_found();
 		}
 		$input = (array) $input;
 		return ExternalOps::preview( $post, $input['operations'] ?? null, $input['include_document'] ?? false );
@@ -656,7 +759,7 @@ final class Abilities {
 	public function apply_operations( $input = null ) {
 		$post = self::page( $input );
 		if ( null === $post ) {
-			return new WP_Error( 'crazylinks_not_found', __( 'Link page not found.', 'crazylinks' ), [ 'status' => 404 ] );
+			return self::not_found();
 		}
 		return ExternalOps::apply( $post, (array) $input );
 	}
@@ -670,7 +773,7 @@ final class Abilities {
 	public function propose( $input = null ) {
 		$post = self::page( $input );
 		if ( null === $post ) {
-			return new WP_Error( 'crazylinks_not_found', __( 'Link page not found.', 'crazylinks' ), [ 'status' => 404 ] );
+			return self::not_found();
 		}
 		return Proposals::propose( $post, (array) $input, 'mcp' );
 	}
@@ -684,7 +787,7 @@ final class Abilities {
 	public function apply( $input = null ) {
 		$post = self::page( $input );
 		if ( null === $post ) {
-			return new WP_Error( 'crazylinks_not_found', __( 'Link page not found.', 'crazylinks' ), [ 'status' => 404 ] );
+			return self::not_found();
 		}
 		$result = Proposals::apply( $post, (string) ( (array) $input )['proposal_id'], null, null, 'mcp' );
 		if ( is_wp_error( $result ) ) {
@@ -703,7 +806,7 @@ final class Abilities {
 	public function analytics( $input = null ) {
 		$post = self::page( $input );
 		if ( null === $post ) {
-			return new WP_Error( 'crazylinks_not_found', __( 'Link page not found.', 'crazylinks' ), [ 'status' => 404 ] );
+			return self::not_found();
 		}
 		return Summary::for_page( (int) $post->ID, (int) ( ( (array) $input )['days'] ?? 30 ) );
 	}

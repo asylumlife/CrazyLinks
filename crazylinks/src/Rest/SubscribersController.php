@@ -70,8 +70,14 @@ final class SubscribersController extends \WP_REST_Controller {
 		);
 		register_rest_route(
 			$this->namespace,
-			'/' . $this->rest_base . '/(?P<id>\d+)',
+			'/' . $this->rest_base . '/(?P<id>[\d]+)',
 			[
+				'args' => [
+					'id' => [
+						'description' => __( 'Subscriber id.', 'crazylinks' ),
+						'type'        => 'integer',
+					],
+				],
 				[
 					'methods'             => \WP_REST_Server::DELETABLE,
 					'callback'            => [ $this, 'delete_item' ],

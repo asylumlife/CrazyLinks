@@ -14,11 +14,13 @@ import { useInstanceId } from '@wordpress/compose';
 import type { FieldDef, Option } from '../registry/blocks';
 import type { JsonValue } from '../types';
 import ColorField from './ColorField';
+import FieldError from './FieldError';
 import MediaField from './MediaField';
 import ItemsField from './ItemsField';
 import FocalPicker from './FocalPicker';
 import ProductField from './ProductField';
 import AudienceField from './AudienceField';
+import { classes } from '../lib/classes';
 import { isoToLocalInput, localInputToIso } from '../lib/datetime';
 
 export interface FieldProps {
@@ -41,11 +43,28 @@ export interface FieldProps {
 	itemOptions?: Record< string, Option[] >;
 }
 
+/** Single-line text fields show a character counter up to this limit; longer ones do not. */
+const TEXT_COUNTER_MAX = 300;
+
+const TEXTAREA_ROWS = 3;
+const HTML_ROWS = 5;
+
 function asString( v: JsonValue | undefined ): string {
 	if ( typeof v === 'number' ) {
 		return String( v );
 	}
 	return typeof v === 'string' ? v : '';
+}
+
+/**
+ * The value to store for a text input: an emptied optional field is removed from the props, unless
+ * the schema wants the key kept.
+ *
+ * @param def  Field definition.
+ * @param text Input content.
+ */
+function textValue( def: FieldDef, text: string ): string | undefined {
+	return text === '' && ! def.required && ! def.keep ? undefined : text;
 }
 
 function Counter( { value, max }: { value: string; max?: number } ) {
@@ -54,7 +73,7 @@ function Counter( { value, max }: { value: string; max?: number } ) {
 	}
 	const over = value.length > max;
 	return (
-		<span className={ over ? 'cl-counter is-over' : 'cl-counter' }>
+		<span className={ classes( 'cl-counter', over && 'is-over' ) }>
 			{ value.length } / { max }
 		</span>
 	);
@@ -78,13 +97,9 @@ export default function Field( {
 		? { 'aria-invalid': true, 'aria-describedby': errorId }
 		: {};
 	const label = def.required ? `${ def.label } *` : def.label;
-	const errorNode = (
+	const messages = (
 		<>
-			{ error && (
-				<p className="cl-field-error" id={ errorId }>
-					{ error }
-				</p>
-			) }
+			<FieldError message={ error } id={ errorId } />
 			{ warning && ! error && (
 				<p className="cl-field-warning" role="status">
 					{ warning }
@@ -96,7 +111,11 @@ export default function Field( {
 	switch ( def.kind ) {
 		case 'text':
 		case 'url': {
-			const v = asString( value );
+			const text = asString( value );
+			const counted =
+				def.kind === 'text' &&
+				def.maxLength &&
+				def.maxLength <= TEXT_COUNTER_MAX;
 			return (
 				<div className="cl-field">
 					<TextControl
@@ -104,55 +123,41 @@ export default function Field( {
 						__nextHasNoMarginBottom
 						label={ label }
 						type={ def.kind === 'url' ? 'url' : 'text' }
-						value={ v }
+						value={ text }
 						help={ def.help }
 						placeholder={ def.placeholder }
 						onChange={ ( next: string ) =>
-							onChange(
-								next === '' && ! def.required && ! def.keep
-									? undefined
-									: next
-							)
+							onChange( textValue( def, next ) )
 						}
 						{ ...a11y }
 					/>
 					<Counter
-						value={ v }
-						max={
-							def.kind === 'text' &&
-							def.maxLength &&
-							def.maxLength <= 300
-								? def.maxLength
-								: undefined
-						}
+						value={ text }
+						max={ counted ? def.maxLength : undefined }
 					/>
-					{ errorNode }
+					{ messages }
 				</div>
 			);
 		}
 		case 'textarea':
 		case 'html': {
-			const v = asString( value );
+			const text = asString( value );
 			return (
 				<div className="cl-field">
 					<TextareaControl
 						__nextHasNoMarginBottom
 						label={ label }
-						value={ v }
+						value={ text }
 						help={ def.help }
-						rows={ def.kind === 'html' ? 5 : 3 }
+						rows={ def.kind === 'html' ? HTML_ROWS : TEXTAREA_ROWS }
 						onChange={ ( next: string ) =>
-							onChange(
-								next === '' && ! def.required && ! def.keep
-									? undefined
-									: next
-							)
+							onChange( textValue( def, next ) )
 						}
 						className={ def.key === 'html' ? 'cl-code' : undefined }
 						{ ...a11y }
 					/>
-					<Counter value={ v } max={ def.maxLength } />
-					{ errorNode }
+					<Counter value={ text } max={ def.maxLength } />
+					{ messages }
 				</div>
 			);
 		}
@@ -167,6 +172,7 @@ export default function Field( {
 						min={ def.min }
 						max={ def.max }
 						help={ def.help }
+						placeholder={ def.placeholder }
 						value={ asString( value ) }
 						onChange={ ( next: string ) => {
 							const n = parseInt( next, 10 );
@@ -174,7 +180,7 @@ export default function Field( {
 						} }
 						{ ...a11y }
 					/>
-					{ errorNode }
+					{ messages }
 				</div>
 			);
 		case 'toggle':
@@ -187,16 +193,17 @@ export default function Field( {
 						checked={ value === true }
 						onChange={ ( next: boolean ) => onChange( next ) }
 					/>
-					{ errorNode }
+					{ messages }
 				</div>
 			);
 		case 'select':
 		case 'icon': {
 			const list = options ?? def.options ?? [];
-			const v = asString( value );
+			const selected = asString( value );
+			// A stored value the list does not offer stays selectable instead of silently changing.
 			const withCurrent =
-				v && ! list.some( ( o ) => o.value === v )
-					? [ ...list, { value: v, label: v } ]
+				selected && ! list.some( ( o ) => o.value === selected )
+					? [ ...list, { value: selected, label: selected } ]
 					: list;
 			return (
 				<div className="cl-field">
@@ -205,14 +212,14 @@ export default function Field( {
 						__nextHasNoMarginBottom
 						label={ label }
 						help={ def.help }
-						value={ v }
+						value={ selected }
 						options={ withCurrent }
 						onChange={ ( next: string ) =>
 							onChange( next === '' ? undefined : next )
 						}
 						{ ...a11y }
 					/>
-					{ errorNode }
+					{ messages }
 				</div>
 			);
 		}
@@ -244,7 +251,7 @@ export default function Field( {
 						}
 						{ ...a11y }
 					/>
-					{ errorNode }
+					{ messages }
 				</div>
 			);
 		case 'color':
@@ -291,19 +298,24 @@ export default function Field( {
 						} }
 						{ ...a11y }
 					/>
-					{ errorNode }
+					{ messages }
 				</div>
 			);
 		}
 		case 'multicheck': {
 			const current = Array.isArray( value ) ? value.map( String ) : [];
+			const labelId = `${ id }-label`;
 			return (
-				<BaseControl
-					id={ id }
-					label={ def.label }
-					__nextHasNoMarginBottom
-				>
-					<div className="cl-multicheck">
+				<BaseControl __nextHasNoMarginBottom>
+					{ /* A set of checkboxes is named as a group, not through a label. */ }
+					<BaseControl.VisualLabel id={ labelId }>
+						{ def.label }
+					</BaseControl.VisualLabel>
+					<div
+						className="cl-multicheck"
+						role="group"
+						aria-labelledby={ labelId }
+					>
 						{ ( def.options ?? [] ).map( ( o ) => (
 							<CheckboxControl
 								__nextHasNoMarginBottom
@@ -321,7 +333,7 @@ export default function Field( {
 							/>
 						) ) }
 					</div>
-					{ errorNode }
+					{ messages }
 				</BaseControl>
 			);
 		}

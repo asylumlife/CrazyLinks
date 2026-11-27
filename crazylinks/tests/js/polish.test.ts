@@ -22,7 +22,6 @@ import {
 } from '../../assets/src/editor/lib/contrast';
 import { resolveColorTokens } from '../../assets/src/editor/lib/theme';
 import {
-	focalCss,
 	focalFromPoint,
 	normalizeFocal,
 	readFocal,
@@ -326,10 +325,6 @@ describe( 'focal point', () => {
 			x: 0.333,
 			y: 0.5,
 		} );
-	} );
-	it( 'formats object-position like the server', () => {
-		expect( focalCss( { x: 0.25, y: 0.8 } ) ).toBe( '25% 80%' );
-		expect( focalCss( undefined ) ).toBe( '' );
 	} );
 } );
 

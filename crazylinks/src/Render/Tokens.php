@@ -28,6 +28,20 @@ final class Tokens {
 	];
 
 	/**
+	 * The custom properties a preset's dark variant may override. frontend.css maps each one onto
+	 * its `--cl-*` counterpart under `prefers-color-scheme: dark`.
+	 */
+	private const DARK_VARS = [
+		'--cl-d-bg',
+		'--cl-d-text',
+		'--cl-d-muted',
+		'--cl-d-btn',
+		'--cl-d-btn-text',
+		'--cl-d-accent',
+		'--cl-d-accent-ink',
+	];
+
+	/**
 	 * Resolved design.
 	 *
 	 * @var array<string, mixed>
@@ -104,7 +118,7 @@ final class Tokens {
 	public function style(): string {
 		$vars = $this->vars( $this->design, '--cl-' );
 		if ( $this->dark ) {
-			$dark = array_intersect_key( $this->vars( $this->dark, '--cl-d-' ), array_flip( [ '--cl-d-bg', '--cl-d-text', '--cl-d-muted', '--cl-d-btn', '--cl-d-btn-text', '--cl-d-accent', '--cl-d-accent-ink' ] ) );
+			$dark = array_intersect_key( $this->vars( $this->dark, '--cl-d-' ), array_flip( self::DARK_VARS ) );
 			$vars = array_merge( $vars, $dark );
 		}
 		$out = '';
@@ -156,10 +170,20 @@ final class Tokens {
 	}
 
 	/**
-	 * Custom CSS (already stripped of `</` at save time).
+	 * The page's custom CSS as stored. Assets::style_tag() makes it safe to print inside <style>.
 	 */
 	public function custom_css(): string {
-		return str_replace( '</', '<\/', (string) $this->get( 'custom_css', '' ) );
+		return (string) $this->get( 'custom_css', '' );
+	}
+
+	/**
+	 * A hex colour (#rgb to #rrggbbaa), or the fallback when the value is anything else.
+	 *
+	 * @param mixed  $value    Candidate colour.
+	 * @param string $fallback Returned when the value is not a hex colour.
+	 */
+	public static function hex( $value, string $fallback = '' ): string {
+		return is_string( $value ) && preg_match( '/^#[0-9a-fA-F]{3,8}$/', $value ) ? $value : $fallback;
 	}
 
 	/**
@@ -204,19 +228,18 @@ final class Tokens {
 	 * @param array<string, mixed> $bg Background object.
 	 */
 	public static function background_css( array $bg ): string {
-		$hex = static fn( $v, string $fallback ): string => ( is_string( $v ) && preg_match( '/^#[0-9a-fA-F]{3,8}$/', $v ) ) ? $v : $fallback;
 		switch ( $bg['type'] ?? 'solid' ) {
 			case 'gradient':
-				$from       = $hex( $bg['from'] ?? null, '#ffffff' );
-				$to         = $hex( $bg['to'] ?? null, '#eeeeee' );
+				$from       = self::hex( $bg['from'] ?? null, '#ffffff' );
+				$to         = self::hex( $bg['to'] ?? null, '#eeeeee' );
 				$background = ! empty( $bg['radial'] )
 					? sprintf( 'radial-gradient(circle at top, %s, %s)', $from, $to )
 					: sprintf( 'linear-gradient(%ddeg, %s, %s)', (int) ( $bg['angle'] ?? 180 ), $from, $to );
 				break;
 			case 'image':
 				$url        = ! empty( $bg['image'] ) ? wp_get_attachment_image_url( (int) $bg['image'], 'full' ) : '';
-				$color      = $hex( $bg['color'] ?? null, '#111111' );
-				$overlay    = $hex( $bg['overlay'] ?? null, '' );
+				$color      = self::hex( $bg['color'] ?? null, '#111111' );
+				$overlay    = self::hex( $bg['overlay'] ?? null, '' );
 				$layers     = [];
 				$layers[]   = '' !== $overlay ? sprintf( 'linear-gradient(%1$s, %1$s)', $overlay ) : '';
 				$layers[]   = $url ? 'url("' . esc_url( $url ) . '") center / cover no-repeat' : '';
@@ -227,12 +250,12 @@ final class Tokens {
 				$background = self::pattern(
 					(string) ( $bg['pattern'] ?? 'dots' ),
 					max( 8, min( 80, (int) ( $bg['pattern_size'] ?? 24 ) ) ),
-					$hex( $bg['pattern_color'] ?? null, '' ),
-					$hex( $bg['color'] ?? null, '#ffffff' )
+					self::hex( $bg['pattern_color'] ?? null, '' ),
+					self::hex( $bg['color'] ?? null, '#ffffff' )
 				);
 				break;
 			default:
-				$background = $hex( $bg['color'] ?? null, '#ffffff' );
+				$background = self::hex( $bg['color'] ?? null, '#ffffff' );
 		}
 		return $background;
 	}
@@ -245,23 +268,22 @@ final class Tokens {
 	 * @return array<string, string>
 	 */
 	private function vars( array $d, string $prefix ): array {
-		$hex = static fn( $v, string $fallback ): string => ( is_string( $v ) && preg_match( '/^#[0-9a-fA-F]{3,8}$/', $v ) ) ? $v : $fallback;
 		$bg  = (array) ( $d['background'] ?? [] );
 		$txt = (array) ( $d['text'] ?? [] );
 		$btn = (array) ( $d['button'] ?? [] );
 
 		$background = self::background_css( $bg );
 
-		$accent = $hex( $d['accent'] ?? null, '#4f46e5' );
+		$accent = self::hex( $d['accent'] ?? null, '#4f46e5' );
 		$font   = self::FONTS[ $txt['font'] ?? 'system-sans' ] ?? self::FONTS['system-sans'];
 		return [
 			$prefix . 'bg'         => $background,
-			$prefix . 'text'       => $hex( $txt['color'] ?? null, '#111111' ),
-			$prefix . 'muted'      => $hex( $txt['muted'] ?? ( $txt['color'] ?? null ), '#555555' ),
+			$prefix . 'text'       => self::hex( $txt['color'] ?? null, '#111111' ),
+			$prefix . 'muted'      => self::hex( $txt['muted'] ?? ( $txt['color'] ?? null ), '#555555' ),
 			$prefix . 'font'       => $font,
 			$prefix . 'size'       => self::SIZES[ $txt['size'] ?? 'md' ] ?? '16px',
-			$prefix . 'btn'        => $hex( $btn['color'] ?? null, '#111111' ),
-			$prefix . 'btn-text'   => $hex( $btn['text_color'] ?? null, '#ffffff' ),
+			$prefix . 'btn'        => self::hex( $btn['color'] ?? null, '#111111' ),
+			$prefix . 'btn-text'   => self::hex( $btn['text_color'] ?? null, '#ffffff' ),
 			$prefix . 'btn-border' => max( 0, min( 8, (int) ( $btn['border_width'] ?? 0 ) ) ) . 'px',
 			$prefix . 'accent'     => $accent,
 			$prefix . 'accent-ink' => Contrast::ink_for( $accent ),

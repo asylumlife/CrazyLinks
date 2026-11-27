@@ -1,8 +1,11 @@
-/* CrazyLinks front end: in-app browser hint, schedule expiry, embed facades, countdowns. No dependencies. */
+/* CrazyLinks front end: in-app browser hint, schedule expiry, countdowns, reduced-motion video, embed facades, email capture. No dependencies. */
 ( function () {
 	'use strict';
 	var doc = document;
 	var ua = navigator.userAgent || '';
+	var EXPIRY_CHECK_MS = 30000;
+	var HOUR = 3600;
+	var DAY = 24 * HOUR;
 
 	// In-app browser hint (SPEC 6.4): a hint, not truth; shown only where the page enabled it.
 	if ( /Instagram|FBAN|FBAV|FB_IAB|BytedanceWebview|musical_ly|TikTok/i.test( ua ) ) {
@@ -29,8 +32,10 @@
 			}
 		} );
 	}
-	expire();
-	setInterval( expire, 30000 );
+	if ( doc.querySelector( '[data-cl-end]' ) ) {
+		expire();
+		setInterval( expire, EXPIRY_CHECK_MS );
+	}
 
 	// Countdowns: the server renders the first values; tick them every second and swap to the ended state.
 	var timers = doc.querySelectorAll( '[data-cl-countdown]' );
@@ -65,9 +70,14 @@
 			}
 			live.hidden = left <= 0;
 			done.hidden = left > 0;
-			var v = { d: Math.floor( left / 86400 ), h: pad( Math.floor( left % 86400 / 3600 ) ), m: pad( Math.floor( left % 3600 / 60 ) ), s: pad( left % 60 ) };
+			var units = {
+				d: Math.floor( left / DAY ),
+				h: pad( Math.floor( left % DAY / HOUR ) ),
+				m: pad( Math.floor( left % HOUR / 60 ) ),
+				s: pad( left % 60 )
+			};
 			box.querySelectorAll( '[data-cl-unit]' ).forEach( function ( el ) {
-				el.textContent = v[ el.getAttribute( 'data-cl-unit' ) ];
+				el.textContent = units[ el.getAttribute( 'data-cl-unit' ) ];
 			} );
 		} );
 	}
@@ -78,9 +88,9 @@
 
 	// Background videos must not autoplay for people who asked for less motion.
 	if ( window.matchMedia && matchMedia( '(prefers-reduced-motion: reduce)' ).matches ) {
-		doc.querySelectorAll( 'video[autoplay]' ).forEach( function ( v ) {
-			v.pause();
-			v.controls = true;
+		doc.querySelectorAll( 'video[autoplay]' ).forEach( function ( video ) {
+			video.pause();
+			video.controls = true;
 		} );
 	}
 
@@ -102,10 +112,8 @@
 	} );
 
 	// Email capture: send with fetch and show the message inline. On any failure fall back to a normal POST.
-	doc.querySelectorAll( 'form[data-cl-capture]' ).forEach( function ( form ) {
-		if ( ! window.fetch ) {
-			return;
-		}
+	var forms = window.fetch ? doc.querySelectorAll( 'form[data-cl-capture]' ) : [];
+	forms.forEach( function ( form ) {
 		form.addEventListener( 'submit', function ( e ) {
 			e.preventDefault();
 			var body = {};
@@ -113,8 +121,15 @@
 				body[ k ] = v;
 			} );
 			var button = form.querySelector( 'button' );
-			button.disabled = true;
-			fetch( form.action, { method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify( body ) } )
+			if ( button ) {
+				button.disabled = true;
+			}
+			fetch( form.action, {
+				method: 'POST',
+				credentials: 'omit',
+				headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+				body: JSON.stringify( body )
+			} )
 				.then( function ( r ) {
 					return r.json().then( function ( d ) {
 						return { ok: r.ok, d: d || {} };
@@ -135,7 +150,9 @@
 							el.hidden = true;
 						} );
 					}
-					button.disabled = false;
+					if ( button ) {
+						button.disabled = false;
+					}
 				} )
 				.catch( function () {
 					form.submit();

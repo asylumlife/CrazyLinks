@@ -4,23 +4,28 @@
  * Kept apart from `crazylinks/editor`; a proposal reaches the page only through the editor's
  * `replaceDoc` action, so undo and the dirty state work as for any other edit.
  */
-import { createReduxStore, register } from '@wordpress/data';
+import { createReduxStore, register, select } from '@wordpress/data';
 import type { ServerError } from '../types';
 import type {
 	AiMode,
 	AiState,
+	AiStatus,
 	HistoryEntry,
+	PreviewView,
 	Proposal,
 	Suggestions,
 } from './types';
 
-export const AI_STORE = 'crazylinks/ai';
+const AI_STORE = 'crazylinks/ai';
 export const HISTORY_SIZE = 10;
+
+/** A request in progress: every status except idle. */
+type BusyStatus = Exclude< AiStatus, 'idle' >;
 
 export type AiAction =
 	| { type: 'SET_MODE'; mode: AiMode }
 	| { type: 'SET_INSTRUCTION'; instruction: string }
-	| { type: 'START'; status: 'proposing' | 'applying' | 'suggesting' }
+	| { type: 'START'; status: BusyStatus }
 	| { type: 'FAILED'; message: string; errors: ServerError[] }
 	| {
 			type: 'PROPOSED';
@@ -32,12 +37,11 @@ export type AiAction =
 	  }
 	| { type: 'EXTERNAL'; proposals: Proposal[]; at: number }
 	| { type: 'SET_ANSWER'; index: number; value: string }
-	| { type: 'SET_VIEW'; view: 'after' | 'before' }
+	| { type: 'SET_VIEW'; view: PreviewView }
 	| { type: 'APPLIED'; key: string; revisionId: number | null }
 	| { type: 'DISCARD'; key: string }
 	| { type: 'SELECT_ENTRY'; key: string | null }
-	| { type: 'SUGGESTIONS'; suggestions: Suggestions | null }
-	| { type: 'DONE' };
+	| { type: 'SUGGESTIONS'; suggestions: Suggestions | null };
 
 export function initialAiState(): AiState {
 	return {
@@ -89,8 +93,6 @@ export function aiReducer(
 				error: action.message,
 				errors: action.errors,
 			};
-		case 'DONE':
-			return { ...state, status: 'idle' };
 		case 'PROPOSED': {
 			const entry: HistoryEntry = {
 				key: action.key,
@@ -189,7 +191,7 @@ export const aiActions = {
 		type: 'SET_INSTRUCTION',
 		instruction,
 	} ),
-	start: ( status: 'proposing' | 'applying' | 'suggesting' ): AiAction => ( {
+	start: ( status: BusyStatus ): AiAction => ( {
 		type: 'START',
 		status,
 	} ),
@@ -198,7 +200,6 @@ export const aiActions = {
 		message,
 		errors,
 	} ),
-	done: (): AiAction => ( { type: 'DONE' } ),
 	proposed: (
 		key: string,
 		instruction: string,
@@ -226,7 +227,7 @@ export const aiActions = {
 		index,
 		value,
 	} ),
-	setView: ( view: 'after' | 'before' ): AiAction => ( {
+	setView: ( view: PreviewView ): AiAction => ( {
 		type: 'SET_VIEW',
 		view,
 	} ),
@@ -267,6 +268,7 @@ export const aiSelectors = {
 			} ) )
 			.filter( ( qa ) => qa.answer !== '' );
 	},
+	/** Whether the selected proposal can be applied now: open, with operations, and nothing running. */
 	canApply: ( state: AiState ): boolean => {
 		const entry = aiSelectors.getCurrent( state );
 		return (
@@ -284,6 +286,18 @@ export const aiStore = createReduxStore( AI_STORE, {
 	actions: aiActions,
 	selectors: aiSelectors,
 } );
+
+/** The store's selectors as `select( aiStore )` returns them, with the state argument bound. */
+export interface BoundAiSelectors {
+	getState: () => AiState;
+}
+
+/**
+ * The current AI state, for code that runs outside React.
+ */
+export function aiState(): AiState {
+	return ( select( aiStore ) as unknown as BoundAiSelectors ).getState();
+}
 
 let registered = false;
 

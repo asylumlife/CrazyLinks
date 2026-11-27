@@ -3,16 +3,14 @@
  * RevisionsController, validation errors mapped back onto blocks and fields.
  */
 import { __, _n, sprintf } from '@wordpress/i18n';
-import { dispatch, select } from '@wordpress/data';
-import { store } from '../store';
+import { dispatch } from '@wordpress/data';
+import { editorSelect, store } from '../store';
 import { api } from './api';
-import { errorsFromResponse, mapErrors } from './errors';
+import { errorsFromResponse, isValidationError, mapErrors } from './errors';
 import { coerceDoc } from '../store/doc';
 import type { PageMeta, PagePayload } from '../types';
-import type { EditorSelectors } from '../hooks';
 import { isLockedOut } from './lock';
 
-const sel = () => select( store ) as unknown as EditorSelectors;
 const act = () => dispatch( store );
 
 export function metaFrom( res: PagePayload ): PageMeta {
@@ -26,7 +24,25 @@ export function metaFrom( res: PagePayload ): PageMeta {
 	};
 }
 
+/** The save or autosave request that is running, if any. Only one runs at a time. */
 let inFlight: Promise< boolean > | null = null;
+
+/**
+ * Runs a save task as the single request in flight.
+ *
+ * @param task The request; it resolves to whether it succeeded and never rejects.
+ */
+async function exclusive( task: () => Promise< boolean > ): Promise< boolean > {
+	const run = task();
+	inFlight = run;
+	try {
+		return await run;
+	} finally {
+		if ( inFlight === run ) {
+			inFlight = null;
+		}
+	}
+}
 
 /**
  * Saves the working copy. `status` publishes, drafts or submits; omit it to keep the current status.
@@ -35,7 +51,8 @@ let inFlight: Promise< boolean > | null = null;
  * @return Whether the save succeeded.
  */
 export async function savePage( status?: string ): Promise< boolean > {
-	if ( inFlight ) {
+	// Several callers can be queued behind one request; each re-checks after waking.
+	while ( inFlight ) {
 		await inFlight;
 	}
 	if ( isLockedOut() ) {
@@ -48,7 +65,7 @@ export async function savePage( status?: string ): Promise< boolean > {
 		} );
 		return false;
 	}
-	const s = sel();
+	const s = editorSelect();
 	const d = act();
 	const local = s.getLocalErrors();
 	if ( local.length ) {
@@ -72,7 +89,7 @@ export async function savePage( status?: string ): Promise< boolean > {
 	const doc = s.getDoc();
 	const meta = s.getMeta();
 	d.setSave( { status: 'saving', message: __( 'Saving…', 'crazylinks' ) } );
-	const run = ( async () => {
+	return exclusive( async () => {
 		try {
 			const res = await api.savePage( meta.id, {
 				page: doc,
@@ -123,11 +140,7 @@ export async function savePage( status?: string ): Promise< boolean > {
 			} );
 			return false;
 		}
-	} )();
-	inFlight = run;
-	const ok = await run;
-	inFlight = null;
-	return ok;
+	} );
 }
 
 /**
@@ -136,7 +149,7 @@ export async function savePage( status?: string ): Promise< boolean > {
  * @return Whether an autosave was stored.
  */
 export async function autosave(): Promise< boolean > {
-	const s = sel();
+	const s = editorSelect();
 	const meta = s.getMeta();
 	if (
 		inFlight ||
@@ -151,35 +164,49 @@ export async function autosave(): Promise< boolean > {
 	const doc = s.getDoc();
 	const json = s.getDocJson();
 	d.setSave( { status: 'autosaving' } );
-	try {
-		const res = await api.autosave( meta.id, doc, meta.title );
-		if ( res.mode === 'draft' ) {
-			// A brand-new page: the autosave became its first draft.
-			d.saved(
-				{ ...meta, status: 'draft', modified: res.modified },
-				coerceDoc( res.page ),
-				doc
-			);
+	return exclusive( async () => {
+		try {
+			const res = await api.autosave( meta.id, doc, meta.title );
+			if ( res.mode === 'draft' ) {
+				// A brand-new page: the autosave became its first draft.
+				d.saved(
+					{ ...meta, status: 'draft', modified: res.modified },
+					coerceDoc( res.page ),
+					doc
+				);
+			}
+			d.setErrors( [] );
+			d.setSave( {
+				status: 'idle',
+				autosavedAt: res.modified,
+				autosavedDoc: json,
+				message: '',
+			} );
+			return true;
+		} catch ( e ) {
+			if ( ! isValidationError( e ) ) {
+				// A network or server failure says nothing about the document: leave it marked as
+				// not autosaved, so the next autosave sends it again.
+				d.setSave( {
+					status: 'idle',
+					message: __(
+						'Autosave failed. It will be tried again after your next change.',
+						'crazylinks'
+					),
+				} );
+				return false;
+			}
+			d.setErrors( mapErrors( errorsFromResponse( e ), doc ) );
+			// Remember the rejected document so it is not resent every interval.
+			d.setSave( {
+				status: 'idle',
+				autosavedDoc: json,
+				message: __(
+					'Autosave skipped: the page has problems.',
+					'crazylinks'
+				),
+			} );
+			return false;
 		}
-		d.setErrors( [] );
-		d.setSave( {
-			status: 'idle',
-			autosavedAt: res.modified,
-			autosavedDoc: json,
-			message: '',
-		} );
-		return true;
-	} catch ( e ) {
-		d.setErrors( mapErrors( errorsFromResponse( e ), doc ) );
-		// Remember the failure so the same document is not resent every interval.
-		d.setSave( {
-			status: 'idle',
-			autosavedDoc: json,
-			message: __(
-				'Autosave skipped: the page has problems.',
-				'crazylinks'
-			),
-		} );
-		return false;
-	}
+	} );
 }

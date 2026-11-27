@@ -3,9 +3,8 @@
  */
 import apiFetch from '@wordpress/api-fetch';
 import type { PageDoc } from '../types';
-import type { AiMode, ApplyResult, BudgetState, Proposal } from './types';
-
-const NS = '/crazylinks/v1';
+import { NS } from '../lib/api';
+import type { AiMode, ApplyResult, Proposal } from './types';
 
 export interface ProposeInput {
 	instruction: string;
@@ -58,13 +57,5 @@ export const aiApi = {
 			method: 'POST',
 			data: { require_confirmation: requireConfirmation },
 		} );
-	},
-	status() {
-		return apiFetch< {
-			available: boolean;
-			reason: string;
-			message: string;
-			budget: BudgetState;
-		} >( { path: `${ NS }/ai/status` } );
 	},
 };

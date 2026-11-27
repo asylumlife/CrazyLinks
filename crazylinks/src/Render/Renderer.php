@@ -18,7 +18,30 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Renderer {
 
-	public const IMPLEMENTED = [ 'link', 'socials', 'heading', 'text', 'divider', 'image', 'spacer', 'group', 'email_capture', 'embed', 'html', 'gallery', 'latest_posts', 'product', 'video', 'contact', 'countdown', 'map', 'payment' ];
+	/**
+	 * Block types that have a partial in templates/blocks/.
+	 */
+	public const IMPLEMENTED = [
+		'link',
+		'socials',
+		'heading',
+		'text',
+		'divider',
+		'image',
+		'spacer',
+		'group',
+		'email_capture',
+		'embed',
+		'html',
+		'gallery',
+		'latest_posts',
+		'product',
+		'video',
+		'contact',
+		'countdown',
+		'map',
+		'payment',
+	];
 
 	/**
 	 * Renders a saved page, using the transient cache.
@@ -34,7 +57,22 @@ final class Renderer {
 		}
 		// home_url() and is_ssl() are part of the signature so a request with a forged Host header
 		// cannot plant HTML for other visitors on sites that derive WP_HOME from the request (SPEC §12).
-		$sig = md5( implode( '|', [ $post->post_modified_gmt, $post->post_status, $post->post_name, md5( $post->post_content ), CRAZYLINKS_VERSION, Cache::salt(), Settings::base(), home_url( '/' ), is_ssl() ? 'https' : 'http' ] ) );
+		$sig = md5(
+			implode(
+				'|',
+				[
+					$post->post_modified_gmt,
+					$post->post_status,
+					$post->post_name,
+					md5( $post->post_content ),
+					CRAZYLINKS_VERSION,
+					Cache::salt(),
+					Settings::base(),
+					home_url( '/' ),
+					is_ssl() ? 'https' : 'http',
+				]
+			)
+		);
 
 		// Password-protected pages are never cached, whoever is looking (SPEC §12).
 		$cacheable = 'publish' === $post->post_status && ! is_preview() && '' === (string) $post->post_password;
@@ -291,6 +329,18 @@ final class Renderer {
 			$alt = trim( wp_strip_all_tags( (string) get_post_meta( $id, '_wp_attachment_image_alt', true ) ) );
 		}
 		return $alt;
+	}
+
+	/**
+	 * A prop restricted to a list of allowed values, or the fallback when it holds anything else.
+	 *
+	 * @param array<string, mixed> $props    Block props.
+	 * @param string               $key      Prop name.
+	 * @param string[]             $allowed  Allowed values.
+	 * @param string               $fallback Value used when the prop is missing or not allowed.
+	 */
+	public static function choice( array $props, string $key, array $allowed, string $fallback ): string {
+		return in_array( $props[ $key ] ?? '', $allowed, true ) ? (string) $props[ $key ] : $fallback;
 	}
 
 	/**

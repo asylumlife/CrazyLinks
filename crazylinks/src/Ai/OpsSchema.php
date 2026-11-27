@@ -19,6 +19,12 @@ final class OpsSchema {
 	public const FILE = 'schemas/ai-ops.v1.json';
 
 	/**
+	 * Operations accepted per request (the `maxItems` of `operations` in the schema file), for the
+	 * texts that tell a model or an agent about the limit.
+	 */
+	public const MAX_OPERATIONS = 60;
+
+	/**
 	 * Keywords removed from the provider copy. Anthropic's structured outputs reject numeric and
 	 * string constraints; other providers vary. The validator still enforces every one of them.
 	 */
@@ -108,26 +114,28 @@ final class OpsSchema {
 
 	/**
 	 * A compact envelope for constrained decoding. The full schema spells out every block type's props
-	 * twice (new and patch) in ~70 definitions, which Anthropic rejects as "compiled grammar is too
-	 * large" (first live call, AsylumLife.com, 2026-11-05). The provider gets the operation envelope with
-	 * typed ids, schedules, design and profile, but block props as a free object; OpsValidator then
-	 * checks the response against the full schema and the driver retries once with the errors.
+	 * twice (new and patch) in about 70 definitions, which Anthropic's structured outputs reject as too
+	 * large a grammar. The provider gets the operation envelope with typed ids, schedules, design and
+	 * profile, but block props as a JSON-encoded string; OpsValidator then checks the response against
+	 * the full schema and the driver retries once with the errors.
 	 *
 	 * @param array<string, mixed> $schema Full schema.
 	 * @return array<string, mixed>
 	 */
 	public static function compact( array $schema ): array {
-		$defs                                        = $schema['$defs'];
-		$types                                       = self::block_types();
-		$first                                       = $defs[ 'new_' . $types[0] ];
-		$block                                       = $first;
-		$block['properties']['type']                 = [
+		$defs  = $schema['$defs'];
+		$types = self::block_types();
+
+		// Every new_* definition shares the common block fields, so the first one is the template.
+		$block                        = $defs[ 'new_' . $types[0] ];
+		$block['description']         = 'A new block. The props object must contain the fields listed for its type.';
+		$block['properties']['type']  = [
 			'type' => 'string',
 			'enum' => $types,
 		];
-		$block['properties']['props']                = self::props_as_string( 'Props for this block type, exactly as listed in the instructions, as a JSON object encoded in a string. Example: {"title":"Merch","url":"https://example.com/shop"}' );
-		$block['description']                        = 'A new block. The props object must contain the fields listed for its type.';
-		$defs['op_add_block']['properties']['block'] = $block;
+		$block['properties']['props'] = self::props_as_string( 'Props for this block type, exactly as listed in the instructions, as a JSON object encoded in a string. Example: {"title":"Merch","url":"https://example.com/shop"}' );
+
+		$defs['op_add_block']['properties']['block']    = $block;
 		$defs['op_update_block']['properties']['props'] = self::props_as_string( 'Props to merge into the block, using the field names listed for its type, as a JSON object encoded in a string.' );
 		foreach ( array_keys( $defs ) as $name ) {
 			if ( preg_match( '/^(new|patch|props)_/', $name ) ) {

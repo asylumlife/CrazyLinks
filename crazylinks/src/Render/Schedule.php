@@ -29,6 +29,18 @@ final class Schedule {
 	 */
 	public const HORIZON = DAY_IN_SECONDS;
 
+	private const MINUTES_PER_DAY = 1440;
+
+	/**
+	 * Longest a weekly countdown occurrence may last, in minutes.
+	 */
+	private const MAX_LIVE_MINUTES = 720;
+
+	/**
+	 * Hard cap on the local days occurrences() visits in one call.
+	 */
+	private const MAX_DAYS_SCANNED = 400;
+
 	/**
 	 * Minutes after midnight for "HH:MM", or null.
 	 *
@@ -52,7 +64,8 @@ final class Schedule {
 		if ( ! is_array( $w ) ) {
 			return null;
 		}
-		$days  = array_values( array_unique( array_filter( array_map( 'intval', (array) ( $w['days'] ?? [] ) ), static fn( int $d ): bool => $d >= 1 && $d <= 7 ) ) );
+		$days  = array_map( 'intval', (array) ( $w['days'] ?? [] ) );
+		$days  = array_values( array_unique( array_filter( $days, static fn( int $d ): bool => $d >= 1 && $d <= 7 ) ) );
 		$start = self::minutes( $w['start'] ?? null );
 		$end   = self::minutes( $w['end'] ?? null );
 		if ( ! $days || null === $start || null === $end ) {
@@ -103,7 +116,7 @@ final class Schedule {
 		$last = ( new \DateTimeImmutable( '@' . $to ) )->setTimezone( $tz )->format( 'Y-m-d' );
 		$out  = [];
 		$days = 3 + (int) ceil( max( 0, $to - $from ) / DAY_IN_SECONDS ); // Upper bound on local days to visit, from the day before $from.
-		for ( $i = 0; $i < $days && $i < 400; $i++ ) {
+		for ( $i = 0; $i < $days && $i < self::MAX_DAYS_SCANNED; $i++ ) {
 			if ( $day->format( 'Y-m-d' ) > $last ) {
 				break;
 			}
@@ -144,15 +157,17 @@ final class Schedule {
 			}
 		}
 		$nums  = $nums ? array_values( array_unique( $nums ) ) : [ (int) $local->format( 'N' ) ];
-		$live  = max( 1, min( 720, $live_minutes ) );
+		$live  = max( 1, min( self::MAX_LIVE_MINUTES, $live_minutes ) );
 		$start = (int) $local->format( 'G' ) * 60 + (int) $local->format( 'i' );
 		$from  = max( $now, $target ) - DAY_IN_SECONDS;
 		$out   = [];
+		// One chosen weekday yields one occurrence a week, so scan $limit weeks plus slack for the
+		// day $from was moved back and for an occurrence that wraps past midnight.
 		foreach ( self::occurrences(
 			[
 				'days'  => $nums,
 				'start' => $start,
-				'end'   => ( $start + $live ) % 1440,
+				'end'   => ( $start + $live ) % self::MINUTES_PER_DAY,
 			],
 			$from,
 			$from + ( 7 * $limit + 9 ) * DAY_IN_SECONDS,

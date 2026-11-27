@@ -9,7 +9,7 @@ export const PREVIEW_DEBOUNCE_MS = 400;
  *
  * @param scrollY Scroll position to restore.
  */
-export function bridgeScript( scrollY: number ): string {
+function bridgeScript( scrollY: number ): string {
 	return `<script>(function(){
 var y=${ Math.max( 0, Math.round( scrollY ) ) };
 function post(m){m.source='crazylinks-preview';parent.postMessage(m,'*');}

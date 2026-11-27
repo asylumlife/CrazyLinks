@@ -69,7 +69,7 @@ final class PreviewController extends \WP_REST_Controller {
 	public function create_item_permissions_check( $request ) {
 		$id = (int) $request['id'];
 		if ( ! current_user_can( 'edit_crazylinks_pages' ) || ( $id > 0 && ! current_user_can( 'edit_post', $id ) ) ) {
-			return new \WP_Error( 'crazylinks_forbidden', __( 'Sorry, you are not allowed to do that.', 'crazylinks' ), [ 'status' => rest_authorization_required_code() ] );
+			return RestRoutes::forbidden();
 		}
 		return true;
 	}

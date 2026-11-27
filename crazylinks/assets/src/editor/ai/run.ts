@@ -3,22 +3,18 @@
  * through its normal actions.
  */
 import { __ } from '@wordpress/i18n';
-import { dispatch, select } from '@wordpress/data';
-import { store as editorStore } from '../store';
-import type { EditorSelectors } from '../hooks';
+import { dispatch } from '@wordpress/data';
+import { editorSelect, store as editorStore } from '../store';
 import { coerceDoc } from '../store/doc';
 import { metaFrom } from '../lib/save';
 import { errorsFromResponse } from '../lib/errors';
 import type { ServerError } from '../types';
 import { aiApi } from './api';
-import { aiStore, aiSelectors } from './store';
-import type { AiState, HistoryEntry } from './types';
+import { aiState, aiStore, aiSelectors } from './store';
+import type { HistoryEntry } from './types';
 
-const ed = () => select( editorStore ) as unknown as EditorSelectors;
-const edAct = () => dispatch( editorStore );
+const editorActions = () => dispatch( editorStore );
 const ai = () => dispatch( aiStore );
-const aiState = (): AiState =>
-	( select( aiStore ) as unknown as { getState: () => AiState } ).getState();
 
 /**
  * A readable message and the field errors from a failed request.
@@ -53,7 +49,7 @@ let seq = 0;
  */
 export async function propose(): Promise< void > {
 	const state = aiState();
-	const id = ed().getMeta().id;
+	const id = editorSelect().getMeta().id;
 	const instruction = state.instruction.trim();
 	if ( ! instruction || id <= 0 || state.status !== 'idle' ) {
 		return;
@@ -64,7 +60,7 @@ export async function propose(): Promise< void > {
 		const proposal = await aiApi.propose( id, {
 			instruction,
 			mode: state.mode,
-			page: ed().getDoc(),
+			page: editorSelect().getDoc(),
 			...( answers.length ? { questions_answers: answers } : {} ),
 		} );
 		seq += 1;
@@ -87,17 +83,17 @@ export async function propose(): Promise< void > {
  * @param entry History entry.
  */
 export async function applyProposal( entry: HistoryEntry ): Promise< boolean > {
-	const id = ed().getMeta().id;
+	const id = editorSelect().getMeta().id;
 	const proposalId = entry.proposal.proposal_id;
 	if ( ! proposalId || entry.state !== 'open' ) {
 		return false;
 	}
-	const base = ed().getDoc();
+	const base = editorSelect().getDoc();
 	const next = coerceDoc( entry.proposal.preview_document );
 	ai().start( 'applying' );
-	edAct().replaceDoc( next );
-	const sent = ed().getDoc();
-	edAct().setSave( {
+	editorActions().replaceDoc( next );
+	const sent = editorSelect().getDoc();
+	editorActions().setSave( {
 		status: 'saving',
 		message: __( 'Saving AI changes…', 'crazylinks' ),
 	} );
@@ -106,8 +102,12 @@ export async function applyProposal( entry: HistoryEntry ): Promise< boolean > {
 			proposal_id: proposalId,
 			page: base,
 		} );
-		edAct().saved( metaFrom( res.page ), coerceDoc( res.page.page ), sent );
-		edAct().setSave( {
+		editorActions().saved(
+			metaFrom( res.page ),
+			coerceDoc( res.page.page ),
+			sent
+		);
+		editorActions().setSave( {
 			status: 'idle',
 			savedAt: res.page.modified,
 			autosavedDoc: '',
@@ -117,11 +117,13 @@ export async function applyProposal( entry: HistoryEntry ): Promise< boolean > {
 		return true;
 	} catch ( e ) {
 		// Nothing was saved: take the change back out of the working copy if nothing else touched it.
-		if ( JSON.stringify( ed().getDoc() ) === JSON.stringify( sent ) ) {
-			edAct().undo();
+		if (
+			JSON.stringify( editorSelect().getDoc() ) === JSON.stringify( sent )
+		) {
+			editorActions().undo();
 		}
 		const { message, errors } = describeError( e );
-		edAct().setSave( { status: 'error', message } );
+		editorActions().setSave( { status: 'error', message } );
 		ai().failed( message, errors );
 		return false;
 	}
@@ -139,7 +141,7 @@ export async function suggest(
 ): Promise< void > {
 	let context: Record< string, unknown >;
 	if ( kind === 'titles' ) {
-		const block = blockId ? ed().getBlock( blockId ) : undefined;
+		const block = blockId ? editorSelect().getBlock( blockId ) : undefined;
 		if ( ! block ) {
 			return;
 		}
@@ -147,7 +149,7 @@ export async function suggest(
 			title: block.props.title ?? '',
 			url: block.props.url ?? '',
 			subtitle: block.props.subtitle ?? '',
-			other_titles: ed()
+			other_titles: editorSelect()
 				.getDoc()
 				.blocks.filter(
 					( b ) => b.type === 'link' && b.id !== block.id
@@ -155,7 +157,7 @@ export async function suggest(
 				.map( ( b ) => String( b.props.title ?? '' ) ),
 		};
 	} else {
-		const doc = ed().getDoc();
+		const doc = editorSelect().getDoc();
 		context = {
 			name: doc.profile.name ?? '',
 			bio: doc.profile.bio ?? '',
@@ -166,7 +168,11 @@ export async function suggest(
 	}
 	ai().start( 'suggesting' );
 	try {
-		const res = await aiApi.suggest( ed().getMeta().id, kind, context );
+		const res = await aiApi.suggest(
+			editorSelect().getMeta().id,
+			kind,
+			context
+		);
 		ai().setSuggestions( { kind, blockId, items: res.suggestions } );
 	} catch ( e ) {
 		const { message, errors } = describeError( e );
@@ -185,12 +191,15 @@ export function insertSuggestion( text: string ): void {
 		return;
 	}
 	if ( s.kind === 'titles' && s.blockId ) {
-		const block = ed().getBlock( s.blockId );
+		const block = editorSelect().getBlock( s.blockId );
 		if ( block ) {
-			edAct().setBlockProps( s.blockId, { ...block.props, title: text } );
+			editorActions().setBlockProps( s.blockId, {
+				...block.props,
+				title: text,
+			} );
 		}
 	} else if ( s.kind === 'bio' ) {
-		edAct().setSection( 'profile', [ 'bio' ], text );
+		editorActions().setSection( 'profile', [ 'bio' ], text );
 	}
 	ai().setSuggestions( null );
 }

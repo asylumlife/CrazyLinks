@@ -97,6 +97,34 @@ final class Sync {
 	}
 
 	/**
+	 * The email service a row belongs to: its own destination, or the site's chosen adapter for a
+	 * row on the local list ('' when none is chosen).
+	 *
+	 * @param array<string, mixed> $row Row.
+	 */
+	public static function service_for( array $row ): string {
+		$destination = (string) $row['destination'];
+		return '' !== $destination && 'local' !== $destination ? $destination : Integrations::adapter_id();
+	}
+
+	/**
+	 * Marks a row as skipped with the reason, and hands the reason back.
+	 *
+	 * @param int       $id    Row id.
+	 * @param \WP_Error $error Why the row cannot be pushed.
+	 */
+	private static function skip( int $id, \WP_Error $error ): \WP_Error {
+		Store::update(
+			$id,
+			[
+				'sync_status' => 'skipped',
+				'sync_error'  => $error->get_error_message(),
+			]
+		);
+		return $error;
+	}
+
+	/**
 	 * Seconds before retry number $attempts + 1.
 	 *
 	 * @param int $attempts Attempts made so far (1 or more).
@@ -124,31 +152,17 @@ final class Sync {
 		if ( ! $row ) {
 			return new \WP_Error( 'crazylinks_not_found', __( 'Subscriber not found.', 'crazylinks' ) );
 		}
-		$service = 'local' !== $row['destination'] && '' !== (string) $row['destination'] ? (string) $row['destination'] : Integrations::adapter_id();
-		$adapter = Adapters::get( $service );
+		$adapter = Adapters::get( self::service_for( $row ) );
 		if ( ! $adapter || ! $adapter->is_configured() ) {
-			$err = new \WP_Error( 'crazylinks_sync_not_connected', __( 'No email service is connected (CrazyLinks → Settings → Integrations).', 'crazylinks' ) );
-			Store::update(
-				$id,
-				[
-					'sync_status' => 'skipped',
-					'sync_error'  => $err->get_error_message(),
-				]
-			);
-			return $err;
+			return self::skip( $id, new \WP_Error( 'crazylinks_sync_not_connected', __( 'No email service is connected (CrazyLinks → Settings → Integrations).', 'crazylinks' ) ) );
 		}
 		$block    = self::block_for( $row );
-		$audience = '' !== (string) $row['audience_id'] ? (string) $row['audience_id'] : ( $block && self::is_mailchimp_block( $block ) ? self::audience_for( $block ) : Integrations::default_audience() );
+		$audience = (string) $row['audience_id'];
 		if ( '' === $audience ) {
-			$err = new \WP_Error( 'crazylinks_sync_no_audience', __( 'No Mailchimp audience is chosen for this form or as the site default.', 'crazylinks' ) );
-			Store::update(
-				$id,
-				[
-					'sync_status' => 'skipped',
-					'sync_error'  => $err->get_error_message(),
-				]
-			);
-			return $err;
+			$audience = $block && self::is_mailchimp_block( $block ) ? self::audience_for( $block ) : Integrations::default_audience();
+		}
+		if ( '' === $audience ) {
+			return self::skip( $id, new \WP_Error( 'crazylinks_sync_no_audience', __( 'No Mailchimp audience is chosen for this form or as the site default.', 'crazylinks' ) ) );
 		}
 		if ( 'signup' === $mode && method_exists( $adapter, 'set_timeout' ) ) {
 			/**
@@ -237,7 +251,7 @@ final class Sync {
 			if ( ! $row || 'sent' === $row['sync_status'] ) {
 				continue;
 			}
-			if ( 'mailchimp' !== $row['destination'] && 'confirmed' !== $row['status'] ) {
+			if ( Mailchimp::ID !== $row['destination'] && 'confirmed' !== $row['status'] ) {
 				continue; // A local-list row is only sent once it is confirmed here (this site's opt-in owns it).
 			}
 			wp_clear_scheduled_hook( self::HOOK_PUSH, [ $id ] );
@@ -290,23 +304,23 @@ final class Sync {
 	 * @return array{running:bool, last_id:int, total:int, sent:int, failed:int, started:int, finished:int}|null
 	 */
 	public static function backfill_state(): ?array {
-		$s = get_option( self::BACKFILL_OPTION );
-		if ( ! is_array( $s ) ) {
+		$state = get_option( self::BACKFILL_OPTION );
+		if ( ! is_array( $state ) ) {
 			return null;
 		}
 		return [
-			'running'  => ! empty( $s['running'] ),
-			'last_id'  => (int) ( $s['last_id'] ?? 0 ),
-			'total'    => (int) ( $s['total'] ?? 0 ),
-			'sent'     => (int) ( $s['sent'] ?? 0 ),
-			'failed'   => (int) ( $s['failed'] ?? 0 ),
-			'started'  => (int) ( $s['started'] ?? 0 ),
-			'finished' => (int) ( $s['finished'] ?? 0 ),
+			'running'  => ! empty( $state['running'] ),
+			'last_id'  => (int) ( $state['last_id'] ?? 0 ),
+			'total'    => (int) ( $state['total'] ?? 0 ),
+			'sent'     => (int) ( $state['sent'] ?? 0 ),
+			'failed'   => (int) ( $state['failed'] ?? 0 ),
+			'started'  => (int) ( $state['started'] ?? 0 ),
+			'finished' => (int) ( $state['finished'] ?? 0 ),
 		];
 	}
 
 	/**
-	 * Cron callback for a backfill batch.
+	 * Cron callback for a backfill batch (an action callback must not return a value).
 	 */
 	public static function backfill_cron(): void {
 		self::backfill_batch();
@@ -337,10 +351,8 @@ final class Sync {
 			$state['finished'] = time();
 		}
 		update_option( self::BACKFILL_OPTION, $state, false );
-		if ( $more && ! wp_doing_cron() ) {
-			return true; // A caller looping in the foreground (WP-CLI) runs the next batch itself.
-		}
-		if ( $more ) {
+		// A caller looping in the foreground (WP-CLI) runs the next batch itself.
+		if ( $more && wp_doing_cron() ) {
 			wp_schedule_single_event( time() + 5, self::HOOK_BACKFILL );
 		}
 		return $more;

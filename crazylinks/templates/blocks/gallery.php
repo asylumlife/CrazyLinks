@@ -30,9 +30,9 @@ foreach ( (array) ( $props['items'] ?? [] ) as $crazylinks_item ) {
 	if ( '' === $crazylinks_img ) {
 		continue;
 	}
+	// The caption sits outside the link, so a linked image without alt text gets a hidden name inside it.
 	$crazylinks_caption = (string) ( $crazylinks_item['caption'] ?? '' );
 	$crazylinks_href    = $ctx->href( [ 'tracking' => false ], (string) ( $crazylinks_item['url'] ?? '' ) );
-	$crazylinks_name    = $crazylinks_alt;
 	ob_start();
 	?>
 	<li class="cl-gallery__item">
@@ -40,8 +40,8 @@ foreach ( (array) ( $props['items'] ?? [] ) as $crazylinks_item ) {
 			<?php if ( '' !== $crazylinks_href ) : ?>
 				<a class="cl-gallery__link" href="<?php echo esc_url( $crazylinks_href, \CrazyLinks\Schema\UrlPolicy::LINK_SCHEMES ); ?>">
 					<?php echo $crazylinks_img; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_get_attachment_image output. ?>
-					<?php if ( '' === $crazylinks_name && '' === $crazylinks_caption ) : ?>
-						<span class="cl-sr"><?php esc_html_e( 'View image link', 'crazylinks' ); ?></span>
+					<?php if ( '' === $crazylinks_alt ) : ?>
+						<span class="cl-sr"><?php echo esc_html( '' !== $crazylinks_caption ? $crazylinks_caption : __( 'View image link', 'crazylinks' ) ); ?></span>
 					<?php endif; ?>
 				</a>
 			<?php else : ?>

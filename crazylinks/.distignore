@@ -1,4 +1,4 @@
-# Excluded from the release zip (wp dist-archive). SPEC §12.
+# Excluded from the release zip (wp dist-archive).
 vendor
 tests
 bin
@@ -11,11 +11,11 @@ phpstan*
 .editorconfig
 .gitignore
 .distignore
+.DS_Store
 package.json
 package-lock.json
 tsconfig.json
 eslint.config.cjs
 .prettierrc.js
-vitest.config.mts
 test-results
 playwright-report

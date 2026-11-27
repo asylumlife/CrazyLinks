@@ -12,8 +12,15 @@ import {
 import type { JsonValue } from '../types';
 import { useEditor, useEditorDispatch } from '../hooks';
 import { getPath } from '../lib/paths';
+import FieldError from './FieldError';
 import MediaField from './MediaField';
 import { boot } from '../boot';
+import { errorFor } from '../lib/errors';
+
+/** Lengths the schema allows for the search and campaign fields. */
+const SEO_TITLE_MAX = 120;
+const SEO_DESCRIPTION_MAX = 320;
+const UTM_VALUE_MAX = 64;
 
 export default function SettingsTab() {
 	const settings = useEditor( ( s ) => s.getDoc().settings, [] );
@@ -26,8 +33,8 @@ export default function SettingsTab() {
 		typeof get( ...path ) === 'string' ? ( get( ...path ) as string ) : '';
 	const set = ( path: string[], v: JsonValue | undefined ) =>
 		setSection( 'settings', path, v );
-	const err = ( path: string ) =>
-		errors.find( ( e ) => e.field === `/settings/${ path }` )?.message;
+	const errorAt = ( path: string[] ) =>
+		errorFor( errors, `/settings/${ path.join( '/' ) }` );
 	const text = (
 		label: string,
 		path: string[],
@@ -35,16 +42,21 @@ export default function SettingsTab() {
 		placeholder?: string,
 		help?: string
 	) => (
-		<TextControl
-			__next40pxDefaultSize
-			__nextHasNoMarginBottom
-			label={ label }
-			value={ str( ...path ) }
-			maxLength={ max }
-			placeholder={ placeholder }
-			help={ err( path.join( '/' ) ) ?? help }
-			onChange={ ( v: string ) => set( path, v === '' ? undefined : v ) }
-		/>
+		<div className="cl-field">
+			<TextControl
+				__next40pxDefaultSize
+				__nextHasNoMarginBottom
+				label={ label }
+				value={ str( ...path ) }
+				maxLength={ max }
+				placeholder={ placeholder }
+				help={ help }
+				onChange={ ( v: string ) =>
+					set( path, v === '' ? undefined : v )
+				}
+			/>
+			<FieldError message={ errorAt( path ) } />
+		</div>
 	);
 	const description = str( 'seo', 'description' );
 	const modeLabels: Record< string, string > = {
@@ -80,22 +92,27 @@ export default function SettingsTab() {
 				{ text(
 					__( 'SEO title', 'crazylinks' ),
 					[ 'seo', 'title' ],
-					120,
+					SEO_TITLE_MAX,
 					meta.title
 				) }
-				<TextareaControl
-					__nextHasNoMarginBottom
-					label={ __( 'Description', 'crazylinks' ) }
-					value={ description }
-					rows={ 3 }
-					help={ `${ description.length } / 320` }
-					onChange={ ( v: string ) =>
-						set(
-							[ 'seo', 'description' ],
-							v === '' ? undefined : v
-						)
-					}
-				/>
+				<div className="cl-field">
+					<TextareaControl
+						__nextHasNoMarginBottom
+						label={ __( 'Description', 'crazylinks' ) }
+						value={ description }
+						rows={ 3 }
+						help={ `${ description.length } / ${ SEO_DESCRIPTION_MAX }` }
+						onChange={ ( v: string ) =>
+							set(
+								[ 'seo', 'description' ],
+								v === '' ? undefined : v
+							)
+						}
+					/>
+					<FieldError
+						message={ errorAt( [ 'seo', 'description' ] ) }
+					/>
+				</div>
 				<MediaField
 					label={ __( 'Social sharing image', 'crazylinks' ) }
 					value={
@@ -139,19 +156,19 @@ export default function SettingsTab() {
 				{ text(
 					__( 'Source', 'crazylinks' ),
 					[ 'utm', 'source' ],
-					64,
+					UTM_VALUE_MAX,
 					'crazylinks'
 				) }
 				{ text(
 					__( 'Medium', 'crazylinks' ),
 					[ 'utm', 'medium' ],
-					64,
+					UTM_VALUE_MAX,
 					'bio'
 				) }
 				{ text(
 					__( 'Campaign', 'crazylinks' ),
 					[ 'utm', 'campaign' ],
-					64,
+					UTM_VALUE_MAX,
 					meta.slug || '{slug}',
 					__(
 						'Existing UTM parameters on a link are never overwritten.',

@@ -1,32 +1,58 @@
 /* eslint-disable no-console */
 /**
- * Takes the screenshots used by docs/FEATURES.md from the local dev site.
+ * Takes the screenshots used by docs/FEATURES.md from a development site.
  *
- * Usage (from crazylinks/, dev site running, see docs/DEV-ENVIRONMENT.md):
- *   TOUR_PAGE_ID=108 TOUR_PASS="$(sed -n 's/^ADMIN_PASSWORD=//p' ~/Sites/.crazylinks-dev-credentials)" \
- *   node bin/tour-screenshots.mjs [public|themes|admin ...]
+ * Usage (from crazylinks/, with the site running and seeded; see docs/DEV-ENVIRONMENT.md):
+ *   TOUR_BASE=http://localhost:8888 TOUR_PAGE_ID=<id> TOUR_PASS=<admin password> \
+ *   node bin/tour-screenshots.mjs [public] [themes] [admin]
  *
- * Env: TOUR_BASE (default http://crazylinks.test:8888), TOUR_SLUG (tour), TOUR_URL_BASE (linktree),
- * TOUR_USER (admin), TOUR_OUT (../docs/screenshots/tour), TOUR_THEME_SLUGS (comma list of
- * "theme:page-slug" pairs for the themes sheet).
+ * Without arguments all three groups are taken.
+ *
+ * Environment:
+ *   TOUR_BASE         Site URL, for example http://localhost:8888. Required.
+ *   TOUR_URL_BASE     URL base of link pages. Default: l.
+ *   TOUR_SLUG         Slug of the tour page. Default: tour.
+ *   TOUR_THEME_SLUGS  Comma list of "theme:page-slug" pairs for the themes sheet.
+ *   TOUR_PAGE_ID      Post id of the tour page (admin group).
+ *   TOUR_USER         Admin user name (admin group). Default: admin.
+ *   TOUR_PASS         That user's password (admin group).
+ *   TOUR_OUT          Output directory. Default: docs/screenshots/tour in the repository.
+ *   TOUR_RESOLVE      IP address to resolve the site's host name to, for a host name
+ *                     that has no DNS or hosts-file entry. Optional.
  */
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const GROUPS = [ 'public', 'themes', 'admin' ];
+const want = process.argv.slice( 2 );
+const unknown = want.filter( ( name ) => ! GROUPS.includes( name ) );
+
+if ( ! process.env.TOUR_BASE || unknown.length ) {
+	console.error(
+		unknown.length
+			? `Unknown group: ${ unknown.join( ', ' ) }`
+			: 'TOUR_BASE is not set.'
+	);
+	console.error(
+		'Usage: TOUR_BASE=<site url> [TOUR_PAGE_ID=<id> TOUR_PASS=<password>] node bin/tour-screenshots.mjs [public] [themes] [admin]'
+	);
+	process.exit( 1 );
+}
+
 const here = dirname( fileURLToPath( import.meta.url ) );
-const BASE = process.env.TOUR_BASE ?? 'http://crazylinks.test:8888';
+const BASE = process.env.TOUR_BASE.replace( /\/+$/, '' );
 const SLUG = process.env.TOUR_SLUG ?? 'tour';
-const URL_BASE = process.env.TOUR_URL_BASE ?? 'linktree';
+const URL_BASE = process.env.TOUR_URL_BASE ?? 'l';
 const USER = process.env.TOUR_USER ?? 'admin';
 const PASS = process.env.TOUR_PASS ?? '';
 const PAGE_ID = Number( process.env.TOUR_PAGE_ID ?? 0 );
+const RESOLVE = process.env.TOUR_RESOLVE ?? '';
 const OUT = resolve(
 	here,
 	process.env.TOUR_OUT ?? '../../docs/screenshots/tour'
 );
-const want = process.argv.slice( 2 );
 const run = ( name ) => ! want.length || want.includes( name );
 const host = new URL( BASE ).hostname;
 
@@ -34,8 +60,7 @@ mkdirSync( OUT, { recursive: true } );
 
 const browser = await chromium.launch( {
 	channel: 'chrome',
-	// The dev host has no /etc/hosts entry when MAMP PRO is not managing it.
-	args: [ `--host-resolver-rules=MAP ${ host } 127.0.0.1` ],
+	args: RESOLVE ? [ `--host-resolver-rules=MAP ${ host } ${ RESOLVE }` ] : [],
 } );
 
 /**

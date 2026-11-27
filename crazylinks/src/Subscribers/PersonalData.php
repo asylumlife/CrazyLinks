@@ -9,14 +9,13 @@ namespace CrazyLinks\Subscribers;
 
 defined( 'ABSPATH' ) || exit;
 
-// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name from $wpdb->prefix; values bound with prepare().
-
 /**
  * Hooks into Tools → Export/Erase Personal Data, keyed by email address.
  */
 final class PersonalData {
 
 	private const PER_PAGE = 50;
+	private const GROUP_ID = 'crazylinks-subscribers';
 
 	/**
 	 * Registers the callbacks.
@@ -27,15 +26,22 @@ final class PersonalData {
 	}
 
 	/**
+	 * Name of the data group in the privacy tools.
+	 */
+	private static function group_label(): string {
+		return __( 'CrazyLinks email sign-ups', 'crazylinks' );
+	}
+
+	/**
 	 * Adds the exporter.
 	 *
 	 * @param array<string, mixed> $exporters Exporters.
 	 * @return array<string, mixed>
 	 */
 	public function register_exporter( $exporters ): array {
-		$exporters                           = (array) $exporters;
-		$exporters['crazylinks-subscribers'] = [
-			'exporter_friendly_name' => __( 'CrazyLinks email sign-ups', 'crazylinks' ),
+		$exporters                   = (array) $exporters;
+		$exporters[ self::GROUP_ID ] = [
+			'exporter_friendly_name' => self::group_label(),
 			'callback'               => [ $this, 'export' ],
 		];
 		return $exporters;
@@ -48,9 +54,9 @@ final class PersonalData {
 	 * @return array<string, mixed>
 	 */
 	public function register_eraser( $erasers ): array {
-		$erasers                           = (array) $erasers;
-		$erasers['crazylinks-subscribers'] = [
-			'eraser_friendly_name' => __( 'CrazyLinks email sign-ups', 'crazylinks' ),
+		$erasers                   = (array) $erasers;
+		$erasers[ self::GROUP_ID ] = [
+			'eraser_friendly_name' => self::group_label(),
 			'callback'             => [ $this, 'erase' ],
 		];
 		return $erasers;
@@ -69,8 +75,8 @@ final class PersonalData {
 		$items = [];
 		foreach ( self::rows_for_email( $email, $page ) as $row ) {
 			$items[] = [
-				'group_id'          => 'crazylinks-subscribers',
-				'group_label'       => __( 'CrazyLinks email sign-ups', 'crazylinks' ),
+				'group_id'          => self::GROUP_ID,
+				'group_label'       => self::group_label(),
 				'group_description' => __( 'Addresses submitted through CrazyLinks email sign-up forms.', 'crazylinks' ),
 				'item_id'           => 'crazylinks-subscriber-' . $row['id'],
 				'data'              => [
@@ -104,7 +110,7 @@ final class PersonalData {
 					],
 					[
 						'name'  => __( 'Destination', 'crazylinks' ),
-						'value' => 'mailchimp' === $row['destination'] ? 'Mailchimp' : __( 'This site only', 'crazylinks' ),
+						'value' => Adapters\Mailchimp::ID === $row['destination'] ? 'Mailchimp' : __( 'This site only', 'crazylinks' ),
 					],
 					[
 						'name'  => __( 'Sent to email service', 'crazylinks' ),
@@ -128,7 +134,7 @@ final class PersonalData {
 	 */
 	private static function rows_for_email( string $email, int $page ): array {
 		global $wpdb;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table; privacy export must be live.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Custom table; privacy export must be live. The column list is a constant and every value is bound.
 		return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ' . Store::COLUMNS . ' FROM %i WHERE email = %s ORDER BY id ASC LIMIT %d OFFSET %d', Store::table(), $email, self::PER_PAGE, ( $page - 1 ) * self::PER_PAGE ), ARRAY_A );
 	}
 
@@ -141,19 +147,23 @@ final class PersonalData {
 	 */
 	public function erase( $email, $page = 1 ): array {
 		unset( $page );
+		$email    = (string) $email;
 		$messages = [];
 		$retained = false;
-		$done     = [];
+		$seen     = [];
 		// Also remove the address from every email service audience it was sent to.
-		foreach ( Store::synced_for_email( (string) $email ) as $row ) {
-			$service  = (string) $row['destination'];
-			$adapter  = Adapters::get( 'local' === $service ? Integrations::adapter_id() : $service ) ?? Adapters::get( Adapters\Mailchimp::ID );
+		foreach ( Store::synced_for_email( $email ) as $row ) {
+			$adapter  = Adapters::get( Sync::service_for( $row ) ) ?? Adapters::get( Adapters\Mailchimp::ID );
 			$audience = (string) $row['audience_id'];
-			if ( ! $adapter || '' === $audience || isset( $done[ $adapter->id() . '|' . $audience ] ) ) {
+			if ( ! $adapter || '' === $audience || isset( $seen[ $adapter->id() . '|' . $audience ] ) ) {
 				continue;
 			}
-			$done[ $adapter->id() . '|' . $audience ] = true;
-			$result                                   = $adapter->is_configured() ? $adapter->remove( (string) $email, $audience ) : new \WP_Error( 'crazylinks_sync_not_connected', __( 'the service is no longer connected', 'crazylinks' ) );
+			$seen[ $adapter->id() . '|' . $audience ] = true;
+			if ( $adapter->is_configured() ) {
+				$result = $adapter->remove( $email, $audience );
+			} else {
+				$result = new \WP_Error( 'crazylinks_sync_not_connected', __( 'the service is no longer connected', 'crazylinks' ) );
+			}
 			if ( is_wp_error( $result ) ) {
 				$retained   = true;
 				$messages[] = sprintf(
@@ -165,7 +175,7 @@ final class PersonalData {
 				);
 			}
 		}
-		$removed = Store::delete_by_email( (string) $email );
+		$removed = Store::delete_by_email( $email );
 		return [
 			'items_removed'  => $removed > 0,
 			'items_retained' => $retained,

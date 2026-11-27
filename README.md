@@ -1,5 +1,7 @@
 # CrazyLinks
 
+[![CI](https://github.com/asylumlife/CrazyLinks/actions/workflows/ci.yml/badge.svg)](https://github.com/asylumlife/CrazyLinks/actions/workflows/ci.yml)
+
 Self-hosted link-in-bio pages for WordPress. CrazyLinks is a plugin that replaces Linktree and similar services with a page on your own domain (`yoursite.com/l/your-page`), your own database and no monthly fee. There is no account to create and no external service to depend on.
 
 ![A demo page in the Midnight theme on a phone](docs/screenshots/demo-midnight-phone.png)
@@ -35,7 +37,7 @@ Self-hosted link-in-bio pages for WordPress. CrazyLinks is a plugin that replace
 
 **From a release.** Download `crazylinks-<version>.zip` from the [Releases page](https://github.com/asylumlife/CrazyLinks/releases), then in WordPress go to Plugins → Add New → Upload Plugin, or unpack it into `wp-content/plugins/`. Activate it.
 
-**From source.** The plugin is the `crazylinks/` folder. The compiled editor bundle (`assets/build`) is committed, so a copy of the folder works without a build step. To run the development tools, see [Development](#development).
+**From source.** The plugin is the `crazylinks/` folder. The built assets (`assets/build`) are committed, so a copy of the folder works without a build step. To run the development tools, see [Development](#development).
 
 ## Quick start
 
@@ -62,23 +64,26 @@ npm ci
 Quality gates, all run from `crazylinks/`:
 
 ```sh
-vendor/bin/phpcs                       # WordPress-Extra and WordPress-Docs
-vendor/bin/phpstan analyse --no-progress   # level 6
-vendor/bin/phpunit                     # needs the WordPress test library
-npm run typecheck
-npm run lint:js
-npm run lint:css
-npm run test:unit                      # Vitest
-npm run build                          # rebuilds assets/build, which is committed
-npm run test:e2e                       # Playwright, needs a running dev site
+composer check          # phpcs, PHPStan (level 6) and PHPUnit; PHPUnit needs the WordPress test library
+npm run check           # TypeScript, ESLint, stylelint and the Vitest unit tests
+npm run test:e2e        # Playwright, needs a running development site
 ```
 
-The suite currently has 564 PHPUnit tests, 229 Vitest tests and 5 Playwright tests. [`docs/DEV-ENVIRONMENT.md`](docs/DEV-ENVIRONMENT.md) describes the local site and the WordPress test library setup (`crazylinks/bin/install-wp-tests.sh`). The product and technical specification is [`docs/SPEC.md`](docs/SPEC.md). Hooks, REST routes and WP-CLI commands are listed in [`crazylinks/docs/hooks.md`](crazylinks/docs/hooks.md).
+Each gate can also be run alone: `composer lint`, `composer analyse`, `composer test`, `npm run typecheck`, `npm run lint`, `npm test`.
+
+Built assets are committed, so rebuild them when their source changes:
+
+```sh
+npm run build           # editor bundle: assets/src/editor -> assets/build/editor
+composer build:assets   # front end: assets/src/frontend.{css,js} -> assets/build/frontend.min.{css,js}
+```
+
+[`docs/DEV-ENVIRONMENT.md`](docs/DEV-ENVIRONMENT.md) covers the local site, the WordPress test library (`crazylinks/bin/install-wp-tests.sh`) and the end-to-end tests. The product and technical specification is [`docs/SPEC.md`](docs/SPEC.md). Hooks, REST routes, abilities and WP-CLI commands are listed in [`crazylinks/docs/hooks.md`](crazylinks/docs/hooks.md).
 
 | Path | Contents |
 |---|---|
 | `crazylinks/` | The plugin |
-| `docs/` | Specification, feature tour, dev environment notes, screenshots |
+| `docs/` | Specification, feature tour, local setup guide, screenshots |
 
 ## Project status
 

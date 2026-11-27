@@ -9,6 +9,6 @@
 
 defined( 'ABSPATH' ) || exit;
 
-$crazylinks_style = in_array( $props['style'] ?? '', [ 'line', 'space', 'dots' ], true ) ? $props['style'] : 'line';
+$crazylinks_style = \CrazyLinks\Render\Renderer::choice( $props, 'style', [ 'line', 'space', 'dots' ], 'line' );
 ?>
 <hr class="cl-divider cl-divider--<?php echo esc_attr( $crazylinks_style ); ?>">

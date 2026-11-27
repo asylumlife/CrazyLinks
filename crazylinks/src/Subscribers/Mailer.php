@@ -38,7 +38,8 @@ final class Mailer {
 			self::page_name( (int) $row['page_id'] ),
 			$site
 		) . "\n\n"
-			. __( 'Please confirm your address by opening this link (it works for 7 days):', 'crazylinks' ) . "\n"
+			/* translators: %s: how long the link works, for example "1 week". */
+			. sprintf( __( 'Please confirm your address by opening this link (it works for %s):', 'crazylinks' ), human_time_diff( 0, Service::confirm_ttl() ) ) . "\n"
 			. self::link( 'confirm', $token ) . "\n\n"
 			. __( 'If this was not you, ignore this message and you will not hear from us again.', 'crazylinks' )
 			. self::footer( $row, $token );

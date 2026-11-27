@@ -11,6 +11,7 @@ import {
 } from '@wordpress/components';
 import { useDispatch } from '@wordpress/data';
 import { useState } from '@wordpress/element';
+import type { KeyboardEvent } from 'react';
 import { boot } from '../boot';
 import { useEditor } from '../hooks';
 import { registerAiStore, aiStore, aiSelectors } from '../ai/store';
@@ -31,7 +32,7 @@ registerAiStore();
 const selectState = ( s: AiState ) => s;
 
 export default function AiTab() {
-	const ai = boot().ai as AiBoot;
+	const ai = boot().ai;
 	const ready = ai.ready ?? ai.available;
 	if ( ! ready ) {
 		return <ExternalOnly ai={ ai } />;
@@ -49,7 +50,7 @@ function ExternalOnly( { ai }: { ai: AiBoot } ) {
 	const state = useAi( selectState );
 	const current = aiSelectors.getCurrent( state );
 	return (
-		<div className="cl-ai-tab" data-cl-ai-slot>
+		<div className="cl-ai-tab">
 			<Unavailable ai={ ai } />
 			<ExternalProposals />
 			{ current?.external && <ProposalView entry={ current } /> }
@@ -64,10 +65,10 @@ function AiTools( { ai }: { ai: AiBoot } ) {
 	const [ confirm, setConfirm ] = useState( !! ai.requireConfirmation );
 	const current = aiSelectors.getCurrent( state );
 	const info = modeInfo( state.mode );
-	const busy = state.status !== 'idle';
+	const busy = aiSelectors.isBusy( state );
 
 	return (
-		<div className="cl-ai-tab" data-cl-ai-slot>
+		<div className="cl-ai-tab">
 			<ExternalProposals />
 			<div>
 				<div
@@ -103,12 +104,9 @@ function AiTools( { ai }: { ai: AiBoot } ) {
 						rows={ 3 }
 						maxLength={ 2000 }
 						onChange={ ( v: string ) => setInstruction( v ) }
-						onKeyDown={ ( e: {
-							key: string;
-							metaKey: boolean;
-							ctrlKey: boolean;
-							preventDefault: () => void;
-						} ) => {
+						onKeyDown={ (
+							e: KeyboardEvent< HTMLTextAreaElement >
+						) => {
 							if (
 								e.key === 'Enter' &&
 								( e.metaKey || e.ctrlKey )

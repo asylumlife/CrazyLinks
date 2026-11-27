@@ -21,20 +21,20 @@ final class Activity {
 	public const PER_PAGE = 50;
 
 	/**
+	 * Most visits one call to visits() returns.
+	 */
+	private const MAX_PER_PAGE = 500;
+
+	/**
+	 * Hour-of-day counts are read in buckets this many minutes long: every timezone offset is a
+	 * multiple of it, so a bucket never straddles two local hours.
+	 */
+	private const HOUR_BUCKET_MINUTES = 15;
+
+	/**
 	 * Most rows an activity CSV will hold.
 	 */
 	public const CSV_LIMIT = 50000;
-
-	/**
-	 * UTC datetime bounds of an inclusive Y-m-d range.
-	 *
-	 * @param string $from Y-m-d.
-	 * @param string $to   Y-m-d.
-	 * @return array{0:string, 1:string}
-	 */
-	private static function bounds( string $from, string $to ): array {
-		return [ $from . ' 00:00:00', gmdate( 'Y-m-d', (int) strtotime( $to . ' UTC +1 day' ) ) . ' 00:00:00' ];
-	}
 
 	/**
 	 * One page of visits, the most recently active first.
@@ -49,13 +49,14 @@ final class Activity {
 	 */
 	public static function visits( int $page_id, string $from, string $to, array $titles = [], int $page = 1, int $per_page = self::PER_PAGE ): array {
 		global $wpdb;
-		[ $start, $end ] = self::bounds( $from, $to );
-		$events          = $wpdb->prefix . 'crazylinks_events';
-		$per_page        = max( 1, min( 500, $per_page ) );
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		[ $start, $end ] = Summary::day_bounds( $from, $to );
+		$events          = Summary::events_table();
+		$per_page        = max( 1, min( self::MAX_PER_PAGE, $per_page ) );
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table; the list is built per request.
 		$total = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM ( SELECT 1 FROM {$events} WHERE page_id = %d AND type IN ('view', 'click') AND ts >= %s AND ts < %s GROUP BY visitor_hash, DATE(ts) ) t",
+				"SELECT COUNT(*) FROM ( SELECT 1 FROM %i WHERE page_id = %d AND type IN ('view', 'click') AND ts >= %s AND ts < %s GROUP BY visitor_hash, DATE(ts) ) t",
+				$events,
 				$page_id,
 				$start,
 				$end
@@ -73,11 +74,12 @@ final class Activity {
 		if ( 0 === $total ) {
 			return $out;
 		}
-		$keys = (array) $wpdb->get_results(
+		$visit_keys = (array) $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT visitor_hash AS h, DATE(ts) AS d, MAX(ts) AS last_ts, MAX(id) AS last_id FROM {$events}
+				"SELECT visitor_hash, DATE(ts) AS day, MAX(ts) AS last_ts, MAX(id) AS last_id FROM %i
 				WHERE page_id = %d AND type IN ('view', 'click') AND ts >= %s AND ts < %s
 				GROUP BY visitor_hash, DATE(ts) ORDER BY last_ts DESC, last_id DESC LIMIT %d OFFSET %d",
+				$events,
 				$page_id,
 				$start,
 				$end,
@@ -86,42 +88,42 @@ final class Activity {
 			),
 			ARRAY_A
 		);
-		if ( ! $keys ) {
+		if ( ! $visit_keys ) {
 			return $out;
 		}
-		$order  = [];
+		// Events per visit, keyed "hash|day" in the order the visits are listed.
+		$visits = [];
 		$hashes = [];
 		$days   = [];
-		foreach ( $keys as $k ) {
-			$order[ $k['h'] . '|' . $k['d'] ] = [];
-			$hashes[ (string) $k['h'] ]       = true;
-			$days[]                           = (string) $k['d'];
+		foreach ( $visit_keys as $visit_key ) {
+			$visits[ $visit_key['visitor_hash'] . '|' . $visit_key['day'] ] = [];
+			$hashes[ (string) $visit_key['visitor_hash'] ]                  = true;
+			$days[] = (string) $visit_key['day'];
 		}
 		$hashes = array_keys( $hashes );
-		$rows   = (array) $wpdb->get_results(
+		// Only the days on this page of visits need reading, within the requested range.
+		[ $first, $last ] = Summary::day_bounds( min( $days ), max( $days ) );
+		$rows             = (array) $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT id, visitor_hash, ts, type, COALESCE(block_id, '') AS block_id, COALESCE(item_id, '') AS item_id, device, COALESCE(os, '') AS os,
 					COALESCE(in_app, '') AS in_app, COALESCE(referrer_host, '') AS host, COALESCE(utm_source, '') AS utm
-				FROM {$events} WHERE page_id = %d AND type IN ('view', 'click') AND ts >= %s AND ts < %s
+				FROM %i WHERE page_id = %d AND type IN ('view', 'click') AND ts >= %s AND ts < %s
 					AND visitor_hash IN (" . implode( ',', array_fill( 0, count( $hashes ), '%s' ) ) . ')
 				ORDER BY ts ASC, id ASC',
-				array_merge(
-					[ $page_id, max( $start, min( $days ) . ' 00:00:00' ), min( $end, gmdate( 'Y-m-d', (int) strtotime( max( $days ) . ' UTC +1 day' ) ) . ' 00:00:00' ) ],
-					$hashes
-				)
+				array_merge( [ $events, $page_id, max( $start, $first ), min( $end, $last ) ], $hashes )
 			),
 			ARRAY_A
 		);
 		// phpcs:enable
-		foreach ( $rows as $r ) {
-			$key = $r['visitor_hash'] . '|' . substr( (string) $r['ts'], 0, 10 );
-			if ( isset( $order[ $key ] ) ) {
-				$order[ $key ][] = $r;
+		foreach ( $rows as $row ) {
+			$key = $row['visitor_hash'] . '|' . substr( (string) $row['ts'], 0, 10 );
+			if ( isset( $visits[ $key ] ) ) {
+				$visits[ $key ][] = $row;
 			}
 		}
-		foreach ( $order as $list ) {
-			if ( $list ) {
-				$out['visits'][] = self::visit( $list, $titles );
+		foreach ( $visits as $events_of_visit ) {
+			if ( $events_of_visit ) {
+				$out['visits'][] = self::visit( $events_of_visit, $titles );
 			}
 		}
 		return $out;
@@ -136,9 +138,9 @@ final class Activity {
 	 */
 	private static function visit( array $rows, array $titles ): array {
 		$view = null;
-		foreach ( $rows as $r ) {
-			if ( 'view' === $r['type'] ) {
-				$view = $r;
+		foreach ( $rows as $row ) {
+			if ( 'view' === $row['type'] ) {
+				$view = $row;
 				break;
 			}
 		}
@@ -149,14 +151,14 @@ final class Activity {
 		$events          = [];
 		$views           = 0;
 		$clicks          = 0;
-		foreach ( $rows as $r ) {
-			$is_view  = 'view' === $r['type'];
+		foreach ( $rows as $row ) {
+			$is_view  = 'view' === $row['type'];
 			$views   += $is_view ? 1 : 0;
 			$clicks  += $is_view ? 0 : 1;
 			$events[] = [
-				'ts'    => (int) strtotime( $r['ts'] . ' UTC' ),
-				'type'  => (string) $r['type'],
-				'title' => $is_view ? '' : self::title( (string) $r['block_id'], (string) $r['item_id'], $titles ),
+				'ts'    => (int) strtotime( $row['ts'] . ' UTC' ),
+				'type'  => (string) $row['type'],
+				'title' => $is_view ? '' : Summary::link_title( $titles, (string) $row['block_id'], (string) $row['item_id'] ),
 			];
 		}
 		return [
@@ -172,17 +174,6 @@ final class Activity {
 	}
 
 	/**
-	 * The name of what was clicked.
-	 *
-	 * @param string                $block_id Block id.
-	 * @param string                $item_id  Item id, or ''.
-	 * @param array<string, string> $titles   Link titles.
-	 */
-	private static function title( string $block_id, string $item_id, array $titles ): string {
-		return $titles[ $block_id . '|' . $item_id ] ?? $titles[ $block_id . '|' ] ?? __( '(removed block)', 'crazylinks' );
-	}
-
-	/**
 	 * Views and clicks per hour of the day (0-23) in the given timezone, summed over the range.
 	 *
 	 * @param int           $page_id Page id.
@@ -193,20 +184,22 @@ final class Activity {
 	 */
 	public static function hours( int $page_id, string $from, string $to, \DateTimeZone $tz ): array {
 		global $wpdb;
-		[ $start, $end ] = self::bounds( $from, $to );
-		$out             = [];
-		for ( $h = 0; $h < 24; $h++ ) {
-			$out[ $h ] = [
-				'hour'   => $h,
+		[ $start, $end ] = Summary::day_bounds( $from, $to );
+		$hours           = [];
+		for ( $hour = 0; $hour < 24; $hour++ ) {
+			$hours[ $hour ] = [
+				'hour'   => $hour,
 				'views'  => 0,
 				'clicks' => 0,
 			];
 		}
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table; the chart is built per request.
 		$rows = (array) $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT DATE_FORMAT(ts, '%%Y-%%m-%%d %%H:00:00') AS h, type, COUNT(*) AS n FROM {$wpdb->prefix}crazylinks_events
-				WHERE page_id = %d AND type IN ('view', 'click') AND ts >= %s AND ts < %s GROUP BY h, type",
+				"SELECT DATE(ts) AS event_day, HOUR(ts) AS event_hour, FLOOR(MINUTE(ts) / %d) AS bucket, type, COUNT(*) AS n FROM %i
+				WHERE page_id = %d AND type IN ('view', 'click') AND ts >= %s AND ts < %s GROUP BY event_day, event_hour, bucket, type",
+				self::HOUR_BUCKET_MINUTES,
+				Summary::events_table(),
 				$page_id,
 				$start,
 				$end
@@ -215,15 +208,16 @@ final class Activity {
 		);
 		// phpcs:enable
 		$utc = new \DateTimeZone( 'UTC' );
-		foreach ( $rows as $r ) {
-			$dt = \DateTimeImmutable::createFromFormat( 'Y-m-d H:i:s', (string) $r['h'], $utc );
+		foreach ( $rows as $row ) {
+			$bucket_start = sprintf( '%s %02d:%02d:00', $row['event_day'], (int) $row['event_hour'], (int) $row['bucket'] * self::HOUR_BUCKET_MINUTES );
+			$dt           = \DateTimeImmutable::createFromFormat( 'Y-m-d H:i:s', $bucket_start, $utc );
 			if ( ! $dt ) {
 				continue;
 			}
-			$hour = (int) $dt->setTimezone( $tz )->format( 'G' );
-			$out[ $hour ][ 'view' === $r['type'] ? 'views' : 'clicks' ] += (int) $r['n'];
+			$local_hour = (int) $dt->setTimezone( $tz )->format( 'G' );
+			$hours[ $local_hour ][ 'view' === $row['type'] ? 'views' : 'clicks' ] += (int) $row['n'];
 		}
-		return $out;
+		return $hours;
 	}
 
 	/**
@@ -238,31 +232,29 @@ final class Activity {
 	 */
 	public static function rows( int $page_id, string $from, string $to, array $titles = [] ): array {
 		$out   = [];
-		$n     = 0;
+		$visit = 0;
 		$page  = 1;
-		$pages = 1;
 		do {
-			$batch = self::visits( $page_id, $from, $to, $titles, $page, 500 );
-			$pages = $batch['pages'];
-			foreach ( $batch['visits'] as $v ) {
-				++$n;
-				foreach ( array_reverse( $v['events'] ) as $e ) {
+			$batch = self::visits( $page_id, $from, $to, $titles, $page, self::MAX_PER_PAGE );
+			foreach ( $batch['visits'] as $visit_data ) {
+				++$visit;
+				foreach ( array_reverse( $visit_data['events'] ) as $event ) {
 					if ( count( $out ) >= self::CSV_LIMIT ) {
 						return $out;
 					}
 					$out[] = [
-						'ts'     => $e['ts'],
-						'visit'  => $n,
-						'source' => $v['label'],
-						'device' => $v['device'],
-						'os'     => $v['os'],
-						'type'   => $e['type'],
-						'title'  => $e['title'],
+						'ts'     => $event['ts'],
+						'visit'  => $visit,
+						'source' => $visit_data['label'],
+						'device' => $visit_data['device'],
+						'os'     => $visit_data['os'],
+						'type'   => $event['type'],
+						'title'  => $event['title'],
 					];
 				}
 			}
 			++$page;
-		} while ( $page <= $pages );
+		} while ( $page <= $batch['pages'] );
 		return $out;
 	}
 }

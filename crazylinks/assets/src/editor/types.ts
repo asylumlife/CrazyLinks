@@ -1,7 +1,7 @@
-import type { AiBoot } from './ai/types';
 /**
  * Page document types (schemas/page.v1.json) and editor boot data.
  */
+import type { AiBoot } from './ai/types';
 
 export type BlockType =
 	| 'link'

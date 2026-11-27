@@ -17,6 +17,49 @@ final class Visitor {
 	public const SALT_OPTION_PREFIX = 'crazylinks_salt_';
 
 	/**
+	 * User-agent fragments (PCRE, case-insensitive) of bots, crawlers, link previewers and
+	 * scripted clients.
+	 */
+	private const BOT_TOKENS = [
+		'bot\b',
+		'bot\/',
+		'crawl',
+		'spider',
+		'slurp',
+		'archiver',
+		'facebookexternalhit',
+		'facebookcatalog',
+		'embedly',
+		'preview',
+		'whatsapp\/',
+		'telegrambot',
+		'discordbot',
+		'slackbot',
+		'skypeuripreview',
+		'bingpreview',
+		'headless',
+		'lighthouse',
+		'pagespeed',
+		'pingdom',
+		'uptime',
+		'monitor',
+		'curl\/',
+		'wget\/',
+		'python-requests',
+		'python-urllib',
+		'go-http-client',
+		'okhttp\/',
+		'java\/',
+		'libwww',
+		'httpclient',
+		'axios\/',
+		'node-fetch',
+		'scrapy',
+		'feedfetcher',
+		'mediapartners',
+	];
+
+	/**
 	 * Constructor.
 	 *
 	 * @param string $ip       Client IP (never stored).
@@ -92,15 +135,28 @@ final class Visitor {
 	private static function create_salt( string $name ): string {
 		global $wpdb;
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Race-safe create; caches are reset below.
-		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off')", $name, bin2hex( random_bytes( 32 ) ) ) );
-		$raw = (string) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) );
+		$wpdb->query(
+			$wpdb->prepare(
+				"INSERT IGNORE INTO %i (option_name, option_value, autoload) VALUES (%s, %s, 'off')",
+				$wpdb->options,
+				$name,
+				bin2hex( random_bytes( 32 ) )
+			)
+		);
+		$raw = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM %i WHERE option_name = %s', $wpdb->options, $name ) );
 		wp_cache_delete( 'notoptions', 'options' );
 		wp_cache_set( $name, $raw, 'options' );
 
-		// Discard every other day's value (and the pre-1.0 autoloaded `crazylinks_salt`).
-		$old = (array) $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s AND option_name <> %s", $wpdb->esc_like( self::SALT_OPTION_PREFIX ) . '%', $name ) );
+		// Discard every other day's value.
+		$old = (array) $wpdb->get_col(
+			$wpdb->prepare(
+				'SELECT option_name FROM %i WHERE option_name LIKE %s AND option_name <> %s',
+				$wpdb->options,
+				$wpdb->esc_like( self::SALT_OPTION_PREFIX ) . '%',
+				$name
+			)
+		);
 		// phpcs:enable
-		$old[] = 'crazylinks_salt';
 		foreach ( $old as $option ) {
 			delete_option( (string) $option );
 		}
@@ -114,7 +170,7 @@ final class Visitor {
 		if ( '' === trim( $this->ua ) ) {
 			return true;
 		}
-		$pattern = '/bot\b|bot\/|crawl|spider|slurp|archiver|facebookexternalhit|facebookcatalog|embedly|preview|whatsapp\/|telegrambot|discordbot|slackbot|skypeuripreview|bingpreview|headless|lighthouse|pagespeed|pingdom|uptime|monitor|curl\/|wget\/|python-requests|python-urllib|go-http-client|okhttp\/|java\/|libwww|httpclient|axios\/|node-fetch|scrapy|feedfetcher|mediapartners/i';
+		$pattern = '/' . implode( '|', self::BOT_TOKENS ) . '/i';
 		/**
 		 * Filters the bot user-agent regex.
 		 *

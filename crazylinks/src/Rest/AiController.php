@@ -7,12 +7,12 @@
 
 namespace CrazyLinks\Rest;
 
+use CrazyLinks\Ai\AiLog;
 use CrazyLinks\Ai\Limits;
 use CrazyLinks\Ai\OpsValidator;
 use CrazyLinks\Ai\Proposals;
 use CrazyLinks\Ai\Status;
-use CrazyLinks\Ai\AiLog;
-use CrazyLinks\PostType;
+use CrazyLinks\Settings;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -60,7 +60,7 @@ final class AiController {
 						],
 						'questions_answers' => [
 							'type'     => 'array',
-							'maxItems' => 5,
+							'maxItems' => Proposals::MAX_ANSWERS,
 							'items'    => [
 								'type'       => 'object',
 								'properties' => [
@@ -91,7 +91,7 @@ final class AiController {
 						'proposal_id' => [
 							'type'     => 'string',
 							'required' => true,
-							'pattern'  => '^[A-Za-z0-9]{24}$',
+							'pattern'  => Proposals::ID_PATTERN,
 						],
 						'operations'  => [
 							'type'        => 'array',
@@ -118,7 +118,7 @@ final class AiController {
 					'args'                => [
 						'kind'    => [
 							'type'     => 'string',
-							'enum'     => [ 'titles', 'bio' ],
+							'enum'     => Proposals::SUGGEST_KINDS,
 							'required' => true,
 						],
 						'context' => [
@@ -172,7 +172,7 @@ final class AiController {
 						'proposal_id' => [
 							'type'     => 'string',
 							'required' => true,
-							'pattern'  => '^[A-Za-z0-9]{24}$',
+							'pattern'  => Proposals::ID_PATTERN,
 						],
 					],
 				],
@@ -185,7 +185,7 @@ final class AiController {
 				[
 					'methods'             => \WP_REST_Server::READABLE,
 					'callback'            => [ $this, 'status' ],
-					'permission_callback' => static fn() => current_user_can( 'use_crazylinks_ai' ) ? true : new \WP_Error( 'crazylinks_forbidden', __( 'Sorry, you are not allowed to do that.', 'crazylinks' ), [ 'status' => rest_authorization_required_code() ] ),
+					'permission_callback' => static fn() => current_user_can( 'use_crazylinks_ai' ) ? true : RestRoutes::forbidden(),
 				],
 			]
 		);
@@ -198,15 +198,14 @@ final class AiController {
 	 * @return true|\WP_Error
 	 */
 	public function page_permission( $request ) {
-		$forbidden = new \WP_Error( 'crazylinks_forbidden', __( 'Sorry, you are not allowed to do that.', 'crazylinks' ), [ 'status' => rest_authorization_required_code() ] );
 		if ( ! current_user_can( 'use_crazylinks_ai' ) ) {
-			return $forbidden;
+			return RestRoutes::forbidden();
 		}
-		$post = get_post( (int) $request['id'] );
-		if ( ! $post instanceof \WP_Post || PostType::NAME !== $post->post_type ) {
-			return current_user_can( 'edit_crazylinks_pages' ) ? new \WP_Error( 'crazylinks_not_found', __( 'Link page not found.', 'crazylinks' ), [ 'status' => 404 ] ) : $forbidden;
+		$post = RestRoutes::link_page_or_denied( (int) $request['id'] );
+		if ( is_wp_error( $post ) ) {
+			return $post;
 		}
-		return current_user_can( 'edit_post', $post->ID ) ? true : $forbidden;
+		return current_user_can( 'edit_post', $post->ID ) ? true : RestRoutes::forbidden();
 	}
 
 	/**
@@ -306,8 +305,8 @@ final class AiController {
 					'suggest' => Status::models( 'suggest' ),
 				],
 				'limits'    => [
-					'user_hourly'      => (int) \CrazyLinks\Settings::get( 'ai_user_hourly' ),
-					'site_daily'       => (int) \CrazyLinks\Settings::get( 'ai_site_daily' ),
+					'user_hourly'      => (int) Settings::get( 'ai_user_hourly' ),
+					'site_daily'       => (int) Settings::get( 'ai_site_daily' ),
 					'user_last_hour'   => AiLog::count_since( time() - HOUR_IN_SECONDS, $user ),
 					'site_last_24h'    => AiLog::count_since( time() - DAY_IN_SECONDS ),
 					'proposal_minutes' => (int) ( Proposals::TTL / MINUTE_IN_SECONDS ),

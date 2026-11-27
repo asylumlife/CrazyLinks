@@ -41,6 +41,96 @@ final class Summary {
 	public const MAX_DAYS = 731;
 
 	/**
+	 * Maximum days for_page() looks back.
+	 */
+	private const FOR_PAGE_MAX_DAYS = 3650;
+
+	/**
+	 * Preset range tokens and the number of days each covers (today included).
+	 */
+	public const RANGES = [
+		'7d'  => 7,
+		'30d' => 30,
+		'90d' => 90,
+	];
+
+	/**
+	 * Days page_totals() covers (today included).
+	 */
+	private const TOTALS_DAYS = 30;
+
+	/**
+	 * How long page_totals() is cached, so today's numbers keep moving.
+	 */
+	private const TOTALS_TTL = 15 * MINUTE_IN_SECONDS;
+
+	/**
+	 * Most clicked links listed per traffic source.
+	 */
+	private const TOP_LINKS = 3;
+
+	/**
+	 * Known platforms for traffic sources: key => [ label, host pattern, utm_source aliases ].
+	 * In-app browser tokens (Visitor::in_app()) are keys here too.
+	 */
+	private const PLATFORMS = [
+		'instagram'  => [ 'Instagram', '/(^|\.)instagram\.com$/', [ 'ig', 'insta' ] ],
+		'facebook'   => [ 'Facebook', '/(^|\.)(facebook\.com|fb\.com|fb\.me|messenger\.com)$/', [ 'fb', 'meta' ] ],
+		'tiktok'     => [ 'TikTok', '/(^|\.)tiktok\.com$/', [ 'tt' ] ],
+		'youtube'    => [ 'YouTube', '/(^|\.)(youtube\.com|youtu\.be)$/', [ 'yt' ] ],
+		'twitter'    => [ 'X (Twitter)', '/(^|\.)(twitter\.com|x\.com|t\.co)$/', [ 'x' ] ],
+		'threads'    => [ 'Threads', '/(^|\.)threads\.(net|com)$/', [] ],
+		'bluesky'    => [ 'Bluesky', '/(^|\.)bsky\.(app|social)$/', [ 'bsky' ] ],
+		'linkedin'   => [ 'LinkedIn', '/(^|\.)(linkedin\.com|lnkd\.in)$/', [] ],
+		'pinterest'  => [ 'Pinterest', '/(^|\.)(pinterest\.[a-z.]+|pin\.it)$/', [] ],
+		'snapchat'   => [ 'Snapchat', '/(^|\.)snapchat\.com$/', [ 'snap' ] ],
+		'reddit'     => [ 'Reddit', '/(^|\.)(reddit\.com|redd\.it)$/', [] ],
+		'twitch'     => [ 'Twitch', '/(^|\.)twitch\.tv$/', [] ],
+		'discord'    => [ 'Discord', '/(^|\.)(discord\.com|discord\.gg|discordapp\.com)$/', [] ],
+		'google'     => [ 'Google', '/(^|\.)google\.[a-z.]+$/', [] ],
+		'bing'       => [ 'Bing', '/(^|\.)bing\.com$/', [] ],
+		'duckduckgo' => [ 'DuckDuckGo', '/(^|\.)duckduckgo\.com$/', [ 'ddg' ] ],
+	];
+
+	/**
+	 * Raw events table name.
+	 */
+	public static function events_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'crazylinks_events';
+	}
+
+	/**
+	 * Daily rollup table name.
+	 */
+	public static function daily_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'crazylinks_daily';
+	}
+
+	/**
+	 * The UTC day after the given one.
+	 *
+	 * @param string $day Y-m-d.
+	 * @return string Y-m-d.
+	 */
+	public static function next_day( string $day ): string {
+		return gmdate( 'Y-m-d', (int) strtotime( $day . ' UTC +1 day' ) );
+	}
+
+	/**
+	 * UTC datetime bounds of an inclusive Y-m-d range: its first midnight and the midnight after
+	 * its last day (compare with `ts >= start AND ts < end`).
+	 *
+	 * @param string $from Y-m-d.
+	 * @param string $to   Y-m-d.
+	 * @return array{0:string, 1:string}
+	 */
+	public static function day_bounds( string $from, string $to ): array {
+		return [ $from . ' 00:00:00', self::next_day( $to ) . ' 00:00:00' ];
+	}
+
+	/**
 	 * Resolves request parameters to an inclusive UTC date range. Order of precedence: from/to,
 	 * range (7d|30d|90d), days, default 30d.
 	 *
@@ -65,14 +155,10 @@ final class Summary {
 				return new \WP_Error( 'crazylinks_bad_range', __( 'The start date must not be after the end date.', 'crazylinks' ), [ 'status' => 400 ] );
 			}
 		} else {
-			$n    = [
-				'7d'  => 7,
-				'30d' => 30,
-				'90d' => 90,
-			][ (string) $range ] ?? ( null !== $days && $days > 0 ? $days : 30 );
-			$n    = max( 1, min( self::MAX_DAYS, $n ) );
-			$to   = $today;
-			$from = gmdate( 'Y-m-d', time() - ( $n - 1 ) * DAY_IN_SECONDS );
+			$count = self::RANGES[ (string) $range ] ?? ( null !== $days && $days > 0 ? $days : 30 );
+			$count = max( 1, min( self::MAX_DAYS, $count ) );
+			$to    = $today;
+			$from  = gmdate( 'Y-m-d', time() - ( $count - 1 ) * DAY_IN_SECONDS );
 		}
 		$span = (int) round( ( strtotime( $to . ' UTC' ) - strtotime( $from . ' UTC' ) ) / DAY_IN_SECONDS ) + 1;
 		if ( $span > self::MAX_DAYS ) {
@@ -86,7 +172,8 @@ final class Summary {
 	}
 
 	/**
-	 * Per-day, per-type, per-block counts from the rollup (rolled days) plus events (the rest).
+	 * Per-day, per-type, per-block view and click counts from the rollup (rolled days) plus
+	 * events (the rest).
 	 *
 	 * @param int|null $page_id Page id, or null for every page.
 	 * @param string   $from    Y-m-d.
@@ -96,46 +183,55 @@ final class Summary {
 	private static function rows( ?int $page_id, string $from, string $to ): array {
 		global $wpdb;
 		$through = (string) get_option( 'crazylinks_rollup_through', '' );
-		$out     = [];
-		$only    = null === $page_id ? '' : $wpdb->prepare( ' AND page_id = %d', $page_id );
-		$normal  = static function ( $r ): array {
-			return [
-				'page_id'  => (int) $r['page_id'],
-				'block_id' => (string) $r['block_id'],
-				'item_id'  => (string) $r['item_id'],
-				'day'      => (string) $r['day'],
-				'type'     => (string) $r['type'],
-				'count'    => (int) $r['count'],
-				'uniques'  => (int) $r['uniques'],
-			];
-		};
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		// Both queries take the page id twice: `%d = 0 OR page_id = %d` matches every page when it is 0.
+		$page = (int) $page_id;
+		$rows = [];
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom tables; page_totals() caches the result that is read often.
 		if ( '' !== $through && $from <= $through ) {
-			$rolled_to = min( $to, $through );
-			foreach ( (array) $wpdb->get_results(
-				$wpdb->prepare( "SELECT page_id, block_id, item_id, day, type, count, uniques FROM {$wpdb->prefix}crazylinks_daily WHERE day >= %s AND day <= %s{$only}", $from, $rolled_to ),
-				ARRAY_A
-			) as $r ) {
-				$out[] = $normal( $r );
-			}
-		}
-		$live_from = '' !== $through ? max( $from, gmdate( 'Y-m-d', (int) strtotime( $through . ' UTC +1 day' ) ) ) : $from;
-		if ( $live_from <= $to ) {
-			foreach ( (array) $wpdb->get_results(
+			$rows = (array) $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT page_id, COALESCE(block_id, '') AS block_id, COALESCE(item_id, '') AS item_id, DATE(ts) AS day, type, COUNT(*) AS count, COUNT(DISTINCT visitor_hash) AS uniques
-					FROM {$wpdb->prefix}crazylinks_events WHERE ts >= %s AND ts < %s AND type IN ('view', 'click'){$only}
-					GROUP BY page_id, COALESCE(block_id, ''), COALESCE(item_id, ''), DATE(ts), type",
-					$live_from . ' 00:00:00',
-					gmdate( 'Y-m-d', (int) strtotime( $to . ' UTC +1 day' ) ) . ' 00:00:00'
+					"SELECT page_id, block_id, item_id, day, type, count, uniques FROM %i
+					WHERE day >= %s AND day <= %s AND type IN ('view', 'click') AND ( %d = 0 OR page_id = %d )",
+					self::daily_table(),
+					$from,
+					min( $to, $through ),
+					$page,
+					$page
 				),
 				ARRAY_A
-			) as $r ) {
-				$out[] = $normal( $r );
-			}
+			);
+		}
+		$live_from = '' !== $through ? max( $from, self::next_day( $through ) ) : $from;
+		if ( $live_from <= $to ) {
+			[ $start, $end ] = self::day_bounds( $live_from, $to );
+			$live            = (array) $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT page_id, COALESCE(block_id, '') AS block_id, COALESCE(item_id, '') AS item_id, DATE(ts) AS day, type, COUNT(*) AS count, COUNT(DISTINCT visitor_hash) AS uniques
+					FROM %i WHERE ts >= %s AND ts < %s AND type IN ('view', 'click') AND ( %d = 0 OR page_id = %d )
+					GROUP BY page_id, COALESCE(block_id, ''), COALESCE(item_id, ''), DATE(ts), type",
+					self::events_table(),
+					$start,
+					$end,
+					$page,
+					$page
+				),
+				ARRAY_A
+			);
+			$rows            = array_merge( $rows, $live );
 		}
 		// phpcs:enable
-		return $out;
+		return array_map(
+			static fn( array $row ): array => [
+				'page_id'  => (int) $row['page_id'],
+				'block_id' => (string) $row['block_id'],
+				'item_id'  => (string) $row['item_id'],
+				'day'      => (string) $row['day'],
+				'type'     => (string) $row['type'],
+				'count'    => (int) $row['count'],
+				'uniques'  => (int) $row['uniques'],
+			],
+			$rows
+		);
 	}
 
 	/**
@@ -162,23 +258,26 @@ final class Summary {
 		}
 		$per_block = [];
 		$per_item  = [];
-		foreach ( self::rows( $page_id, $from, $to ) as $r ) {
-			if ( ! isset( $series[ $r['day'] ] ) ) {
+		foreach ( self::rows( $page_id, $from, $to ) as $row ) {
+			$day = $row['day'];
+			if ( ! isset( $series[ $day ] ) ) {
 				continue;
 			}
-			if ( 'view' === $r['type'] ) {
-				$views                        += $r['count'];
-				$uniques                      += $r['uniques'];
-				$series[ $r['day'] ]['views'] += $r['count'];
-			} else {
-				$clicks                                     += $r['count'];
-				$series[ $r['day'] ]['clicks']              += $r['count'];
-				$per_block[ $r['block_id'] ]                 = ( $per_block[ $r['block_id'] ] ?? 0 ) + $r['count'];
-				$per_item[ $r['block_id'] ][ $r['item_id'] ] = ( $per_item[ $r['block_id'] ][ $r['item_id'] ] ?? 0 ) + $r['count'];
+			if ( 'view' === $row['type'] ) {
+				$views                   += $row['count'];
+				$uniques                 += $row['uniques'];
+				$series[ $day ]['views'] += $row['count'];
+			} elseif ( 'click' === $row['type'] ) {
+				$block_id                          = $row['block_id'];
+				$item_id                           = $row['item_id'];
+				$clicks                           += $row['count'];
+				$series[ $day ]['clicks']         += $row['count'];
+				$per_block[ $block_id ]            = ( $per_block[ $block_id ] ?? 0 ) + $row['count'];
+				$per_item[ $block_id ][ $item_id ] = ( $per_item[ $block_id ][ $item_id ] ?? 0 ) + $row['count'];
 			}
 		}
 
-		$block_rows = self::block_rows( $page_id, $per_block, $clicks, $views, $per_item );
+		$block_rows = self::block_rows( $page_id, $per_block, $per_item, $clicks, $views );
 
 		return [
 			'totals'                => [
@@ -192,7 +291,7 @@ final class Summary {
 			'sources'               => self::sources( $page_id, $from, $to, $block_rows ),
 			'breakdowns'            => self::breakdowns( $page_id, $from, $to ),
 			/**
-			 * Filters whether country data is available (v1.0 never collects it).
+			 * Filters whether country data is available (CrazyLinks does not collect it).
 			 *
 			 * @param bool $available Default false.
 			 */
@@ -209,16 +308,17 @@ final class Summary {
 	/**
 	 * Per-block rows: every clickable block still on the page plus removed blocks that have clicks.
 	 *
-	 * A Socials block row also carries `items`: one row per icon (see social_items()).
+	 * A Socials block row and a newest-products Product block row also carry `items`: one row per
+	 * icon or product (see social_items() and product_items()).
 	 *
 	 * @param int                               $page_id   Page id.
 	 * @param array<string, int>                $per_block Clicks by block id.
+	 * @param array<string, array<string, int>> $per_item  Clicks by block id, then item id ('' = no item recorded).
 	 * @param int                               $clicks    Total clicks.
 	 * @param int                               $views     Total views.
-	 * @param array<string, array<string, int>> $per_item  Clicks by block id, then item id ('' = no item recorded).
 	 * @return array<int, array<string, mixed>>
 	 */
-	private static function block_rows( int $page_id, array $per_block, int $clicks, int $views, array $per_item = [] ): array {
+	private static function block_rows( int $page_id, array $per_block, array $per_item, int $clicks, int $views ): array {
 		$doc  = PageStore::get_document( $page_id ) ?? [];
 		$rows = [];
 		$seen = [];
@@ -228,8 +328,7 @@ final class Summary {
 			}
 			$id          = (string) $block['id'];
 			$seen[ $id ] = true;
-			$n           = $per_block[ $id ] ?? 0;
-			$row         = self::block_row( $id, self::block_title( $block ), (string) $block['type'], $n, $clicks, $views );
+			$row         = self::block_row( $id, self::block_title( $block ), (string) $block['type'], $per_block[ $id ] ?? 0, $clicks, $views );
 			if ( 'socials' === $block['type'] ) {
 				$row['items'] = self::social_items( $block, $per_item[ $id ] ?? [], $clicks );
 			} elseif ( 'product' === $block['type'] && 'latest' === ( $block['props']['mode'] ?? 'single' ) ) {
@@ -237,11 +336,11 @@ final class Summary {
 			}
 			$rows[] = $row;
 		}
-		foreach ( $per_block as $id => $n ) {
+		foreach ( $per_block as $id => $block_clicks ) {
 			if ( '' === (string) $id || isset( $seen[ (string) $id ] ) ) {
 				continue;
 			}
-			$rows[] = self::block_row( (string) $id, __( '(removed block)', 'crazylinks' ), 'unknown', $n, $clicks, $views );
+			$rows[] = self::block_row( (string) $id, self::removed_block_title(), 'unknown', $block_clicks, $clicks, $views );
 		}
 		usort(
 			$rows,
@@ -251,31 +350,69 @@ final class Summary {
 	}
 
 	/**
-	 * One block row. `ctr` is clicks per page view (kept for the older summary shape).
+	 * One block row. `share` is the block's part of all clicks, `ctr` its clicks per page view.
 	 *
-	 * @param string $id     Block id.
-	 * @param string $title  Title.
-	 * @param string $type   Type.
-	 * @param int    $n      Clicks.
-	 * @param int    $clicks Total clicks.
-	 * @param int    $views  Total views.
+	 * @param string $id           Block id.
+	 * @param string $title        Title.
+	 * @param string $type         Type.
+	 * @param int    $block_clicks Clicks on the block.
+	 * @param int    $clicks       Total clicks.
+	 * @param int    $views        Total views.
 	 * @return array<string, mixed>
 	 */
-	private static function block_row( string $id, string $title, string $type, int $n, int $clicks, int $views ): array {
+	private static function block_row( string $id, string $title, string $type, int $block_clicks, int $clicks, int $views ): array {
 		return [
 			'block_id' => $id,
 			'title'    => $title,
 			'type'     => $type,
-			'clicks'   => $n,
-			'share'    => $clicks > 0 ? round( $n / $clicks, 4 ) : 0.0,
-			'ctr'      => $views > 0 ? round( $n / $views, 4 ) : null,
+			'clicks'   => $block_clicks,
+			'share'    => self::share( $block_clicks, $clicks ),
+			'ctr'      => $views > 0 ? round( $block_clicks / $views, 4 ) : null,
 		];
 	}
 
 	/**
-	 * Per-platform rows of a Socials block, most clicked first: every web-link icon on the block (zero
-	 * clicks included; mailto and the like open directly and are never counted), then icons that were removed but have clicks, then clicks logged before item ids
-	 * were stored. Two icons for the same platform are told apart by their URL.
+	 * One row under a block: a social icon or a listed product.
+	 *
+	 * @param string $id          Item id, or ''.
+	 * @param string $network     Social network key, or ''.
+	 * @param string $title       Title.
+	 * @param int    $item_clicks Clicks on the item.
+	 * @param int    $clicks      Total clicks on the page.
+	 * @return array{item_id:string, network:string, title:string, clicks:int, share:float}
+	 */
+	private static function item_row( string $id, string $network, string $title, int $item_clicks, int $clicks ): array {
+		return [
+			'item_id' => $id,
+			'network' => $network,
+			'title'   => $title,
+			'clicks'  => $item_clicks,
+			'share'   => self::share( $item_clicks, $clicks ),
+		];
+	}
+
+	/**
+	 * A part of a total as a ratio (0.0 when the total is 0).
+	 *
+	 * @param int $part  Part.
+	 * @param int $total Total.
+	 */
+	private static function share( int $part, int $total ): float {
+		return $total > 0 ? round( $part / $total, 4 ) : 0.0;
+	}
+
+	/**
+	 * Title shown for clicks on a block that is no longer on the page.
+	 */
+	private static function removed_block_title(): string {
+		return __( '(removed block)', 'crazylinks' );
+	}
+
+	/**
+	 * Per-platform rows of a Socials block, most clicked first: every web-link icon on the block
+	 * (zero clicks included; mailto and the like open directly and are never counted), then icons
+	 * that were removed but have clicks, then clicks logged before item ids were stored. Two icons
+	 * for the same platform are told apart by their URL.
 	 *
 	 * @param array<string, mixed> $block    Socials block.
 	 * @param array<string, int>   $per_item Clicks by item id ('' = no item recorded).
@@ -283,15 +420,13 @@ final class Summary {
 	 * @return array<int, array{item_id:string, network:string, title:string, clicks:int, share:float}>
 	 */
 	private static function social_items( array $block, array $per_item, int $clicks ): array {
-		$items = array_values( array_filter( (array) ( $block['props']['items'] ?? [] ), static fn( $i ) => is_array( $i ) && ! empty( $i['url'] ) && UrlPolicy::is_web( (string) $i['url'] ) ) );
-		$count = array_count_values( array_map( static fn( $i ) => (string) ( $i['network'] ?? '' ), $items ) );
-		$row   = static fn( string $id, string $network, string $title, int $n ): array => [
-			'item_id' => $id,
-			'network' => $network,
-			'title'   => $title,
-			'clicks'  => $n,
-			'share'   => $clicks > 0 ? round( $n / $clicks, 4 ) : 0.0,
-		];
+		$items = array_values(
+			array_filter(
+				(array) ( $block['props']['items'] ?? [] ),
+				static fn( $item ) => is_array( $item ) && ! empty( $item['url'] ) && UrlPolicy::is_web( (string) $item['url'] )
+			)
+		);
+		$count = array_count_values( array_map( static fn( $item ) => (string) ( $item['network'] ?? '' ), $items ) );
 		$rows  = [];
 		foreach ( $items as $item ) {
 			$id      = (string) ( $item['id'] ?? '' );
@@ -300,7 +435,7 @@ final class Summary {
 			if ( ( $count[ $network ] ?? 0 ) > 1 ) {
 				$title .= ' (' . (string) preg_replace( '#^https?://(www\.)?#i', '', (string) $item['url'] ) . ')';
 			}
-			$rows[] = $row( $id, $network, $title, '' !== $id ? ( $per_item[ $id ] ?? 0 ) : 0 );
+			$rows[] = self::item_row( $id, $network, $title, '' !== $id ? ( $per_item[ $id ] ?? 0 ) : 0, $clicks );
 			if ( '' !== $id ) {
 				unset( $per_item[ $id ] );
 			}
@@ -308,14 +443,14 @@ final class Summary {
 		$unknown = $per_item[''] ?? 0;
 		unset( $per_item[''] );
 		if ( $per_item ) {
-			$rows[] = $row( '', '', __( '(removed icons)', 'crazylinks' ), (int) array_sum( $per_item ) );
+			$rows[] = self::item_row( '', '', __( '(removed icons)', 'crazylinks' ), (int) array_sum( $per_item ), $clicks );
 		}
 		usort(
 			$rows,
 			static fn( $a, $b ) => $b['clicks'] <=> $a['clicks']
 		);
 		if ( $unknown > 0 ) {
-			$rows[] = $row( '', '', __( 'Earlier clicks (platform not recorded)', 'crazylinks' ), $unknown );
+			$rows[] = self::item_row( '', '', __( 'Earlier clicks (platform not recorded)', 'crazylinks' ), $unknown, $clicks );
 		}
 		return $rows;
 	}
@@ -332,52 +467,26 @@ final class Summary {
 	 */
 	private static function product_items( array $block, array $per_item, int $clicks ): array {
 		$props = (array) ( $block['props'] ?? [] );
-		$row   = static fn( string $id, string $title, int $n ): array => [
-			'item_id' => $id,
-			'network' => '',
-			'title'   => $title,
-			'clicks'  => $n,
-			'share'   => $clicks > 0 ? round( $n / $clicks, 4 ) : 0.0,
-		];
 		$rows  = [];
 		arsort( $per_item );
-		foreach ( $per_item as $id => $n ) {
+		foreach ( $per_item as $id => $item_clicks ) {
 			$id = (string) $id;
 			if ( '' === $id ) {
 				continue;
 			}
 			$product = ctype_digit( $id ) ? Store::known_product( (int) $id, 'latest', (int) ( $props['count'] ?? 3 ), (string) ( $props['category'] ?? '' ) ) : null;
-			/* translators: %s: product id. */
-			$rows[] = $row( $id, $product && '' !== (string) $product['name'] ? (string) $product['name'] : sprintf( __( 'Product #%s (no longer listed)', 'crazylinks' ), $id ), $n );
+			$name    = $product ? (string) $product['name'] : '';
+			if ( '' === $name ) {
+				/* translators: %s: product id. */
+				$name = sprintf( __( 'Product #%s (no longer listed)', 'crazylinks' ), $id );
+			}
+			$rows[] = self::item_row( $id, '', $name, $item_clicks, $clicks );
 		}
 		if ( ( $per_item[''] ?? 0 ) > 0 ) {
-			$rows[] = $row( '', __( 'Earlier clicks (product not recorded)', 'crazylinks' ), $per_item[''] );
+			$rows[] = self::item_row( '', '', __( 'Earlier clicks (product not recorded)', 'crazylinks' ), $per_item[''], $clicks );
 		}
 		return $rows;
 	}
-
-	/**
-	 * Known platforms for traffic sources: key => [ label, host pattern, utm_source aliases ].
-	 * In-app browser tokens (Visitor::in_app()) are keys here too.
-	 */
-	private const PLATFORMS = [
-		'instagram'  => [ 'Instagram', '/(^|\.)instagram\.com$/', [ 'ig', 'insta' ] ],
-		'facebook'   => [ 'Facebook', '/(^|\.)(facebook\.com|fb\.com|fb\.me|messenger\.com)$/', [ 'fb', 'meta' ] ],
-		'tiktok'     => [ 'TikTok', '/(^|\.)tiktok\.com$/', [ 'tt' ] ],
-		'youtube'    => [ 'YouTube', '/(^|\.)(youtube\.com|youtu\.be)$/', [ 'yt' ] ],
-		'twitter'    => [ 'X (Twitter)', '/(^|\.)(twitter\.com|x\.com|t\.co)$/', [ 'x' ] ],
-		'threads'    => [ 'Threads', '/(^|\.)threads\.(net|com)$/', [] ],
-		'bluesky'    => [ 'Bluesky', '/(^|\.)bsky\.(app|social)$/', [ 'bsky' ] ],
-		'linkedin'   => [ 'LinkedIn', '/(^|\.)(linkedin\.com|lnkd\.in)$/', [] ],
-		'pinterest'  => [ 'Pinterest', '/(^|\.)(pinterest\.[a-z.]+|pin\.it)$/', [] ],
-		'snapchat'   => [ 'Snapchat', '/(^|\.)snapchat\.com$/', [ 'snap' ] ],
-		'reddit'     => [ 'Reddit', '/(^|\.)(reddit\.com|redd\.it)$/', [] ],
-		'twitch'     => [ 'Twitch', '/(^|\.)twitch\.tv$/', [] ],
-		'discord'    => [ 'Discord', '/(^|\.)(discord\.com|discord\.gg|discordapp\.com)$/', [] ],
-		'google'     => [ 'Google', '/(^|\.)google\.[a-z.]+$/', [] ],
-		'bing'       => [ 'Bing', '/(^|\.)bing\.com$/', [] ],
-		'duckduckgo' => [ 'DuckDuckGo', '/(^|\.)duckduckgo\.com$/', [ 'ddg' ] ],
-	];
 
 	/**
 	 * Names one traffic source. Order: the campaign tag the owner put on the link (utm_source), then
@@ -417,8 +526,8 @@ final class Summary {
 	}
 
 	/**
-	 * Views and clicks per traffic source, most clicks first, each with its three most clicked
-	 * links (raw events only, so the retention window applies).
+	 * Views and clicks per traffic source, most clicks first, each with its most clicked links
+	 * (raw events only, so the retention window applies).
 	 *
 	 * A view knows where it came from (campaign tag, in-app browser, referrer). A click does not:
 	 * it is a request from the link page itself. So each click takes the source of the same
@@ -434,14 +543,13 @@ final class Summary {
 	 */
 	private static function sources( int $page_id, string $from, string $to, array $block_rows ): array {
 		global $wpdb;
-		$start  = $from . ' 00:00:00';
-		$end    = gmdate( 'Y-m-d', (int) strtotime( $to . ' UTC +1 day' ) ) . ' 00:00:00';
-		$events = $wpdb->prefix . 'crazylinks_events';
-		$out    = [];
-		$links  = [];
-		$bucket = static function ( string $utm, string $in_app, string $host, bool $matched ) use ( &$out ): string {
-			[ $key, $label ] = self::source_name( $utm, $in_app, $host, $matched );
-			$out[ $key ]   ??= [
+		[ $start, $end ] = self::day_bounds( $from, $to );
+		$events          = self::events_table();
+		$sources         = [];
+		$links           = [];
+		$bucket          = static function ( string $utm, string $in_app, string $host, bool $matched ) use ( &$sources ): string {
+			[ $key, $label ]   = self::source_name( $utm, $in_app, $host, $matched );
+			$sources[ $key ] ??= [
 				'source' => $key,
 				'label'  => $label,
 				'views'  => 0,
@@ -451,66 +559,73 @@ final class Summary {
 			];
 			return $key;
 		};
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		foreach ( (array) $wpdb->get_results(
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table; the report is built per request.
+		$view_rows  = (array) $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT COALESCE(utm_source, '') AS utm, COALESCE(in_app, '') AS in_app, COALESCE(referrer_host, '') AS host, COUNT(*) AS n
-				FROM {$events} WHERE page_id = %d AND type = 'view' AND ts >= %s AND ts < %s
+				FROM %i WHERE page_id = %d AND type = 'view' AND ts >= %s AND ts < %s
 				GROUP BY COALESCE(utm_source, ''), COALESCE(in_app, ''), COALESCE(referrer_host, '')",
+				$events,
 				$page_id,
 				$start,
 				$end
 			),
 			ARRAY_A
-		) as $r ) {
-			$out[ $bucket( (string) $r['utm'], (string) $r['in_app'], (string) $r['host'], true ) ]['views'] += (int) $r['n'];
-		}
-		foreach ( (array) $wpdb->get_results(
+		);
+		$click_rows = (array) $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT block_id, item_id, utm, in_app, host, matched, COUNT(*) AS n FROM (
 					SELECT COALESCE(c.block_id, '') AS block_id, COALESCE(c.item_id, '') AS item_id, COALESCE(v.utm_source, '') AS utm,
 						COALESCE(v.in_app, c.in_app, '') AS in_app, COALESCE(v.referrer_host, '') AS host, (v.id IS NOT NULL) AS matched
-					FROM {$events} c LEFT JOIN {$events} v ON v.id = (
-						SELECT v2.id FROM {$events} v2
+					FROM %i c LEFT JOIN %i v ON v.id = (
+						SELECT v2.id FROM %i v2
 						WHERE v2.page_id = c.page_id AND v2.type = 'view' AND v2.visitor_hash = c.visitor_hash AND v2.ts <= c.ts AND v2.ts >= DATE(c.ts)
 						ORDER BY v2.ts DESC, v2.id DESC LIMIT 1
 					)
 					WHERE c.page_id = %d AND c.type = 'click' AND c.ts >= %s AND c.ts < %s
 				) t GROUP BY block_id, item_id, utm, in_app, host, matched",
+				$events,
+				$events,
+				$events,
 				$page_id,
 				$start,
 				$end
 			),
 			ARRAY_A
-		) as $r ) {
-			$key                    = $bucket( (string) $r['utm'], (string) $r['in_app'], (string) $r['host'], (bool) $r['matched'] );
-			$link                   = $r['block_id'] . '|' . $r['item_id'];
-			$out[ $key ]['clicks'] += (int) $r['n'];
-			$links[ $key ][ $link ] = ( $links[ $key ][ $link ] ?? 0 ) + (int) $r['n'];
-		}
+		);
 		// phpcs:enable
+		foreach ( $view_rows as $row ) {
+			$key                       = $bucket( (string) $row['utm'], (string) $row['in_app'], (string) $row['host'], true );
+			$sources[ $key ]['views'] += (int) $row['n'];
+		}
+		foreach ( $click_rows as $row ) {
+			$key                        = $bucket( (string) $row['utm'], (string) $row['in_app'], (string) $row['host'], (bool) $row['matched'] );
+			$link                       = $row['block_id'] . '|' . $row['item_id'];
+			$sources[ $key ]['clicks'] += (int) $row['n'];
+			$links[ $key ][ $link ]     = ( $links[ $key ][ $link ] ?? 0 ) + (int) $row['n'];
+		}
 
 		$titles = self::link_titles( $block_rows );
-		foreach ( $out as $key => $row ) {
-			$out[ $key ]['ctr'] = $row['views'] > 0 ? round( $row['clicks'] / $row['views'], 4 ) : null;
-			$top                = $links[ $key ] ?? [];
+		foreach ( $sources as $key => $source ) {
+			$sources[ $key ]['ctr'] = $source['views'] > 0 ? round( $source['clicks'] / $source['views'], 4 ) : null;
+			$top                    = $links[ $key ] ?? [];
 			arsort( $top );
-			foreach ( array_slice( $top, 0, 3, true ) as $link => $n ) {
-				[ $block_id, $item_id ] = explode( '|', (string) $link, 2 );
-				$out[ $key ]['top'][]   = [
+			foreach ( array_slice( $top, 0, self::TOP_LINKS, true ) as $link => $link_clicks ) {
+				[ $block_id, $item_id ]   = explode( '|', (string) $link, 2 );
+				$sources[ $key ]['top'][] = [
 					'block_id' => $block_id,
 					'item_id'  => $item_id,
-					'title'    => $titles[ $link ] ?? $titles[ $block_id . '|' ] ?? __( '(removed block)', 'crazylinks' ),
-					'clicks'   => $n,
+					'title'    => self::link_title( $titles, $block_id, $item_id ),
+					'clicks'   => $link_clicks,
 				];
 			}
 		}
-		$out = array_values( $out );
+		$sources = array_values( $sources );
 		usort(
-			$out,
+			$sources,
 			static fn( $a, $b ) => [ $b['clicks'], $b['views'] ] <=> [ $a['clicks'], $a['views'] ]
 		);
-		return $out;
+		return $sources;
 	}
 
 	/**
@@ -531,6 +646,17 @@ final class Summary {
 			}
 		}
 		return $titles;
+	}
+
+	/**
+	 * The name of what was clicked: the item's title, else its block's, else "(removed block)".
+	 *
+	 * @param array<string, string> $titles   Titles from link_titles().
+	 * @param string                $block_id Block id.
+	 * @param string                $item_id  Item id, or ''.
+	 */
+	public static function link_title( array $titles, string $block_id, string $item_id = '' ): string {
+		return $titles[ $block_id . '|' . $item_id ] ?? $titles[ $block_id . '|' ] ?? self::removed_block_title();
 	}
 
 	/**
@@ -568,9 +694,8 @@ final class Summary {
 	 */
 	private static function breakdowns( int $page_id, string $from, string $to ): array {
 		global $wpdb;
-		$start = $from . ' 00:00:00';
-		$end   = gmdate( 'Y-m-d', (int) strtotime( $to . ' UTC +1 day' ) ) . ' 00:00:00';
-		$out   = [
+		[ $start, $end ] = self::day_bounds( $from, $to );
+		$breakdowns      = [
 			'device'   => [
 				'mobile'  => 0,
 				'tablet'  => 0,
@@ -580,41 +705,46 @@ final class Summary {
 			'in_app'   => [],
 			'referrer' => [],
 		];
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$cols = [
+		$columns         = [
 			'device' => 'device',
 			'os'     => "COALESCE(os, 'other')",
 			'in_app' => "COALESCE(in_app, 'none')",
 		];
-		foreach ( $cols as $key => $expr ) {
-			foreach ( (array) $wpdb->get_results(
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table; the report is built per request.
+		foreach ( $columns as $key => $expression ) {
+			$counts = (array) $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT {$expr} AS k, COUNT(*) AS n FROM {$wpdb->prefix}crazylinks_events WHERE page_id = %d AND type = 'view' AND ts >= %s AND ts < %s GROUP BY k ORDER BY n DESC",
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $expression is one of the fixed column expressions above.
+					"SELECT {$expression} AS k, COUNT(*) AS n FROM %i WHERE page_id = %d AND type = 'view' AND ts >= %s AND ts < %s GROUP BY k ORDER BY n DESC",
+					self::events_table(),
 					$page_id,
 					$start,
 					$end
 				),
 				ARRAY_A
-			) as $r ) {
-				$out[ $key ][ (string) $r['k'] ] = (int) $r['n'];
+			);
+			foreach ( $counts as $row ) {
+				$breakdowns[ $key ][ (string) $row['k'] ] = (int) $row['n'];
 			}
 		}
-		foreach ( (array) $wpdb->get_results(
+		$referrers = (array) $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT COALESCE(referrer_host, '') AS k, COUNT(*) AS n FROM {$wpdb->prefix}crazylinks_events WHERE page_id = %d AND type = 'view' AND ts >= %s AND ts < %s GROUP BY k ORDER BY n DESC LIMIT 10",
+				"SELECT COALESCE(referrer_host, '') AS k, COUNT(*) AS n FROM %i WHERE page_id = %d AND type = 'view' AND ts >= %s AND ts < %s GROUP BY k ORDER BY n DESC LIMIT 10",
+				self::events_table(),
 				$page_id,
 				$start,
 				$end
 			),
 			ARRAY_A
-		) as $r ) {
-			$out['referrer'][] = [
-				'host'  => '' === $r['k'] ? '(direct)' : (string) $r['k'],
-				'count' => (int) $r['n'],
+		);
+		// phpcs:enable
+		foreach ( $referrers as $row ) {
+			$breakdowns['referrer'][] = [
+				'host'  => '' === $row['k'] ? __( '(direct)', 'crazylinks' ) : (string) $row['k'],
+				'count' => (int) $row['n'],
 			];
 		}
-		// phpcs:enable
-		return $out;
+		return $breakdowns;
 	}
 
 	/**
@@ -624,14 +754,14 @@ final class Summary {
 	 */
 	private static function first_event_day( int $page_id ): ?string {
 		global $wpdb;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$ts = $wpdb->get_var( $wpdb->prepare( "SELECT MIN(ts) FROM {$wpdb->prefix}crazylinks_events WHERE page_id = %d", $page_id ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table; the report is built per request.
+		$ts = $wpdb->get_var( $wpdb->prepare( 'SELECT MIN(ts) FROM %i WHERE page_id = %d', self::events_table(), $page_id ) );
 		return $ts ? substr( (string) $ts, 0, 10 ) : null;
 	}
 
 	/**
-	 * Views and clicks over the last 30 days (UTC, including today) for every page, cached in a
-	 * transient that the rollup clears (and that expires after 15 minutes so today's numbers move).
+	 * Views and clicks over the last TOTALS_DAYS days (UTC, including today) for every page, cached
+	 * in a transient that the rollup clears and that expires after TOTALS_TTL.
 	 *
 	 * @return array<int, array{views:int, clicks:int}>
 	 */
@@ -641,18 +771,19 @@ final class Summary {
 			return $cached;
 		}
 		$totals = [];
-		foreach ( self::rows( null, gmdate( 'Y-m-d', time() - 29 * DAY_IN_SECONDS ), gmdate( 'Y-m-d' ) ) as $r ) {
-			$totals[ $r['page_id'] ] ??= [
+		$from   = gmdate( 'Y-m-d', time() - ( self::TOTALS_DAYS - 1 ) * DAY_IN_SECONDS );
+		foreach ( self::rows( null, $from, gmdate( 'Y-m-d' ) ) as $row ) {
+			$totals[ $row['page_id'] ] ??= [
 				'views'  => 0,
 				'clicks' => 0,
 			];
-			if ( 'view' === $r['type'] ) {
-				$totals[ $r['page_id'] ]['views'] += $r['count'];
-			} else {
-				$totals[ $r['page_id'] ]['clicks'] += $r['count'];
+			if ( 'view' === $row['type'] ) {
+				$totals[ $row['page_id'] ]['views'] += $row['count'];
+			} elseif ( 'click' === $row['type'] ) {
+				$totals[ $row['page_id'] ]['clicks'] += $row['count'];
 			}
 		}
-		set_transient( self::TOTALS_TRANSIENT, $totals, 15 * MINUTE_IN_SECONDS );
+		set_transient( self::TOTALS_TRANSIENT, $totals, self::TOTALS_TTL );
 		return $totals;
 	}
 
@@ -664,80 +795,52 @@ final class Summary {
 	}
 
 	/**
-	 * Summary for a page over the last N days (including today), UTC.
+	 * Summary for a page over the last N days (including today), UTC: totals, clicks per block
+	 * (most clicked first) and the days that have any views or clicks.
 	 *
 	 * @param int $page_id Page id.
 	 * @param int $days    Days.
 	 * @return array<string, mixed>
 	 */
 	public static function for_page( int $page_id, int $days ): array {
-		global $wpdb;
-		$days  = max( 1, min( 3650, $days ) );
+		$days  = max( 1, min( self::FOR_PAGE_MAX_DAYS, $days ) );
 		$today = gmdate( 'Y-m-d' );
 		$from  = gmdate( 'Y-m-d', time() - ( $days - 1 ) * DAY_IN_SECONDS );
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$rolled = (array) $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT block_id, day, type, count, uniques FROM {$wpdb->prefix}crazylinks_daily WHERE page_id = %d AND day >= %s AND day < %s",
-				$page_id,
-				$from,
-				$today
-			),
-			ARRAY_A
-		);
-		$live   = (array) $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT COALESCE(block_id, '') AS block_id, DATE(ts) AS day, type, COUNT(*) AS count, COUNT(DISTINCT visitor_hash) AS uniques
-				FROM {$wpdb->prefix}crazylinks_events WHERE page_id = %d AND ts >= %s GROUP BY COALESCE(block_id, ''), DATE(ts), type",
-				$page_id,
-				$today . ' 00:00:00'
-			),
-			ARRAY_A
-		);
-		// phpcs:enable
-
-		$totals = [
-			'view'  => 0,
-			'click' => 0,
-		];
-		$uniq   = 0;
-		$daily  = [];
-		$blocks = [];
-		foreach ( array_merge( $rolled, $live ) as $row ) {
-			$type  = (string) $row['type'];
-			$count = (int) $row['count'];
-			$day   = (string) $row['day'];
-			if ( ! isset( $daily[ $day ] ) ) {
-				$daily[ $day ] = [
-					'day'    => $day,
-					'views'  => 0,
-					'clicks' => 0,
-				];
-			}
-			if ( 'view' === $type ) {
-				$totals['view']         += $count;
-				$uniq                   += (int) $row['uniques'];
-				$daily[ $day ]['views'] += $count;
-			} elseif ( 'click' === $type ) {
-				$totals['click']         += $count;
-				$daily[ $day ]['clicks'] += $count;
-				$bid                      = (string) $row['block_id'];
-				$blocks[ $bid ]           = ( $blocks[ $bid ] ?? 0 ) + $count;
+		$views     = 0;
+		$clicks    = 0;
+		$uniques   = 0;
+		$daily     = [];
+		$per_block = [];
+		foreach ( self::rows( $page_id, $from, $today ) as $row ) {
+			$day             = $row['day'];
+			$daily[ $day ] ??= [
+				'day'    => $day,
+				'views'  => 0,
+				'clicks' => 0,
+			];
+			if ( 'view' === $row['type'] ) {
+				$views                  += $row['count'];
+				$uniques                += $row['uniques'];
+				$daily[ $day ]['views'] += $row['count'];
+			} elseif ( 'click' === $row['type'] ) {
+				$clicks                       += $row['count'];
+				$daily[ $day ]['clicks']      += $row['count'];
+				$per_block[ $row['block_id'] ] = ( $per_block[ $row['block_id'] ] ?? 0 ) + $row['count'];
 			}
 		}
 		ksort( $daily );
-		arsort( $blocks );
+		arsort( $per_block );
 
 		$doc        = PageStore::get_document( $page_id ) ?? [];
 		$block_rows = [];
-		foreach ( $blocks as $bid => $count ) {
-			$block        = PageStore::find_block( $doc, (string) $bid );
+		foreach ( $per_block as $block_id => $block_clicks ) {
+			$block        = PageStore::find_block( $doc, (string) $block_id );
 			$block_rows[] = [
-				'block_id' => (string) $bid,
+				'block_id' => (string) $block_id,
 				'title'    => (string) ( $block['props']['title'] ?? $block['props']['alt'] ?? '' ),
-				'clicks'   => $count,
-				'ctr'      => $totals['view'] > 0 ? round( $count / $totals['view'], 4 ) : null,
+				'clicks'   => $block_clicks,
+				'ctr'      => $views > 0 ? round( $block_clicks / $views, 4 ) : null,
 			];
 		}
 
@@ -748,10 +851,10 @@ final class Summary {
 				'to'   => $today,
 				'days' => $days,
 			],
-			'views'   => $totals['view'],
-			'uniques' => $uniq,
-			'clicks'  => $totals['click'],
-			'ctr'     => $totals['view'] > 0 ? round( $totals['click'] / $totals['view'], 4 ) : null,
+			'views'   => $views,
+			'uniques' => $uniques,
+			'clicks'  => $clicks,
+			'ctr'     => $views > 0 ? round( $clicks / $views, 4 ) : null,
 			'blocks'  => $block_rows,
 			'daily'   => array_values( $daily ),
 		];

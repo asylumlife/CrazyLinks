@@ -82,7 +82,7 @@ final class PostType {
 	 * Link pages are reachable only one at a time, through their own URL. Because the type is publicly
 	 * queryable, WordPress would otherwise list every published page, stored JSON included, in
 	 * `?post_type=crazylinks_page` archives, searches and feeds, which shows hidden and not-yet-scheduled
-	 * blocks to anyone (2026-11-06 review). Front-end main queries that are not for a single page drop
+	 * blocks to anyone. Front-end main queries that are not for a single page drop
 	 * the type; when it was the only type asked for, they match nothing.
 	 *
 	 * @param mixed $query The query (WP_Query).

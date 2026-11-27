@@ -123,7 +123,7 @@ final class RenderContext {
 		if ( '' === $url ) {
 			return '';
 		}
-		if ( $this->track && ! empty( $block['tracking'] ) && UrlPolicy::is_web( $url ) && '' !== $this->slug ) {
+		if ( $this->tracks( $block ) && UrlPolicy::is_web( $url ) ) {
 			return Router::go_path( $this->slug, (string) $block['id'] );
 		}
 		return Utm::apply( $url, $this->settings, $this->slug );
@@ -134,14 +134,14 @@ final class RenderContext {
 	 * URLs of items that have an id, otherwise the URL itself.
 	 *
 	 * @param array<string, mixed> $block   Block.
-	 * @param string               $item_id Item id ('' for legacy items without one).
+	 * @param string               $item_id Item id ('' when the item has none).
 	 * @param string               $url     Stored URL.
 	 */
 	public function item_href( array $block, string $item_id, string $url ): string {
 		if ( '' === $url ) {
 			return '';
 		}
-		if ( $this->track && '' !== $item_id && ! empty( $block['tracking'] ) && UrlPolicy::is_web( $url ) && '' !== $this->slug ) {
+		if ( '' !== $item_id && $this->tracks( $block ) && UrlPolicy::is_web( $url ) ) {
 			return Router::go_path( $this->slug, (string) $block['id'], $item_id );
 		}
 		return Utm::apply( $url, $this->settings, $this->slug );
@@ -159,11 +159,21 @@ final class RenderContext {
 		if ( '' === $url ) {
 			return '';
 		}
-		if ( $this->track && ! empty( $block['tracking'] ) && '' !== $this->slug ) {
+		if ( $this->tracks( $block ) ) {
 			$latest = 'latest' === ( $block['props']['mode'] ?? 'single' );
 			return Router::go_path( $this->slug, (string) $block['id'], $latest ? (string) $product_id : '' );
 		}
 		return Utm::apply( $url, $this->settings, $this->slug );
+	}
+
+	/**
+	 * Whether clicks on a block go through the /go/ redirect: the page logs clicks, the block has
+	 * tracking on, and the page has a slug to build the redirect path from.
+	 *
+	 * @param array<string, mixed> $block Block.
+	 */
+	private function tracks( array $block ): bool {
+		return $this->track && ! empty( $block['tracking'] ) && '' !== $this->slug;
 	}
 
 	/**

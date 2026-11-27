@@ -84,7 +84,7 @@ final class PageStore {
 	 * @param mixed         $post     Page.
 	 * @param string        $block_id Block id ('' = first matching block of the given types).
 	 * @param string[]      $types    Allowed block types.
-	 * @param callable|null $accept Extra per-block test (e.g. props.vcard), receives the block.
+	 * @param callable|null $accept   Extra per-block test (e.g. props.vcard), receives the block.
 	 * @return array<string, mixed>|null
 	 */
 	public static function reachable_block( $post, string $block_id, array $types, ?callable $accept = null ): ?array {
@@ -121,7 +121,25 @@ final class PageStore {
 	 * @param array<int, array{path:string, message:string}> $errors Errors.
 	 */
 	public static function remember_errors( int $post_id, array $errors ): void {
-		set_transient( 'crazylinks_errors_' . get_current_user_id() . '_' . $post_id, $errors, 5 * MINUTE_IN_SECONDS );
+		set_transient( self::errors_key( $post_id ), $errors, 5 * MINUTE_IN_SECONDS );
+	}
+
+	/**
+	 * Whether validation errors from the current user's last save are waiting to be shown.
+	 *
+	 * @param int $post_id Page id.
+	 */
+	public static function has_errors( int $post_id ): bool {
+		return false !== get_transient( self::errors_key( $post_id ) );
+	}
+
+	/**
+	 * Transient name for the current user's validation errors on a post.
+	 *
+	 * @param int $post_id Post id.
+	 */
+	private static function errors_key( int $post_id ): string {
+		return 'crazylinks_errors_' . get_current_user_id() . '_' . $post_id;
 	}
 
 	/**
@@ -131,7 +149,7 @@ final class PageStore {
 	 * @return array<int, array{path:string, message:string}>
 	 */
 	public static function pop_errors( int $post_id ): array {
-		$key    = 'crazylinks_errors_' . get_current_user_id() . '_' . $post_id;
+		$key    = self::errors_key( $post_id );
 		$errors = get_transient( $key );
 		delete_transient( $key );
 		return is_array( $errors ) ? $errors : [];

@@ -2,9 +2,10 @@
  * Store product picker: an async select fed by GET /crazylinks/v1/store/products. Shows the
  * product id, name and price; stores the product id.
  */
-import { __ } from '@wordpress/i18n';
-import { useEffect, useMemo, useRef, useState } from '@wordpress/element';
+import { __, sprintf } from '@wordpress/i18n';
+import { useEffect, useMemo, useState } from '@wordpress/element';
 import { ComboboxControl } from '@wordpress/components';
+import FieldError from './FieldError';
 import { api } from '../lib/api';
 import type { StoreProduct } from '../lib/api';
 
@@ -16,8 +17,11 @@ interface Props {
 	error?: string;
 }
 
+const SEARCH_DEBOUNCE_MS = 300;
+const SEARCH_PAGE_SIZE = 20;
+
 /** Option label: "#12 Name (price)". */
-export function productLabel( p: StoreProduct ): string {
+function productLabel( p: StoreProduct ): string {
 	return `#${ p.id } ${ p.name }${ p.price ? ` (${ p.price })` : '' }`;
 }
 
@@ -30,35 +34,39 @@ export default function ProductField( {
 }: Props ) {
 	const [ found, setFound ] = useState< StoreProduct[] >( [] );
 	const [ current, setCurrent ] = useState< StoreProduct | null >( null );
+	// The id whose lookup by id has finished, whether or not the store knew it.
+	const [ lookedUp, setLookedUp ] = useState< number | null >( null );
 	const [ term, setTerm ] = useState( '' );
 	const [ available, setAvailable ] = useState( true );
 	const [ failed, setFailed ] = useState( false );
-	const timer = useRef< number | undefined >();
 
 	// Search as the person types (debounced); an empty term lists the newest products.
 	useEffect( () => {
-		const ctl = new AbortController();
-		window.clearTimeout( timer.current );
-		timer.current = window.setTimeout( () => {
-			api.storeProducts( { search: term, perPage: 20 }, ctl.signal )
+		const controller = new AbortController();
+		const timer = window.setTimeout( () => {
+			api.storeProducts(
+				{ search: term, perPage: SEARCH_PAGE_SIZE },
+				controller.signal
+			)
 				.then( ( res ) => {
 					setFound( res.products );
 					setAvailable( res.available );
 					setFailed( false );
 				} )
 				.catch( () => {
-					if ( ! ctl.signal.aborted ) {
+					if ( ! controller.signal.aborted ) {
 						setFailed( true );
 					}
 				} );
-		}, 300 );
+		}, SEARCH_DEBOUNCE_MS );
 		return () => {
-			ctl.abort();
-			window.clearTimeout( timer.current );
+			controller.abort();
+			window.clearTimeout( timer );
 		};
 	}, [ term ] );
 
-	// Resolve the saved id to a name, so the selection reads well before any search.
+	// Resolve the saved id to a name, so the selection reads well before any search. Each id is
+	// looked up once: an id the store does not know stays unresolved.
 	useEffect( () => {
 		if ( ! value ) {
 			setCurrent( null );
@@ -72,18 +80,23 @@ export default function ProductField( {
 			setCurrent( known );
 			return;
 		}
+		if ( lookedUp === value ) {
+			return;
+		}
 		let live = true;
 		api.storeProducts( { include: value } )
-			.then( ( res ) => {
+			.then( ( res ) => res.products[ 0 ] ?? null )
+			.catch( () => null )
+			.then( ( product ) => {
 				if ( live ) {
-					setCurrent( res.products[ 0 ] ?? null );
+					setCurrent( product );
+					setLookedUp( value );
 				}
-			} )
-			.catch( () => undefined );
+			} );
 		return () => {
 			live = false;
 		};
-	}, [ value, found, current ] );
+	}, [ value, found, current, lookedUp ] );
 
 	const options = useMemo( () => {
 		const list = [ ...found ];
@@ -104,12 +117,12 @@ export default function ProductField( {
 		);
 	} else if ( failed ) {
 		note = __( 'Could not load products.', 'crazylinks' );
-	} else if ( value && ! current ) {
-		/* translators: %d: product id. */
-		note = __(
-			'Product #%d is not in the store list.',
-			'crazylinks'
-		).replace( '%d', String( value ) );
+	} else if ( value && ! current && lookedUp === value ) {
+		note = sprintf(
+			/* translators: %d: product id. */
+			__( 'Product #%d is not in the store list.', 'crazylinks' ),
+			value
+		);
 	}
 
 	return (
@@ -133,7 +146,7 @@ export default function ProductField( {
 					}
 				} }
 			/>
-			{ error && <p className="cl-field-error">{ error }</p> }
+			<FieldError message={ error } />
 		</div>
 	);
 }

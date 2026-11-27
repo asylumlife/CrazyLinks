@@ -1,6 +1,7 @@
 /**
  * WCAG 2.1 contrast ratio for hex colours (editor warnings below 4.5:1, SPEC §5).
  */
+import { isPlainObject } from './paths';
 
 /**
  * RGB channels of a #rgb, #rgba, #rrggbb or #rrggbbaa colour, or null.
@@ -59,7 +60,10 @@ export function contrast( a: string, b: string ): number | null {
 }
 
 export const AA_BODY = 4.5;
-export const AA_LARGE = 3;
+const AA_LARGE = 3;
+
+/** Positions along a gradient where its colour is sampled for contrast checks. */
+const GRADIENT_STOPS = [ 0, 0.25, 0.5, 0.75, 1 ];
 
 function hex2( n: number ): string {
 	return Math.round( Math.max( 0, Math.min( 255, n ) ) )
@@ -123,6 +127,18 @@ export interface ContrastIssue {
 }
 
 /**
+ * Colours the page background takes: the solid colour, or samples along the gradient.
+ *
+ * @param t Resolved colour tokens.
+ */
+export function backgroundSamples( t: ColorTokens ): string[] {
+	const { bg, bgTo } = t;
+	return bgTo
+		? GRADIENT_STOPS.map( ( stop ) => blend( bgTo, bg, stop ) )
+		: [ bg ];
+}
+
+/**
  * The text/background pairs of a resolved design that fall below their WCAG minimum: body text,
  * headings (large text, 3:1), muted text on the page and on cards, button text on the button, and
  * the badge. A gradient background is sampled along its length, as the server-side check does.
@@ -156,10 +172,7 @@ export function contrastIssues(
 			min,
 		} );
 	};
-	const samples = t.bgTo
-		? [ 0, 0.25, 0.5, 0.75, 1 ].map( ( o ) => blend( t.bgTo!, t.bg, o ) )
-		: [ t.bg ];
-	for ( const s of samples ) {
+	for ( const s of backgroundSamples( t ) ) {
 		check( 'text', t.text, s );
 		check( 'headings', t.text, s, AA_LARGE );
 		check( 'muted', t.muted, s );
@@ -212,9 +225,7 @@ export function sectionSamples( bg: Bg ): string[] {
 		case 'gradient': {
 			const from = isHex( bg.from ) ? bg.from : '#ffffff';
 			const to = isHex( bg.to ) ? bg.to : '#eeeeee';
-			return [ 0, 0.25, 0.5, 0.75, 1 ].map( ( o ) =>
-				blend( to, from, o )
-			);
+			return GRADIENT_STOPS.map( ( stop ) => blend( to, from, stop ) );
 		}
 		case 'image':
 			if ( isHex( bg.overlay ) ) {
@@ -228,12 +239,7 @@ export function sectionSamples( bg: Bg ): string[] {
 
 function sectionBg( props: Record< string, unknown > ): Bg | null {
 	const bg = props.background;
-	return bg &&
-		typeof bg === 'object' &&
-		! Array.isArray( bg ) &&
-		typeof ( bg as Bg ).type === 'string'
-		? ( bg as Bg )
-		: null;
+	return isPlainObject( bg ) && typeof bg.type === 'string' ? bg : null;
 }
 
 /**

@@ -29,12 +29,17 @@ import BlockPanel from './BlockPanel';
 import { useEditor, useEditorDispatch } from '../hooks';
 import { blockErrors } from '../lib/errors';
 import { blockWarnings, type MappedWarning } from '../lib/warnings';
+import { classes } from '../lib/classes';
+import { isScheduled } from '../store/doc';
 import { prefersReducedMotion } from '../lib/motion';
 import { DROP_PREFIX, resolveDrop } from '../lib/dnd';
 
 interface Props {
 	onAdd: ( parentId: string | null ) => void;
 }
+
+/** How far the pointer moves before a press on the handle becomes a drag, so a click still clicks. */
+const DRAG_START_DISTANCE_PX = 4;
 
 function labelOf( block: Block ): string {
 	const def = blockDef( block.type );
@@ -57,11 +62,11 @@ function GroupDropZone( {
 	return (
 		<li
 			ref={ setNodeRef }
-			className={ [
+			className={ classes(
 				'cl-dropzone',
-				active ? 'is-active' : '',
-				isOver ? 'is-over' : '',
-			].join( ' ' ) }
+				active && 'is-active',
+				isOver && 'is-over'
+			) }
 			aria-hidden="true"
 		>
 			{ active
@@ -105,11 +110,6 @@ function Row( {
 	const notes = blockWarnings( warnings, block.id );
 	const panelId = `cl-panel-${ block.id }`;
 	const summary = def.summary( block.props );
-	const scheduled = !! (
-		block.schedule.start ||
-		block.schedule.end ||
-		block.schedule.weekly
-	);
 	const style = {
 		transform: CSS.Translate.toString( transform ),
 		transition: transition ?? undefined,
@@ -119,13 +119,13 @@ function Row( {
 		<li
 			ref={ setNodeRef }
 			style={ style }
-			className={ [
+			className={ classes(
 				'cl-block',
-				selected ? 'is-selected' : '',
-				isDragging ? 'is-dragging' : '',
-				block.visible ? '' : 'is-hidden',
-				mine.length ? 'has-error' : '',
-			].join( ' ' ) }
+				selected && 'is-selected',
+				isDragging && 'is-dragging',
+				! block.visible && 'is-hidden',
+				mine.length > 0 && 'has-error'
+			) }
 			data-block-id={ block.id }
 		>
 			<div className="cl-block__row">
@@ -194,7 +194,7 @@ function Row( {
 							) }
 						</span>
 					) }
-					{ scheduled && (
+					{ isScheduled( block ) && (
 						<span className="cl-badge">
 							{ __( 'Scheduled', 'crazylinks' ) }
 						</span>
@@ -223,10 +223,10 @@ function Row( {
 					<Button
 						size="small"
 						icon="sticky"
-						className={ [
+						className={ classes(
 							'cl-block__pin',
-							block.pinned ? 'is-pinned' : '',
-						].join( ' ' ) }
+							block.pinned && 'is-pinned'
+						) }
 						label={
 							block.pinned
 								? __( 'Unpin', 'crazylinks' )
@@ -283,7 +283,9 @@ export default function BlockList( { onAdd }: Props ) {
 	const { moveBlockTo } = useEditorDispatch();
 	const [ dragging, setDragging ] = useState< string | null >( null );
 	const sensors = useSensors(
-		useSensor( PointerSensor, { activationConstraint: { distance: 4 } } ),
+		useSensor( PointerSensor, {
+			activationConstraint: { distance: DRAG_START_DISTANCE_PX },
+		} ),
 		useSensor( KeyboardSensor, {
 			coordinateGetter: sortableKeyboardCoordinates,
 		} )
